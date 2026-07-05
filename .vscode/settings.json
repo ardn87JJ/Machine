@@ -1,0 +1,6 @@
+{
+  "editor.formatOnSave": true,
+  "eslint.workingDirectories": ["frontend"],
+  "python.analysis.typeCheckingMode": "basic",
+  "python.defaultInterpreterPath": "${workspaceFolder}/backend/.venv/bin/python"
+}
