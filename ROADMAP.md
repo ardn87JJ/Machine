@@ -11,8 +11,9 @@
 - [x] Ajouter les tests de santé.
 - [x] Ajouter la CI.
 - [x] Préparer Supabase.
-- [ ] Valider les commandes depuis un clone propre.
-- [ ] Créer le premier commit et le pousser.
+- [x] Valider les commandes depuis un clone propre.
+- [x] Créer le premier commit local.
+- [ ] Pousser le checkpoint sur GitHub.
 
 Critère de sortie :
 
