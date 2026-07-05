@@ -13,6 +13,7 @@ const queryClient = new QueryClient({
   },
 });
 
+const routerBasename = import.meta.env.BASE_URL.replace(/\/$/, "");
 const root = document.getElementById("root");
 
 if (!root) {
@@ -21,7 +22,7 @@ if (!root) {
 
 createRoot(root).render(
   <StrictMode>
-    <BrowserRouter>
+    <BrowserRouter basename={routerBasename || undefined}>
       <QueryClientProvider client={queryClient}>
         <App />
       </QueryClientProvider>

@@ -53,6 +53,12 @@ Frontend :
 npm --prefix frontend run dev
 ```
 
+Build GitHub Pages :
+
+```bash
+GITHUB_ACTIONS=true GITHUB_REPOSITORY=ardn87JJ/Machine npm --prefix frontend run build
+```
+
 Adresses par défaut :
 
 - frontend : `http://localhost:5173`
