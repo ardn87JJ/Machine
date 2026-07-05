@@ -13,7 +13,7 @@
 - [x] Préparer Supabase.
 - [x] Valider les commandes depuis un clone propre.
 - [x] Créer le premier commit local.
-- [ ] Pousser le checkpoint sur GitHub.
+- [x] Pousser le checkpoint sur GitHub.
 
 Critère de sortie :
 
