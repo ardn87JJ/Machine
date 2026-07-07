@@ -73,13 +73,17 @@ serveur manque.
 
 ## Worker
 
-Le worker sera ajouté pendant la phase 1. Il réservera des tâches dans PostgreSQL avec :
+Le worker Scout initial traite une tâche à la fois avec :
 
 - clé d’idempotence ;
 - verrou expirant ;
 - heartbeat ;
 - nombre maximal de tentatives ;
 - erreurs structurées.
+
+La commande `python -m app.workers.scout` réserve la prochaine tâche `scout.scan`,
+marque le scan en cours, puis échoue explicitement si `YOUTUBE_API_KEY` manque. Le
+collecteur YouTube réel et le stockage vidéo/chaîne restent à ajouter.
 
 Redis, Celery, LangGraph et CrewAI ne font pas partie de la fondation.
 

@@ -24,11 +24,12 @@ Critère de sortie :
 - [ ] Authentification minimale.
 - [x] Créer un scan à un mot-clé.
 - [x] Créer la tâche correspondante.
+- [x] Réserver et traiter une tâche Scout côté worker.
 - [ ] Exécuter un appel YouTube côté worker.
 - [ ] Stocker une vidéo et une chaîne.
 - [x] Afficher le scan dans le frontend.
 - [ ] Afficher le résultat collecté dans le frontend.
-- [ ] Afficher une erreur réelle sans fallback simulé.
+- [x] Afficher une erreur réelle sans fallback simulé.
 
 ## Phase 2 — Scout exploitable
 

@@ -20,6 +20,8 @@ Le format suit les principes de [Keep a Changelog](https://keepachangelog.com/fr
 - table Supabase `scans` pour les demandes Scout ;
 - routes backend `/api/v1/scout/scans` pour créer et lister les scans ;
 - création d’une tâche `scout.scan` lors de la création d’un scan ;
+- worker Scout minimal capable de réserver une tâche `scout.scan` ;
+- persistance des erreurs worker dans `jobs`, `scans` et `job_events` ;
 - panneau frontend Scout pour saisir un mot-clé et afficher les scans récents ;
 - erreurs API structurées côté frontend.
 

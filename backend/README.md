@@ -14,6 +14,12 @@ uv sync
 uv run fastapi dev app/main.py
 ```
 
+Worker Scout, une tâche à la fois :
+
+```bash
+uv run python -m app.workers.scout
+```
+
 ## Vérification
 
 ```bash

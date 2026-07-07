@@ -21,9 +21,10 @@ Phase 1 — première tranche verticale Scout :
 - tests et CI ;
 - préparation Supabase ;
 - création et liste de scans Scout stockés côté Supabase ;
-- création d’une tâche serveur associée à chaque scan.
+- création d’une tâche serveur associée à chaque scan ;
+- worker Scout minimal pour réserver une tâche et persister une erreur réelle.
 
-Le worker YouTube et l’affichage des résultats collectés ne sont pas encore intégrés.
+L’appel YouTube et l’affichage des résultats collectés ne sont pas encore intégrés.
 
 ## Prérequis
 
