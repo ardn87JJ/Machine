@@ -117,7 +117,7 @@ describe("App", () => {
     expect(await screen.findByText("API opérationnelle · test")).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "mini drama ia" })).toBeInTheDocument();
     expect(
-      await screen.findByText("I Made a Netflix-Level Drama Series in 24 HOURS Using ONLY AI!"),
-    ).toBeInTheDocument();
+      await screen.findAllByText("I Made a Netflix-Level Drama Series in 24 HOURS Using ONLY AI!"),
+    ).toHaveLength(2);
   });
 });

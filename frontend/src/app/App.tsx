@@ -17,6 +17,49 @@ const principles = [
   "Aucun fallback simulé silencieux",
 ];
 
+const verifiedVideos = [
+  {
+    rank: 1,
+    videoId: "L48-pHflCnk",
+    title: "I Made a Netflix-Level Drama Series in 24 HOURS Using ONLY AI!",
+    channelTitle: "AI Money Maniac",
+    viewCount: 19863,
+    thumbnailUrl: "https://i.ytimg.com/vi/L48-pHflCnk/maxresdefault.jpg",
+  },
+  {
+    rank: 2,
+    videoId: "ZXoLeZqhaWI",
+    title: "Contratada para salvar a su hijo, no imaginó que su jefe frío era el hombre de aquella noche.#movie",
+    channelTitle: "Mini drama de IA",
+    viewCount: 67960,
+    thumbnailUrl: "https://i.ytimg.com/vi/ZXoLeZqhaWI/maxresdefault.jpg",
+  },
+  {
+    rank: 3,
+    videoId: "EZoU1JYB-n4",
+    title: "D’un doigt, elle arrête la voiture d’un PDG et lui sauve la vie… il tombe amoureux aussitôt !",
+    channelTitle: "L-Mini Drama",
+    viewCount: 27274,
+    thumbnailUrl: "https://i.ytimg.com/vi/EZoU1JYB-n4/maxresdefault.jpg",
+  },
+  {
+    rank: 4,
+    videoId: "2_pGuvUbNUc",
+    title: "Mon Visage Volé par l'IA : Ma Revanche en Direct | Mini-Drama Chinois#MiniDrama #DramaChinois",
+    channelTitle: "Dramas IA",
+    viewCount: 6,
+    thumbnailUrl: "https://i.ytimg.com/vi/2_pGuvUbNUc/maxresdefault.jpg",
+  },
+  {
+    rank: 5,
+    videoId: "QGUS4TPNn3c",
+    title: "Bloquée à la banque pendant son retrait,l ne sait pas qu’elle est reine de la mafia,un pied le calme",
+    channelTitle: "MiniDrama FR",
+    viewCount: 133347,
+    thumbnailUrl: "https://i.ytimg.com/vi/QGUS4TPNn3c/maxresdefault.jpg",
+  },
+];
+
 function ApiStatus() {
   const statusQuery = useQuery({
     queryKey: ["system-status"],
@@ -237,6 +280,48 @@ function ScoutPanel() {
   );
 }
 
+function VerifiedSnapshot() {
+  return (
+    <section aria-labelledby="verified-snapshot">
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">Collecte vérifiée</p>
+          <h2 id="verified-snapshot">Résultat réel du scan “mini drama ia”</h2>
+        </div>
+        <span className="phase">Supabase + YouTube</span>
+      </div>
+
+      <div className="snapshot">
+        <p>
+          Aperçu statique issu du scan réel `ee79c511-d1cf-4385-94a6-d19057d6deda`,
+          collecté via le worker YouTube. Ce bloc n’est pas une simulation et reste
+          visible même si l’API locale n’est pas accessible depuis GitHub Pages.
+        </p>
+        <div className="video-results">
+          {verifiedVideos.map((video) => (
+            <a
+              className="video-result"
+              href={`https://www.youtube.com/watch?v=${video.videoId}`}
+              key={video.videoId}
+              rel="noreferrer"
+              target="_blank"
+            >
+              <img alt="" src={video.thumbnailUrl} />
+              <span className="video-result__body">
+                <span className="video-result__rank">#{video.rank}</span>
+                <span className="video-result__title">{video.title}</span>
+                <span className="video-result__meta">
+                  {video.channelTitle} · {formatMetric(video.viewCount)} vues
+                </span>
+              </span>
+            </a>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function App() {
   return (
     <main className="shell">
@@ -264,6 +349,8 @@ export function App() {
       </section>
 
       <ScoutPanel />
+
+      <VerifiedSnapshot />
 
       <section aria-labelledby="principles">
         <div className="section-heading">
