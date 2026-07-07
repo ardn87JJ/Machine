@@ -31,6 +31,13 @@ Le format suit les principes de [Keep a Changelog](https://keepachangelog.com/fr
 - roadmap réalignée sur Scout Core, scoring business, opportunités et plans d’action.
 - note de décision `0001-v4-lessons` pour cadrer ce qui doit être repris ou corrigé
   depuis IA Agent Tool V4.
+- cockpit Machine visible avec navigation Scout, Analyste et Producteur ;
+- console Scout Core avec mode réel / démonstration, `START SCAN`, `SCAN 10`, `SCAN 50`
+  et statut `WORKING...` ;
+- route backend `/api/v1/scout/worker/run-once` pour déclencher le worker sans exposer
+  la clé YouTube au frontend ;
+- première console Analyste avec scores business heuristiques et détection de signaux ;
+- première console Producteur avec plan d’attaque issu de l’opportunité détectée.
 
 ### Décidé
 

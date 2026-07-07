@@ -33,11 +33,11 @@ Critère de sortie :
 
 ## Phase 2 — Scout exploitable
 
-- [ ] Remplacer l’aperçu statique par le chemin réel dans le cockpit.
-- [ ] Ajouter un sélecteur explicite réel / démonstration si un mode demo est gardé.
-- [ ] Créer un écran Scout Core orienté action.
-- [ ] Ajouter boutons `start`, `stop`, scan par lot et état `WORKING...`.
-- [ ] Recherches par lots.
+- [x] Remplacer l’aperçu statique par le chemin réel dans le cockpit.
+- [x] Ajouter un sélecteur explicite réel / démonstration si un mode demo est gardé.
+- [x] Créer un écran Scout Core orienté action.
+- [x] Ajouter boutons `start`, `stop`, scan par lot et état `WORKING...`.
+- [x] Recherches par lots.
 - [ ] Expansion contrôlée des mots-clés.
 - [ ] Génération aléatoire limitée de mots-clés.
 - [ ] Estimation et suivi du quota.
@@ -48,13 +48,14 @@ Critère de sortie :
 - [ ] Annulation coopérative.
 - [ ] Reprise après incident.
 - [ ] Historique des scans.
-- [ ] Première synthèse business du scan : niches, formats, concurrents, signaux.
-- [ ] Détection de concurrents faibles.
-- [ ] Détection de quality gaps.
+- [x] Première synthèse business du scan : niches, formats, concurrents, signaux.
+- [x] Détection de concurrents faibles.
+- [x] Détection de quality gaps.
 
 ## Phase 3 — Analyste V1
 
 - [ ] Remplacer tout échange Scout -> Analyste fondé sur `localStorage`.
+- [x] Afficher une première console Analyste avec scores business heuristiques.
 - [ ] Score de demande.
 - [ ] Score de monétisation.
 - [ ] Score d’accessibilité.

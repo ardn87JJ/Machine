@@ -4,12 +4,14 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 import httpx
+from pytest import MonkeyPatch
 
 from app.api.dependencies import get_scan_repository, get_youtube_repository
 from app.core.http_errors import ConfigurationError
 from app.main import app
 from app.repositories.scans import CreateScanInput
 from app.repositories.youtube import ScanVideoRecord
+from app.workers.scout import ScoutWorkerResult
 
 
 @dataclass(slots=True)
@@ -196,4 +198,26 @@ def test_list_scan_videos() -> None:
                 "thumbnail_url": "https://img.youtube.com/vi/video-1/hqdefault.jpg",
             }
         ]
+    }
+
+
+def test_run_scout_worker_once(monkeypatch: MonkeyPatch) -> None:
+    async def fake_run_once() -> ScoutWorkerResult:
+        return ScoutWorkerResult(
+            status="completed",
+            job_id=UUID("11111111-1111-1111-1111-111111111111"),
+            scan_id=UUID("22222222-2222-2222-2222-222222222222"),
+        )
+
+    monkeypatch.setattr("app.api.routes.scout.scout_worker_run_once", fake_run_once)
+
+    response = asyncio.run(post("/api/v1/scout/worker/run-once", {}))
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "completed",
+        "job_id": "11111111-1111-1111-1111-111111111111",
+        "scan_id": "22222222-2222-2222-2222-222222222222",
+        "error_code": None,
+        "error_message": None,
     }

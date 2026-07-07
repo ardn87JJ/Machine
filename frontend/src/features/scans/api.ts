@@ -44,6 +44,14 @@ interface ListScanVideosResponse {
   videos: ScanVideoSummary[];
 }
 
+interface RunScoutWorkerResponse {
+  status: "no_job" | "completed" | "failed";
+  job_id: string | null;
+  scan_id: string | null;
+  error_code: string | null;
+  error_message: string | null;
+}
+
 export function listScans() {
   return getJson<ListScansResponse>("/api/v1/scout/scans");
 }
@@ -56,4 +64,11 @@ export function createScan(keyword: string) {
 
 export function listScanVideos(scanId: string) {
   return getJson<ListScanVideosResponse>(`/api/v1/scout/scans/${scanId}/videos`);
+}
+
+export function runScoutWorkerOnce() {
+  return postJson<Record<string, never>, RunScoutWorkerResponse>(
+    "/api/v1/scout/worker/run-once",
+    {},
+  );
 }

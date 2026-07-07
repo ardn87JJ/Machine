@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
 
@@ -24,7 +24,7 @@ describe("App", () => {
     vi.unstubAllGlobals();
   });
 
-  it("affiche le périmètre fondateur et les scans", async () => {
+  it("affiche le cockpit agents et les résultats connectés", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockImplementation((input: RequestInfo | URL) => {
@@ -109,15 +109,25 @@ describe("App", () => {
 
     renderApp();
 
-    expect(
-      screen.getByRole("heading", {
-        name: "Scout → Analyste → Décision humaine",
-      }),
-    ).toBeInTheDocument();
-    expect(await screen.findByText("API opérationnelle · test")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "GO MONEY MODE" })).toBeInTheDocument();
+    expect(await screen.findByText("API réelle · test")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "START SCAN" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "SCAN 10" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "SCAN 50" })).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "mini drama ia" })).toBeInTheDocument();
     expect(
-      await screen.findAllByText("I Made a Netflix-Level Drama Series in 24 HOURS Using ONLY AI!"),
-    ).toHaveLength(2);
+      await screen.findByText("I Made a Netflix-Level Drama Series in 24 HOURS Using ONLY AI!"),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Analystescoring" }));
+
+    expect(screen.getByRole("heading", { name: "Scoring business" })).toBeInTheDocument();
+    expect(screen.getByText("money_score")).toBeInTheDocument();
+    expect(screen.getByText("weak_competitor_score")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Producteurpréparation" }));
+
+    expect(screen.getByRole("heading", { name: "Plan d’attaque" })).toBeInTheDocument();
+    expect(screen.getByText("5 épisodes courts en 7 jours")).toBeInTheDocument();
   });
 });
