@@ -1,5 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { type FormEvent, useState } from "react";
+import { createScan, listScans, type ScanSummary } from "../features/scans/api";
 import { getSystemStatus } from "../features/system/api";
+import { ApiError } from "../lib/api";
 import "./app.css";
 
 const principles = [
@@ -36,6 +39,132 @@ function ApiStatus() {
   );
 }
 
+function getErrorMessage(error: unknown) {
+  if (error instanceof ApiError) {
+    return error.message;
+  }
+
+  return "Une erreur inconnue est survenue.";
+}
+
+function formatScanDate(value: string) {
+  return new Intl.DateTimeFormat("fr-FR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
+function ScanStatusBadge({ status }: { status: ScanSummary["status"] }) {
+  const labelByStatus: Record<ScanSummary["status"], string> = {
+    queued: "En file",
+    running: "En cours",
+    cancel_requested: "Arrêt demandé",
+    cancelled: "Annulé",
+    completed: "Terminé",
+    failed: "Échec",
+  };
+
+  return <span className={`status status--${status}`}>{labelByStatus[status]}</span>;
+}
+
+function ScoutPanel() {
+  const queryClient = useQueryClient();
+  const [keyword, setKeyword] = useState("");
+
+  const scansQuery = useQuery({
+    queryKey: ["scout-scans"],
+    queryFn: listScans,
+    retry: false,
+    refetchInterval: 30_000,
+  });
+
+  const createScanMutation = useMutation({
+    mutationFn: createScan,
+    onSuccess: async () => {
+      setKeyword("");
+      await queryClient.invalidateQueries({ queryKey: ["scout-scans"] });
+    },
+  });
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const normalizedKeyword = keyword.trim().replace(/\s+/g, " ");
+
+    if (normalizedKeyword.length < 2 || createScanMutation.isPending) {
+      return;
+    }
+
+    createScanMutation.mutate(normalizedKeyword);
+  }
+
+  return (
+    <section aria-labelledby="scout-runtime">
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">Scout V1</p>
+          <h2 id="scout-runtime">Premier scan réel</h2>
+        </div>
+        <span className="phase">Phase 1</span>
+      </div>
+
+      <form className="scan-form" onSubmit={handleSubmit}>
+        <label className="scan-form__field">
+          <span>Mot-clé</span>
+          <input
+            name="keyword"
+            type="text"
+            placeholder="Ex. mini drama ia"
+            value={keyword}
+            onChange={(event) => setKeyword(event.target.value)}
+            minLength={2}
+            maxLength={120}
+          />
+        </label>
+        <button
+          className="scan-form__submit"
+          type="submit"
+          disabled={keyword.trim().length < 2 || createScanMutation.isPending}
+        >
+          {createScanMutation.isPending ? "Création..." : "Créer un scan"}
+        </button>
+      </form>
+
+      {createScanMutation.isError ? (
+        <p className="panel-error">{getErrorMessage(createScanMutation.error)}</p>
+      ) : null}
+
+      {scansQuery.isPending ? <p className="panel-empty">Chargement des scans...</p> : null}
+      {scansQuery.isError ? (
+        <p className="panel-error">{getErrorMessage(scansQuery.error)}</p>
+      ) : null}
+      {scansQuery.data && scansQuery.data.scans.length === 0 ? (
+        <p className="panel-empty">Aucun scan enregistré pour le moment.</p>
+      ) : null}
+      {scansQuery.data && scansQuery.data.scans.length > 0 ? (
+        <div className="scan-list">
+          {scansQuery.data.scans.map((scan) => (
+            <article className="scan-card" key={scan.id}>
+              <div className="scan-card__header">
+                <div>
+                  <p className="eyebrow">YouTube</p>
+                  <h3>{scan.keyword}</h3>
+                </div>
+                <ScanStatusBadge status={scan.status} />
+              </div>
+              <p className="scan-card__meta">Créé le {formatScanDate(scan.created_at)}</p>
+              {scan.error_message ? (
+                <p className="scan-card__error">{scan.error_message}</p>
+              ) : (
+                <p className="scan-card__meta">Aucune erreur remontée.</p>
+              )}
+            </article>
+          ))}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 export function App() {
   return (
     <main className="shell">
@@ -61,6 +190,8 @@ export function App() {
           jusqu’à validation de la qualité des opportunités.
         </p>
       </section>
+
+      <ScoutPanel />
 
       <section aria-labelledby="principles">
         <div className="section-heading">

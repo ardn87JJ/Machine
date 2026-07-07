@@ -12,16 +12,18 @@ Le périmètre complet et les décisions normatives sont définis dans [PROJECT_
 
 ## État actuel
 
-Phase 0 — fondation du nouveau projet :
+Phase 1 — première tranche verticale Scout :
 
 - dépôt indépendant ;
 - documentation d’architecture ;
 - frontend React/TypeScript minimal ;
 - backend FastAPI minimal ;
 - tests et CI ;
-- préparation Supabase.
+- préparation Supabase ;
+- création et liste de scans Scout stockés côté Supabase ;
+- création d’une tâche serveur associée à chaque scan.
 
-Aucune logique Scout ou donnée simulée n’est encore intégrée.
+Le worker YouTube et l’affichage des résultats collectés ne sont pas encore intégrés.
 
 ## Prérequis
 

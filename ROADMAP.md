@@ -22,11 +22,12 @@ Critère de sortie :
 ## Phase 1 — Tranche verticale réelle
 
 - [ ] Authentification minimale.
-- [ ] Créer un scan à un mot-clé.
-- [ ] Créer la tâche correspondante.
+- [x] Créer un scan à un mot-clé.
+- [x] Créer la tâche correspondante.
 - [ ] Exécuter un appel YouTube côté worker.
 - [ ] Stocker une vidéo et une chaîne.
-- [ ] Afficher le résultat dans le frontend.
+- [x] Afficher le scan dans le frontend.
+- [ ] Afficher le résultat collecté dans le frontend.
 - [ ] Afficher une erreur réelle sans fallback simulé.
 
 ## Phase 2 — Scout exploitable

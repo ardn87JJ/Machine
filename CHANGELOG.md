@@ -16,7 +16,12 @@ Le format suit les principes de [Keep a Changelog](https://keepachangelog.com/fr
 - squelette FastAPI ;
 - tests de santé frontend et backend ;
 - workflow CI ;
-- structure Supabase initiale.
+- structure Supabase initiale ;
+- table Supabase `scans` pour les demandes Scout ;
+- routes backend `/api/v1/scout/scans` pour créer et lister les scans ;
+- création d’une tâche `scout.scan` lors de la création d’un scan ;
+- panneau frontend Scout pour saisir un mot-clé et afficher les scans récents ;
+- erreurs API structurées côté frontend.
 
 ### Décidé
 

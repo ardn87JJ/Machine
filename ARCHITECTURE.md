@@ -2,7 +2,7 @@
 
 ## Statut
 
-Architecture initiale de la phase 0. Ce document décrit uniquement ce qui est retenu pour la nouvelle application.
+Architecture de la fondation et du début de phase 1. Ce document décrit uniquement ce qui est retenu pour la nouvelle application.
 
 ## Principes
 
@@ -61,12 +61,15 @@ Responsabilités :
 - scoring ;
 - accès aux fournisseurs externes.
 
-Le point d’entrée initial expose uniquement :
+Les points d’entrée exposés sont :
 
 - `/health`
 - `/api/v1/status`
+- `/api/v1/scout/scans`
 
-Les routes métier seront ajoutées par tranches verticales.
+La route Scout crée un scan, normalise le mot-clé et enregistre une tâche `scout.scan`
+associée. Elle dépend de Supabase et retourne une erreur structurée si la configuration
+serveur manque.
 
 ## Worker
 
@@ -82,7 +85,9 @@ Redis, Celery, LangGraph et CrewAI ne font pas partie de la fondation.
 
 ## Données
 
-Supabase/PostgreSQL sera la source de vérité. La première migration pose les types et tables techniques minimales. Les tables Scout seront ajoutées avec leur fonctionnalité pour éviter un schéma spéculatif.
+Supabase/PostgreSQL sera la source de vérité. La première migration pose les types et
+tables techniques minimales. La table `scans` conserve les demandes Scout explicites et
+référence indirectement la file `jobs` via les tâches `scout.scan`.
 
 ## Configuration
 

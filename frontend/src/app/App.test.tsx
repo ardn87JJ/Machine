@@ -24,23 +24,56 @@ describe("App", () => {
     vi.unstubAllGlobals();
   });
 
-  it("affiche le périmètre fondateur", async () => {
+  it("affiche le périmètre fondateur et les scans", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(
-        new Response(
-          JSON.stringify({
-            name: "IA Agent Tool API",
-            environment: "test",
-            status: "ok",
-            version: "0.1.0",
-          }),
-          {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
-          },
-        ),
-      ),
+      vi.fn().mockImplementation((input: RequestInfo | URL) => {
+        const url = String(input);
+
+        if (url.endsWith("/api/v1/status")) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                name: "IA Agent Tool API",
+                environment: "test",
+                status: "ok",
+                version: "0.1.0",
+              }),
+              {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+              },
+            ),
+          );
+        }
+
+        if (url.endsWith("/api/v1/scout/scans")) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                scans: [
+                  {
+                    id: "11111111-1111-1111-1111-111111111111",
+                    platform: "youtube",
+                    keyword: "mini drama ia",
+                    status: "queued",
+                    error_code: null,
+                    error_message: null,
+                    created_at: "2026-07-05T08:00:00Z",
+                    updated_at: "2026-07-05T08:00:00Z",
+                  },
+                ],
+              }),
+              {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+              },
+            ),
+          );
+        }
+
+        return Promise.reject(new Error(`Unhandled fetch for ${url}`));
+      }),
     );
 
     renderApp();
@@ -51,5 +84,6 @@ describe("App", () => {
       }),
     ).toBeInTheDocument();
     expect(await screen.findByText("API opérationnelle · test")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "mini drama ia" })).toBeInTheDocument();
   });
 });
