@@ -56,6 +56,7 @@ Critère de sortie :
 
 - [ ] Remplacer tout échange Scout -> Analyste fondé sur `localStorage`.
 - [x] Afficher une première console Analyste avec scores business heuristiques.
+- [x] Exposer une première analyse backend versionnée d’un scan.
 - [ ] Score de demande.
 - [ ] Score de monétisation.
 - [ ] Score d’accessibilité.

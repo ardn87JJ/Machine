@@ -32,6 +32,27 @@ export interface ScanVideoSummary {
   thumbnail_url: string | null;
 }
 
+export interface BusinessScores {
+  money_score: number;
+  attack_score: number;
+  speed_cash_score: number;
+  quality_gap_score: number;
+  weak_competitor_score: number;
+  upload_pressure_score: number;
+  ecosystem_score: number;
+  confidence: number;
+}
+
+export interface ScanAnalysis {
+  model_version: string;
+  opportunity_title: string;
+  verdict: "GO" | "WATCH" | "SKIP";
+  scores: BusinessScores;
+  summary: string;
+  evidence_video_ids: string[];
+  competitor_channels: string[];
+}
+
 interface ListScansResponse {
   scans: ScanSummary[];
 }
@@ -64,6 +85,10 @@ export function createScan(keyword: string) {
 
 export function listScanVideos(scanId: string) {
   return getJson<ListScanVideosResponse>(`/api/v1/scout/scans/${scanId}/videos`);
+}
+
+export function getScanAnalysis(scanId: string) {
+  return getJson<ScanAnalysis>(`/api/v1/scout/scans/${scanId}/analysis`);
 }
 
 export function runScoutWorkerOnce() {

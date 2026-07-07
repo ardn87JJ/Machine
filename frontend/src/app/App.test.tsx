@@ -103,6 +103,39 @@ describe("App", () => {
           );
         }
 
+        if (
+          url.endsWith(
+            "/api/v1/scout/scans/11111111-1111-1111-1111-111111111111/analysis",
+          )
+        ) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                model_version: "business-heuristic-v0.1",
+                opportunity_title: "Mini-drama IA vertical court",
+                verdict: "GO",
+                scores: {
+                  money_score: 82,
+                  attack_score: 71,
+                  speed_cash_score: 68,
+                  quality_gap_score: 77,
+                  weak_competitor_score: 74,
+                  upload_pressure_score: 63,
+                  ecosystem_score: 69,
+                  confidence: 72,
+                },
+                summary: "19863 vues moyennes sur 1 vidéos, 1 chaînes observées, 1 quality gaps.",
+                evidence_video_ids: ["L48-pHflCnk"],
+                competitor_channels: ["AI Creator"],
+              }),
+              {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+              },
+            ),
+          );
+        }
+
         return Promise.reject(new Error(`Unhandled fetch for ${url}`));
       }),
     );
@@ -122,6 +155,7 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "Analystescoring" }));
 
     expect(screen.getByRole("heading", { name: "Scoring business" })).toBeInTheDocument();
+    expect(await screen.findByText("business-heuristic-v0.1")).toBeInTheDocument();
     expect(screen.getByText("money_score")).toBeInTheDocument();
     expect(screen.getByText("weak_competitor_score")).toBeInTheDocument();
 

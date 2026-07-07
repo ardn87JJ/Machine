@@ -201,6 +201,25 @@ def test_list_scan_videos() -> None:
     }
 
 
+def test_read_scan_analysis() -> None:
+    app.dependency_overrides[get_youtube_repository] = lambda: StubYouTubeRepository()
+
+    response = asyncio.run(
+        get("/api/v1/scout/scans/11111111-1111-1111-1111-111111111111/analysis"),
+    )
+
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["model_version"] == "business-heuristic-v0.1"
+    assert payload["opportunity_title"] == "Mini-drama IA vertical court"
+    assert payload["verdict"] in ["GO", "WATCH", "SKIP"]
+    assert payload["scores"]["money_score"] > 0
+    assert payload["evidence_video_ids"] == ["video-1"]
+    assert payload["competitor_channels"] == ["Demo channel"]
+
+
 def test_run_scout_worker_once(monkeypatch: MonkeyPatch) -> None:
     async def fake_run_once() -> ScoutWorkerResult:
         return ScoutWorkerResult(

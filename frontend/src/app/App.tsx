@@ -2,9 +2,11 @@ import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/rea
 import { type FormEvent, useMemo, useState } from "react";
 import {
   createScan,
+  getScanAnalysis,
   listScans,
   listScanVideos,
   runScoutWorkerOnce,
+  type ScanAnalysis,
   type ScanSummary,
   type ScanVideoSummary,
 } from "../features/scans/api";
@@ -161,6 +163,21 @@ function buildOpportunity(videos: ScanVideoSummary[]): Opportunity {
     uploadPressureScore,
     confidence,
     reason: `${formatMetric(Math.round(averageViews))} vues moyennes sur ${videos.length} vidéos, ${channelCount} chaînes observées, plusieurs concurrents à faible volume.`,
+  };
+}
+
+function opportunityFromAnalysis(analysis: ScanAnalysis): Opportunity {
+  return {
+    title: analysis.opportunity_title,
+    verdict: analysis.verdict,
+    moneyScore: analysis.scores.money_score,
+    attackScore: analysis.scores.attack_score,
+    speedCashScore: analysis.scores.speed_cash_score,
+    qualityGapScore: analysis.scores.quality_gap_score,
+    weakCompetitorScore: analysis.scores.weak_competitor_score,
+    uploadPressureScore: analysis.scores.upload_pressure_score,
+    confidence: analysis.scores.confidence,
+    reason: analysis.summary,
   };
 }
 
@@ -453,9 +470,18 @@ function ScoutConsole({
   );
 }
 
-function AnalystConsole({ videos }: { videos: ScanVideoSummary[] }) {
-  const opportunity = useMemo(() => buildOpportunity(videos), [videos]);
-  const topChannels = Array.from(new Set(videos.map((video) => video.channel_title || video.channel_id))).slice(0, 5);
+function AnalystConsole({
+  analysis,
+  videos,
+}: {
+  analysis: ScanAnalysis | undefined;
+  videos: ScanVideoSummary[];
+}) {
+  const fallbackOpportunity = useMemo(() => buildOpportunity(videos), [videos]);
+  const opportunity = analysis ? opportunityFromAnalysis(analysis) : fallbackOpportunity;
+  const topChannels = analysis?.competitor_channels.length
+    ? analysis.competitor_channels.slice(0, 5)
+    : Array.from(new Set(videos.map((video) => video.channel_title || video.channel_id))).slice(0, 5);
   const weakVideos = videos.filter((video) => (video.view_count ?? 0) < 30_000);
 
   return (
@@ -475,6 +501,9 @@ function AnalystConsole({ videos }: { videos: ScanVideoSummary[] }) {
           <p className="eyebrow">Opportunité détectée</p>
           <h3>{opportunity.title}</h3>
           <p>{opportunity.reason}</p>
+          <small className="model-version">
+            {analysis ? analysis.model_version : "frontend-preview-v0"}
+          </small>
           <div className="score-grid">
             <ScoreBar label="money_score" value={opportunity.moneyScore} />
             <ScoreBar label="attack_score" value={opportunity.attackScore} />
@@ -506,8 +535,15 @@ function AnalystConsole({ videos }: { videos: ScanVideoSummary[] }) {
   );
 }
 
-function ProducerConsole({ videos }: { videos: ScanVideoSummary[] }) {
-  const opportunity = useMemo(() => buildOpportunity(videos), [videos]);
+function ProducerConsole({
+  analysis,
+  videos,
+}: {
+  analysis: ScanAnalysis | undefined;
+  videos: ScanVideoSummary[];
+}) {
+  const fallbackOpportunity = useMemo(() => buildOpportunity(videos), [videos]);
+  const opportunity = analysis ? opportunityFromAnalysis(analysis) : fallbackOpportunity;
 
   return (
     <section className="cockpit-panel" id="producer">
@@ -582,6 +618,13 @@ export function App() {
 
   const connectedVideos = Array.from(videosByScan.values()).flat();
   const visibleVideos = connectedVideos.length > 0 ? connectedVideos : verifiedSnapshot;
+  const primaryCompletedScan = completedScans[0];
+  const analysisQuery = useQuery({
+    queryKey: ["scan-analysis", primaryCompletedScan?.id],
+    queryFn: () => getScanAnalysis(primaryCompletedScan?.id ?? ""),
+    enabled: Boolean(primaryCompletedScan),
+    retry: false,
+  });
 
   return (
     <main className="shell">
@@ -616,8 +659,12 @@ export function App() {
       {activeStep === "scout" ? (
         <ScoutConsole scans={scans} videosByScan={videosByScan} />
       ) : null}
-      {activeStep === "analyst" ? <AnalystConsole videos={visibleVideos} /> : null}
-      {activeStep === "producer" ? <ProducerConsole videos={visibleVideos} /> : null}
+      {activeStep === "analyst" ? (
+        <AnalystConsole analysis={analysisQuery.data} videos={visibleVideos} />
+      ) : null}
+      {activeStep === "producer" ? (
+        <ProducerConsole analysis={analysisQuery.data} videos={visibleVideos} />
+      ) : null}
     </main>
   );
 }

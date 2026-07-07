@@ -36,6 +36,8 @@ Le format suit les principes de [Keep a Changelog](https://keepachangelog.com/fr
   et statut `WORKING...` ;
 - route backend `/api/v1/scout/worker/run-once` pour déclencher le worker sans exposer
   la clé YouTube au frontend ;
+- route backend `/api/v1/scout/scans/{scan_id}/analysis` pour exposer une première
+  analyse business versionnée ;
 - première console Analyste avec scores business heuristiques et détection de signaux ;
 - première console Producteur avec plan d’attaque issu de l’opportunité détectée.
 

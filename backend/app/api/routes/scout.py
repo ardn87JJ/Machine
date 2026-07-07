@@ -13,6 +13,8 @@ from app.services.scout import (
     CreateScanResponse,
     ListScansResponse,
     ListScanVideosResponse,
+    ScanAnalysisResponse,
+    analyze_scan,
     create_scan,
     list_scan_videos,
     list_scans,
@@ -74,5 +76,16 @@ async def read_scan_videos(
 ) -> ListScanVideosResponse:
     try:
         return await list_scan_videos(scan_id=scan_id, repository=repository)
+    except ConfigurationError as error:
+        raise configuration_http_exception(error) from error
+
+
+@router.get("/scans/{scan_id}/analysis", response_model=ScanAnalysisResponse)
+async def read_scan_analysis(
+    repository: Annotated[YouTubeStorageRepository, Depends(get_youtube_repository)],
+    scan_id: UUID,
+) -> ScanAnalysisResponse:
+    try:
+        return await analyze_scan(scan_id=scan_id, repository=repository)
     except ConfigurationError as error:
         raise configuration_http_exception(error) from error
