@@ -19,12 +19,29 @@ export interface ScanSummary {
   updated_at: string;
 }
 
+export interface ScanVideoSummary {
+  rank: number;
+  video_id: string;
+  title: string;
+  channel_id: string;
+  channel_title: string;
+  view_count: number | null;
+  like_count: number | null;
+  comment_count: number | null;
+  published_at: string | null;
+  thumbnail_url: string | null;
+}
+
 interface ListScansResponse {
   scans: ScanSummary[];
 }
 
 interface CreateScanResponse {
   scan: ScanSummary;
+}
+
+interface ListScanVideosResponse {
+  videos: ScanVideoSummary[];
 }
 
 export function listScans() {
@@ -35,4 +52,8 @@ export function createScan(keyword: string) {
   return postJson<{ keyword: string }, CreateScanResponse>("/api/v1/scout/scans", {
     keyword,
   });
+}
+
+export function listScanVideos(scanId: string) {
+  return getJson<ListScanVideosResponse>(`/api/v1/scout/scans/${scanId}/videos`);
 }

@@ -1,6 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
-import { createScan, listScans, type ScanSummary } from "../features/scans/api";
+import {
+  createScan,
+  listScans,
+  listScanVideos,
+  type ScanSummary,
+} from "../features/scans/api";
 import { getSystemStatus } from "../features/system/api";
 import { ApiError } from "../lib/api";
 import "./app.css";
@@ -54,6 +59,16 @@ function formatScanDate(value: string) {
   }).format(new Date(value));
 }
 
+function formatMetric(value: number | null) {
+  if (value === null) {
+    return "n.c.";
+  }
+
+  return new Intl.NumberFormat("fr-FR", {
+    notation: value >= 100_000 ? "compact" : "standard",
+  }).format(value);
+}
+
 function ScanStatusBadge({ status }: { status: ScanSummary["status"] }) {
   const labelByStatus: Record<ScanSummary["status"], string> = {
     queued: "En file",
@@ -65,6 +80,62 @@ function ScanStatusBadge({ status }: { status: ScanSummary["status"] }) {
   };
 
   return <span className={`status status--${status}`}>{labelByStatus[status]}</span>;
+}
+
+function ScanVideos({ scan }: { scan: ScanSummary }) {
+  const videosQuery = useQuery({
+    queryKey: ["scan-videos", scan.id],
+    queryFn: () => listScanVideos(scan.id),
+    enabled: scan.status === "completed",
+    retry: false,
+  });
+
+  if (scan.status !== "completed") {
+    return null;
+  }
+
+  if (videosQuery.isPending) {
+    return <p className="panel-empty">Chargement des vidéos collectées...</p>;
+  }
+
+  if (videosQuery.isError) {
+    return (
+      <p className="panel-error">
+        {getErrorMessage(videosQuery.error)}
+      </p>
+    );
+  }
+
+  if (videosQuery.data.videos.length === 0) {
+    return <p className="panel-empty">Aucune vidéo collectée pour ce scan.</p>;
+  }
+
+  return (
+    <div className="video-results">
+      {videosQuery.data.videos.map((video) => (
+        <a
+          className="video-result"
+          href={`https://www.youtube.com/watch?v=${video.video_id}`}
+          key={video.video_id}
+          rel="noreferrer"
+          target="_blank"
+        >
+          {video.thumbnail_url ? (
+            <img alt="" src={video.thumbnail_url} />
+          ) : (
+            <span className="video-result__placeholder" />
+          )}
+          <span className="video-result__body">
+            <span className="video-result__rank">#{video.rank}</span>
+            <span className="video-result__title">{video.title}</span>
+            <span className="video-result__meta">
+              {video.channel_title || video.channel_id} · {formatMetric(video.view_count)} vues
+            </span>
+          </span>
+        </a>
+      ))}
+    </div>
+  );
 }
 
 function ScoutPanel() {
@@ -157,6 +228,7 @@ function ScoutPanel() {
               ) : (
                 <p className="scan-card__meta">Aucune erreur remontée.</p>
               )}
+              <ScanVideos scan={scan} />
             </article>
           ))}
         </div>

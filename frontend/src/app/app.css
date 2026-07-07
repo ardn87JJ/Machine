@@ -236,6 +236,62 @@ h2 {
   color: #ffaaa1;
 }
 
+.video-results {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.video-result {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid #25303a;
+  border-radius: 14px;
+  background: #0d131b;
+  color: inherit;
+  text-decoration: none;
+}
+
+.video-result img,
+.video-result__placeholder {
+  width: 112px;
+  aspect-ratio: 16 / 9;
+  border-radius: 10px;
+  background: #1b2430;
+  object-fit: cover;
+}
+
+.video-result__body {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.video-result__rank {
+  color: #6dd9c7;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.video-result__title {
+  overflow: hidden;
+  color: #e8edf4;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.video-result__meta {
+  overflow: hidden;
+  color: #9da8b6;
+  font-size: 0.88rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .principles {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -306,5 +362,14 @@ h2 {
 
   .scan-card__header {
     flex-direction: column;
+  }
+
+  .video-result {
+    grid-template-columns: 1fr;
+  }
+
+  .video-result img,
+  .video-result__placeholder {
+    width: 100%;
   }
 }

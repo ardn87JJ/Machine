@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Protocol
 from uuid import UUID
 
@@ -10,8 +11,25 @@ from app.core.http_errors import ConfigurationError
 from app.services.youtube import YouTubeCollection
 
 
+@dataclass(slots=True)
+class ScanVideoRecord:
+    rank: int
+    video_id: str
+    title: str
+    channel_id: str
+    channel_title: str
+    view_count: int | None
+    like_count: int | None
+    comment_count: int | None
+    published_at: str | None
+    thumbnail_url: str | None
+
+
 class YouTubeStorageRepository(Protocol):
     async def store_scan_collection(self, scan_id: UUID, collection: YouTubeCollection) -> None:
+        ...
+
+    async def list_scan_videos(self, scan_id: UUID) -> list[ScanVideoRecord]:
         ...
 
 
@@ -82,6 +100,28 @@ class SupabaseYouTubeStorageRepository:
                 )
                 link_response.raise_for_status()
 
+    async def list_scan_videos(self, scan_id: UUID) -> list[ScanVideoRecord]:
+        async with self._client() as client:
+            response = await client.get(
+                "/rest/v1/scan_videos",
+                params={
+                    "select": (
+                        "rank,video_id,"
+                        "youtube_videos("
+                        "title,channel_id,view_count,like_count,comment_count,"
+                        "published_at,thumbnail_url,"
+                        "youtube_channels(title)"
+                        ")"
+                    ),
+                    "scan_id": f"eq.{scan_id}",
+                    "order": "rank.asc",
+                },
+            )
+            response.raise_for_status()
+            payload = response.json()
+
+        return [self._to_scan_video_record(item) for item in payload]
+
     def _client(self) -> httpx.AsyncClient:
         url = self._settings.supabase_url
         service_role_key = self._settings.supabase_service_role_key
@@ -110,4 +150,39 @@ class SupabaseYouTubeStorageRepository:
                 "Content-Type": "application/json",
             },
             timeout=20.0,
+        )
+
+    @staticmethod
+    def _to_scan_video_record(item: dict[str, object]) -> ScanVideoRecord:
+        video = item["youtube_videos"]
+
+        if not isinstance(video, dict):
+            raise ValueError("scan_videos payload is missing youtube_videos")
+
+        channel = video.get("youtube_channels", {})
+
+        if not isinstance(channel, dict):
+            channel = {}
+
+        return ScanVideoRecord(
+            rank=int(item["rank"]),
+            video_id=str(item["video_id"]),
+            title=str(video["title"]),
+            channel_id=str(video["channel_id"]),
+            channel_title=str(channel.get("title", "")),
+            view_count=(
+                int(video["view_count"]) if video.get("view_count") is not None else None
+            ),
+            like_count=(
+                int(video["like_count"]) if video.get("like_count") is not None else None
+            ),
+            comment_count=(
+                int(video["comment_count"]) if video.get("comment_count") is not None else None
+            ),
+            published_at=(
+                str(video["published_at"]) if video.get("published_at") is not None else None
+            ),
+            thumbnail_url=(
+                str(video["thumbnail_url"]) if video.get("thumbnail_url") is not None else None
+            ),
         )

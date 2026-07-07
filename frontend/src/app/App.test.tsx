@@ -56,11 +56,42 @@ describe("App", () => {
                     id: "11111111-1111-1111-1111-111111111111",
                     platform: "youtube",
                     keyword: "mini drama ia",
-                    status: "queued",
+                    status: "completed",
                     error_code: null,
                     error_message: null,
                     created_at: "2026-07-05T08:00:00Z",
                     updated_at: "2026-07-05T08:00:00Z",
+                  },
+                ],
+              }),
+              {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+              },
+            ),
+          );
+        }
+
+        if (
+          url.endsWith(
+            "/api/v1/scout/scans/11111111-1111-1111-1111-111111111111/videos",
+          )
+        ) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                videos: [
+                  {
+                    rank: 1,
+                    video_id: "L48-pHflCnk",
+                    title: "I Made a Netflix-Level Drama Series in 24 HOURS Using ONLY AI!",
+                    channel_id: "UCq0ZFvhu1GQvL4r8pM3sGPw",
+                    channel_title: "AI Creator",
+                    view_count: 19863,
+                    like_count: 1200,
+                    comment_count: 45,
+                    published_at: "2026-07-01T12:00:00Z",
+                    thumbnail_url: "https://img.youtube.com/vi/L48-pHflCnk/hqdefault.jpg",
                   },
                 ],
               }),
@@ -85,5 +116,8 @@ describe("App", () => {
     ).toBeInTheDocument();
     expect(await screen.findByText("API opérationnelle · test")).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "mini drama ia" })).toBeInTheDocument();
+    expect(
+      await screen.findByText("I Made a Netflix-Level Drama Series in 24 HOURS Using ONLY AI!"),
+    ).toBeInTheDocument();
   });
 });

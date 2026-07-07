@@ -5,10 +5,11 @@ from uuid import UUID
 
 import httpx
 
-from app.api.dependencies import get_scan_repository
+from app.api.dependencies import get_scan_repository, get_youtube_repository
 from app.core.http_errors import ConfigurationError
 from app.main import app
 from app.repositories.scans import CreateScanInput
+from app.repositories.youtube import ScanVideoRecord
 
 
 @dataclass(slots=True)
@@ -70,6 +71,27 @@ class MisconfiguredScanRepository:
             code="supabase_url_missing",
             message="SUPABASE_URL doit etre configure pour creer ou lire des scans.",
         )
+
+
+class StubYouTubeRepository:
+    async def store_scan_collection(self, scan_id: UUID, collection: object) -> None:
+        raise NotImplementedError
+
+    async def list_scan_videos(self, scan_id: UUID) -> list[ScanVideoRecord]:
+        return [
+            ScanVideoRecord(
+                rank=1,
+                video_id="video-1",
+                title="I Made a Netflix-Level Drama Series in 24 HOURS Using ONLY AI!",
+                channel_id="channel-1",
+                channel_title="Demo channel",
+                view_count=19863,
+                like_count=1200,
+                comment_count=45,
+                published_at="2026-07-01T12:00:00Z",
+                thumbnail_url="https://img.youtube.com/vi/video-1/hqdefault.jpg",
+            )
+        ]
 
 
 async def get(path: str) -> httpx.Response:
@@ -146,4 +168,32 @@ def test_list_scans_returns_structured_configuration_error() -> None:
             "code": "supabase_url_missing",
             "message": "SUPABASE_URL doit etre configure pour creer ou lire des scans.",
         }
+    }
+
+
+def test_list_scan_videos() -> None:
+    app.dependency_overrides[get_youtube_repository] = lambda: StubYouTubeRepository()
+
+    response = asyncio.run(
+        get("/api/v1/scout/scans/11111111-1111-1111-1111-111111111111/videos"),
+    )
+
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "videos": [
+            {
+                "rank": 1,
+                "video_id": "video-1",
+                "title": "I Made a Netflix-Level Drama Series in 24 HOURS Using ONLY AI!",
+                "channel_id": "channel-1",
+                "channel_title": "Demo channel",
+                "view_count": 19863,
+                "like_count": 1200,
+                "comment_count": 45,
+                "published_at": "2026-07-01T12:00:00Z",
+                "thumbnail_url": "https://img.youtube.com/vi/video-1/hqdefault.jpg",
+            }
+        ]
     }
