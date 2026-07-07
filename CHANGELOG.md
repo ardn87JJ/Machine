@@ -22,6 +22,9 @@ Le format suit les principes de [Keep a Changelog](https://keepachangelog.com/fr
 - création d’une tâche `scout.scan` lors de la création d’un scan ;
 - worker Scout minimal capable de réserver une tâche `scout.scan` ;
 - persistance des erreurs worker dans `jobs`, `scans` et `job_events` ;
+- collecteur YouTube initial basé sur `search.list`, `videos.list` et `channels.list` ;
+- tables Supabase `youtube_channels`, `youtube_videos` et `scan_videos` ;
+- stockage des premiers résultats vidéo et chaîne d’un scan Scout ;
 - panneau frontend Scout pour saisir un mot-clé et afficher les scans récents ;
 - erreurs API structurées côté frontend.
 

@@ -82,8 +82,9 @@ Le worker Scout initial traite une tâche à la fois avec :
 - erreurs structurées.
 
 La commande `python -m app.workers.scout` réserve la prochaine tâche `scout.scan`,
-marque le scan en cours, puis échoue explicitement si `YOUTUBE_API_KEY` manque. Le
-collecteur YouTube réel et le stockage vidéo/chaîne restent à ajouter.
+marque le scan en cours, appelle YouTube avec `search.list`, `videos.list` et
+`channels.list`, puis stocke les premières vidéos et chaînes normalisées. Elle échoue
+explicitement si `YOUTUBE_API_KEY` manque ou si YouTube retourne une erreur.
 
 Redis, Celery, LangGraph et CrewAI ne font pas partie de la fondation.
 
@@ -91,7 +92,9 @@ Redis, Celery, LangGraph et CrewAI ne font pas partie de la fondation.
 
 Supabase/PostgreSQL sera la source de vérité. La première migration pose les types et
 tables techniques minimales. La table `scans` conserve les demandes Scout explicites et
-référence indirectement la file `jobs` via les tâches `scout.scan`.
+référence indirectement la file `jobs` via les tâches `scout.scan`. Les tables
+`youtube_channels`, `youtube_videos` et `scan_videos` conservent les premiers faits
+collectés depuis YouTube.
 
 ## Configuration
 

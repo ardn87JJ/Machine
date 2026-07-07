@@ -35,6 +35,14 @@ class JobRepository(Protocol):
     ) -> None:
         ...
 
+    async def complete_scout_scan(
+        self,
+        job_id: UUID,
+        scan_id: UUID,
+        video_count: int,
+    ) -> None:
+        ...
+
 
 class SupabaseJobRepository:
     def __init__(self, settings: Settings) -> None:
@@ -138,6 +146,52 @@ class SupabaseJobRepository:
                 level="error",
                 message=error_message,
                 details={"error_code": error_code},
+            )
+
+    async def complete_scout_scan(
+        self,
+        job_id: UUID,
+        scan_id: UUID,
+        video_count: int,
+    ) -> None:
+        now = datetime.now(UTC)
+
+        async with self._client() as client:
+            job_response = await client.patch(
+                "/rest/v1/jobs",
+                params={"id": f"eq.{job_id}"},
+                json={
+                    "status": "completed",
+                    "finished_at": now.isoformat(),
+                    "locked_by": None,
+                    "locked_until": None,
+                    "heartbeat_at": now.isoformat(),
+                    "error_code": None,
+                    "error_message": None,
+                    "updated_at": now.isoformat(),
+                },
+            )
+            job_response.raise_for_status()
+
+            scan_response = await client.patch(
+                "/rest/v1/scans",
+                params={"id": f"eq.{scan_id}"},
+                json={
+                    "status": "completed",
+                    "error_code": None,
+                    "error_message": None,
+                    "updated_at": now.isoformat(),
+                },
+            )
+            scan_response.raise_for_status()
+
+            await self._write_event(
+                client=client,
+                job_id=job_id,
+                event_type="worker.completed",
+                level="info",
+                message="La tache Scout a ete terminee.",
+                details={"video_count": video_count},
             )
 
     def _client(self) -> httpx.AsyncClient:

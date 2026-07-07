@@ -20,6 +20,8 @@ Worker Scout, une tâche à la fois :
 uv run python -m app.workers.scout
 ```
 
+Le worker nécessite `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` et `YOUTUBE_API_KEY`.
+
 ## Vérification
 
 ```bash

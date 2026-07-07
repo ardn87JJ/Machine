@@ -25,8 +25,8 @@ Critère de sortie :
 - [x] Créer un scan à un mot-clé.
 - [x] Créer la tâche correspondante.
 - [x] Réserver et traiter une tâche Scout côté worker.
-- [ ] Exécuter un appel YouTube côté worker.
-- [ ] Stocker une vidéo et une chaîne.
+- [x] Exécuter un appel YouTube côté worker.
+- [x] Stocker une vidéo et une chaîne.
 - [x] Afficher le scan dans le frontend.
 - [ ] Afficher le résultat collecté dans le frontend.
 - [x] Afficher une erreur réelle sans fallback simulé.
