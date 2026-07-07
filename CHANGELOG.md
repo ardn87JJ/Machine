@@ -27,6 +27,8 @@ Le format suit les principes de [Keep a Changelog](https://keepachangelog.com/fr
 - stockage des premiers résultats vidéo et chaîne d’un scan Scout ;
 - panneau frontend Scout pour saisir un mot-clé et afficher les scans récents ;
 - erreurs API structurées côté frontend.
+- brief produit `PRODUCT_BRIEF.md` pour cadrer IA Agent Tool comme machine business IA ;
+- roadmap réalignée sur Scout Core, scoring business, opportunités et plans d’action.
 
 ### Décidé
 
@@ -36,3 +38,5 @@ Le format suit les principes de [Keep a Changelog](https://keepachangelog.com/fr
 - les secrets fournisseurs restent côté serveur ;
 - les scores seront déterministes et versionnés ;
 - aucun fallback réel vers des données simulées.
+- l’interface doit évoluer vers un centre de commande `GO MONEY MODE`, pas rester une
+  simple liste de résultats YouTube.

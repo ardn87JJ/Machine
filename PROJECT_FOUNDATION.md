@@ -35,6 +35,10 @@ Toute modification de ce document doit être volontaire, expliquée et inscrite 
 
 IA Agent Tool est un backoffice d’aide à la décision destiné à détecter des opportunités de contenus monétisables à partir de données réelles issues de plateformes sociales.
 
+Le cadrage opérationnel court est documenté dans [PRODUCT_BRIEF.md](./PRODUCT_BRIEF.md).
+Ce brief précise la philosophie “machine business IA”, la logique `GO MONEY MODE`,
+les agents Scout / Analyste / Producteur et les scores business à faire émerger.
+
 La première version exploitable se concentre exclusivement sur YouTube et sur deux responsabilités :
 
 - **Scout** collecte, normalise et conserve les signaux de marché ;
@@ -535,6 +539,22 @@ Exemples de facteurs :
 - potentiel de répétition.
 
 Cette dimension nécessite des paramètres propres à l’utilisateur. Elle ne peut pas être déduite uniquement de YouTube.
+
+Ces quatre dimensions sont la base explicable du modèle, mais l’interface Analyste doit
+les traduire en scores business plus directement actionnables, notamment :
+
+- `money_score` ;
+- `attack_score` ;
+- `moat_score` ;
+- `speed_cash_score` ;
+- `quality_gap_score` ;
+- `weak_competitor_score` ;
+- `intent_clarity_score` ;
+- `upload_pressure_score` ;
+- `ecosystem_score`.
+
+Ces scores ne doivent pas devenir des décorations. Chacun doit relier des preuves
+observées, calculées ou estimées à une décision exploitable.
 
 ### 11.4 Score global initial
 

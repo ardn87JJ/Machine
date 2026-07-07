@@ -1,6 +1,7 @@
 # IA Agent Tool
 
-Backoffice d’aide à la décision pour détecter et analyser des opportunités de contenu à partir de données YouTube réelles.
+Backoffice IA business pour détecter, scorer et préparer l’exploitation
+d’opportunités de contenu monétisables à partir de données réelles.
 
 La V1 se limite à :
 
@@ -8,7 +9,9 @@ La V1 se limite à :
 Scout → Analyste → Décision humaine
 ```
 
-Le périmètre complet et les décisions normatives sont définis dans [PROJECT_FOUNDATION.md](./PROJECT_FOUNDATION.md).
+Le cadrage produit opérationnel est défini dans [PRODUCT_BRIEF.md](./PRODUCT_BRIEF.md).
+Le périmètre normatif de reconstruction est défini dans
+[PROJECT_FOUNDATION.md](./PROJECT_FOUNDATION.md).
 
 ## État actuel
 
@@ -23,9 +26,11 @@ Phase 1 — première tranche verticale Scout :
 - création et liste de scans Scout stockés côté Supabase ;
 - création d’une tâche serveur associée à chaque scan ;
 - worker Scout pour réserver une tâche, appeler YouTube et stocker les premiers
-  résultats vidéo/chaîne.
+  résultats vidéo/chaîne ;
+- aperçu visible d’une collecte réelle YouTube.
 
-L’affichage des résultats collectés dans le frontend n’est pas encore intégré.
+La prochaine priorité n’est pas une liste de vidéos plus jolie, mais un écran Scout
+business : signaux de niche, concurrents faibles, opportunités et premiers scores.
 
 ## Prérequis
 
@@ -84,6 +89,7 @@ uv run --directory backend pytest
 ## Documents d’autorité
 
 - [PROJECT_FOUNDATION.md](./PROJECT_FOUNDATION.md) : produit, périmètre et règles fondatrices ;
+- [PRODUCT_BRIEF.md](./PRODUCT_BRIEF.md) : intention business, agents et GO MONEY MODE ;
 - [ARCHITECTURE.md](./ARCHITECTURE.md) : architecture réellement implémentée ;
 - [ROADMAP.md](./ROADMAP.md) : ordre de livraison ;
 - [CHANGELOG.md](./CHANGELOG.md) : changements significatifs ;

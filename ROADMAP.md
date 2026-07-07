@@ -28,13 +28,16 @@ Critère de sortie :
 - [x] Exécuter un appel YouTube côté worker.
 - [x] Stocker une vidéo et une chaîne.
 - [x] Afficher le scan dans le frontend.
-- [ ] Afficher le résultat collecté dans le frontend.
+- [x] Afficher le résultat collecté dans le frontend.
 - [x] Afficher une erreur réelle sans fallback simulé.
 
 ## Phase 2 — Scout exploitable
 
+- [ ] Créer un écran Scout Core orienté action.
+- [ ] Ajouter boutons `start`, `stop`, scan par lot et état `WORKING...`.
 - [ ] Recherches par lots.
 - [ ] Expansion contrôlée des mots-clés.
+- [ ] Génération aléatoire limitée de mots-clés.
 - [ ] Estimation et suivi du quota.
 - [ ] Cache.
 - [ ] Snapshots.
@@ -43,6 +46,9 @@ Critère de sortie :
 - [ ] Annulation coopérative.
 - [ ] Reprise après incident.
 - [ ] Historique des scans.
+- [ ] Première synthèse business du scan : niches, formats, concurrents, signaux.
+- [ ] Détection de concurrents faibles.
+- [ ] Détection de quality gaps.
 
 ## Phase 3 — Analyste V1
 
@@ -50,10 +56,20 @@ Critère de sortie :
 - [ ] Score de monétisation.
 - [ ] Score d’accessibilité.
 - [ ] Score de faisabilité.
+- [ ] `money_score`.
+- [ ] `attack_score`.
+- [ ] `speed_cash_score`.
+- [ ] `quality_gap_score`.
+- [ ] `weak_competitor_score`.
+- [ ] `upload_pressure_score`.
+- [ ] `ecosystem_score`.
 - [ ] Niveau de confiance séparé.
 - [ ] Versionnement du scoring.
 - [ ] Preuves associées.
 - [ ] Classement des opportunités.
+- [ ] Table `opportunities`.
+- [ ] Table `competitor_data`.
+- [ ] Table `execution_plans`.
 - [ ] Jeux de données de référence.
 
 ## Phase 4 — Décisions
@@ -62,14 +78,26 @@ Critère de sortie :
 - [ ] Historique append-only.
 - [ ] Premier plan de test.
 - [ ] Comparaison d’opportunités.
+- [ ] Daily logs et apprentissages.
 
-## Hors V1
+## Producteur futur
 
-- Producteur ;
+- [ ] Concepts de contenu.
+- [ ] Scripts.
+- [ ] Hooks.
+- [ ] Titres et descriptions.
+- [ ] Prompts image / voix.
+- [ ] Plan de montage.
+
+## Plateformes futures
+
+- [ ] TikTok.
+- [ ] Instagram Reels.
+
+## Hors V1 immédiate
+
 - Publisher ;
-- Feedback automatisé ;
-- Optimizer ;
-- TikTok ;
-- Instagram ;
+- feedback automatisé ;
+- Optimizer complet ;
 - publication automatique ;
-- orchestration multi-agent.
+- orchestration multi-agent en chemin critique.

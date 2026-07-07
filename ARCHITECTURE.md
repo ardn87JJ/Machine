@@ -8,9 +8,10 @@ Architecture de la fondation et du début de phase 1. Ce document décrit unique
 
 - une source de vérité distante ;
 - un backend pour les secrets et règles métier ;
-- un seul service par responsabilité ;
+- un seul service par responsabilité agent : Scout, Analyste, puis Producteur ;
 - tâches asynchrones idempotentes ;
 - scores déterministes, explicables et versionnés ;
+- scoring business orienté opportunité, argent, vitesse et avantage concurrentiel ;
 - aucune simulation silencieuse ;
 - aucune dépendance à l’ancienne V4.
 
@@ -24,10 +25,20 @@ FastAPI
         │
         ├── PostgreSQL / Supabase
         ├── file de tâches PostgreSQL
-        └── worker Python
+        └── workers Python
                   │
-                  └── YouTube Data API
+                  ├── YouTube Data API
+                  └── LLM optionnel côté serveur
 ```
+
+Architecture fonctionnelle cible :
+
+```text
+Scout -> Analyste -> Producteur
+```
+
+La phase actuelle ne doit pas se limiter à exposer des vidéos. Elle doit faire émerger
+un Scout Core capable d’alimenter l’Analyste en signaux business.
 
 ## Frontend
 
@@ -119,5 +130,8 @@ docs/       décisions et documentation spécialisée
 - stratégie exacte de déploiement du worker ;
 - Realtime ou polling ;
 - politique d’authentification finale.
+- intégration TikTok ;
+- intégration Instagram ;
+- orchestration CrewAI, LangGraph ou n8n hors chemin critique.
 
 Ces choix ne doivent pas bloquer la première tranche verticale.
