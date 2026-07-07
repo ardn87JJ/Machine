@@ -10,6 +10,11 @@ Ce n’est pas une app grand public, un dashboard décoratif ou un générateur 
 C’est un backoffice utilitaire, orienté résultats, argent, vitesse d’exécution et
 apprentissage.
 
+La V4 sert de référence fonctionnelle pour le cockpit agentique, mais Machine doit
+corriger ses faiblesses : simulation branchée par défaut, données métier en
+`localStorage`, Scout réel non visible, orchestration factice. Les leçons détaillées
+sont consignées dans [docs/decisions/0001-v4-lessons.md](./docs/decisions/0001-v4-lessons.md).
+
 ## Principe central
 
 L’application transforme des données réelles du web et des plateformes sociales en
@@ -172,6 +177,10 @@ L’interface doit rester simple :
 Elle doit proposer une barre Machine ou un équivalent clair pour comprendre l’étape du
 workflow. Les actions Scout doivent être directes : start, stop, scan par lot, statut
 `WORKING...`, auto-refresh.
+
+Le cockpit doit afficher le chemin réel par défaut. Un mode démonstration peut exister,
+mais il doit être explicitement signalé et ne jamais remplacer silencieusement les
+données réelles.
 
 ## Priorité actuelle
 

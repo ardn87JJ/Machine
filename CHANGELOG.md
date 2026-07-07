@@ -29,6 +29,8 @@ Le format suit les principes de [Keep a Changelog](https://keepachangelog.com/fr
 - erreurs API structurées côté frontend.
 - brief produit `PRODUCT_BRIEF.md` pour cadrer IA Agent Tool comme machine business IA ;
 - roadmap réalignée sur Scout Core, scoring business, opportunités et plans d’action.
+- note de décision `0001-v4-lessons` pour cadrer ce qui doit être repris ou corrigé
+  depuis IA Agent Tool V4.
 
 ### Décidé
 
@@ -40,3 +42,5 @@ Le format suit les principes de [Keep a Changelog](https://keepachangelog.com/fr
 - aucun fallback réel vers des données simulées.
 - l’interface doit évoluer vers un centre de commande `GO MONEY MODE`, pas rester une
   simple liste de résultats YouTube.
+- la simulation V4 ne doit pas redevenir le chemin principal ; le Scout réel doit être
+  branché, persistant et visible.

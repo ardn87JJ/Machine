@@ -33,6 +33,8 @@ Critère de sortie :
 
 ## Phase 2 — Scout exploitable
 
+- [ ] Remplacer l’aperçu statique par le chemin réel dans le cockpit.
+- [ ] Ajouter un sélecteur explicite réel / démonstration si un mode demo est gardé.
 - [ ] Créer un écran Scout Core orienté action.
 - [ ] Ajouter boutons `start`, `stop`, scan par lot et état `WORKING...`.
 - [ ] Recherches par lots.
@@ -52,6 +54,7 @@ Critère de sortie :
 
 ## Phase 3 — Analyste V1
 
+- [ ] Remplacer tout échange Scout -> Analyste fondé sur `localStorage`.
 - [ ] Score de demande.
 - [ ] Score de monétisation.
 - [ ] Score d’accessibilité.

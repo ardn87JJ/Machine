@@ -94,6 +94,8 @@ uv run --directory backend pytest
 - [ROADMAP.md](./ROADMAP.md) : ordre de livraison ;
 - [CHANGELOG.md](./CHANGELOG.md) : changements significatifs ;
 - [CODEX_INSTRUCTIONS.md](./CODEX_INSTRUCTIONS.md) : règles de collaboration et modification.
+- [docs/decisions/0001-v4-lessons.md](./docs/decisions/0001-v4-lessons.md) :
+  leçons à reprendre ou corriger depuis IA Agent Tool V4.
 
 ## Ancienne version
 
