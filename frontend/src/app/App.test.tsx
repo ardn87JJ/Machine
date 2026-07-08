@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
 
@@ -21,6 +21,7 @@ function renderApp() {
 
 describe("App", () => {
   afterEach(() => {
+    cleanup();
     vi.unstubAllGlobals();
   });
 
@@ -149,19 +150,32 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: "SCAN 50" })).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "mini drama ia" })).toBeInTheDocument();
     expect(
-      await screen.findByText("I Made a Netflix-Level Drama Series in 24 HOURS Using ONLY AI!"),
+      await screen.findByText("I Made a Netflix-Level Drama Series in 24 HOURS Using ONLY AI!", {
+        selector: ".video-result__title",
+      }),
     ).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Analystescoring" }));
-
     expect(screen.getByRole("heading", { name: "Scoring business" })).toBeInTheDocument();
     expect(await screen.findByText("business-heuristic-v0.1")).toBeInTheDocument();
     expect(screen.getByText("money_score")).toBeInTheDocument();
     expect(screen.getByText("weak_competitor_score")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Producteurpréparation" }));
-
     expect(screen.getByRole("heading", { name: "Plan d’attaque" })).toBeInTheDocument();
     expect(screen.getByText("5 épisodes courts en 7 jours")).toBeInTheDocument();
+    expect(screen.getByText("Scans visibles")).toBeInTheDocument();
+  });
+
+  it("garde le scan visible en mode local quand l'API n'est pas joignable", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+
+    renderApp();
+
+    expect(await screen.findByText("API indisponible · mode local")).toBeInTheDocument();
+
+    fireEvent.click(screen.getAllByRole("button", { name: "START SCAN" })[0]);
+
+    expect(await screen.findByRole("heading", { name: "mini drama ia" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "mini drama ia · opportunité locale" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("frontend-offline-v0")).toBeInTheDocument();
   });
 });

@@ -90,8 +90,6 @@ const verifiedSnapshot: ScanVideoSummary[] = [
   },
 ];
 
-type MachineStep = "scout" | "analyst" | "producer";
-
 type Opportunity = {
   title: string;
   verdict: "GO" | "WATCH" | "SKIP";
@@ -103,6 +101,12 @@ type Opportunity = {
   uploadPressureScore: number;
   confidence: number;
   reason: string;
+};
+
+type LocalRun = {
+  scan: ScanSummary;
+  videos: ScanVideoSummary[];
+  analysis: ScanAnalysis;
 };
 
 function getErrorMessage(error: unknown) {
@@ -137,7 +141,7 @@ function clampScore(value: number) {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
 
-function buildOpportunity(videos: ScanVideoSummary[]): Opportunity {
+function buildOpportunity(videos: ScanVideoSummary[], focus = "Mini-drama IA vertical court"): Opportunity {
   const totalViews = videos.reduce((total, video) => total + (video.view_count ?? 0), 0);
   const averageViews = videos.length > 0 ? totalViews / videos.length : 0;
   const channelCount = new Set(videos.map((video) => video.channel_id)).size;
@@ -153,7 +157,7 @@ function buildOpportunity(videos: ScanVideoSummary[]): Opportunity {
   const confidence = clampScore(35 + videos.length * 8 + channelCount * 4);
 
   return {
-    title: "Mini-drama IA vertical court",
+    title: focus,
     verdict: moneyScore >= 70 && attackScore >= 65 ? "GO" : "WATCH",
     moneyScore,
     attackScore,
@@ -164,6 +168,64 @@ function buildOpportunity(videos: ScanVideoSummary[]): Opportunity {
     confidence,
     reason: `${formatMetric(Math.round(averageViews))} vues moyennes sur ${videos.length} vidéos, ${channelCount} chaînes observées, plusieurs concurrents à faible volume.`,
   };
+}
+
+function makeSyntheticVideo(keyword: string, index: number, seed: ScanVideoSummary): ScanVideoSummary {
+  return {
+    ...seed,
+    rank: index + 1,
+    video_id: `${seed.video_id}-${keyword}-${index}`,
+    title: `${keyword} — variation ${index + 1}`,
+    channel_id: `${seed.channel_id}-${index}`,
+    channel_title: `${seed.channel_title} ${index + 1}`,
+    view_count: Math.max(1_000, Math.round((seed.view_count ?? 25_000) * (1 + index * 0.18))),
+    like_count: Math.max(0, Math.round((seed.like_count ?? 300) * (1 + index * 0.12))),
+    comment_count: Math.max(0, Math.round((seed.comment_count ?? 20) * (1 + index * 0.1))),
+    published_at: seed.published_at,
+    thumbnail_url: seed.thumbnail_url,
+  };
+}
+
+function buildLocalRun(keyword: string, count: number): LocalRun {
+  const base = verifiedSnapshot.slice(0, Math.max(3, Math.min(count, verifiedSnapshot.length)));
+  const videos = base.map((video, index) => makeSyntheticVideo(keyword, index, video));
+  const opportunity = buildOpportunity(videos, `${keyword} · opportunité locale`);
+  const analysis: ScanAnalysis = {
+    model_version: "frontend-offline-v0",
+    opportunity_title: opportunity.title,
+    verdict: opportunity.verdict,
+    scores: {
+      money_score: opportunity.moneyScore,
+      attack_score: opportunity.attackScore,
+      speed_cash_score: opportunity.speedCashScore,
+      quality_gap_score: opportunity.qualityGapScore,
+      weak_competitor_score: opportunity.weakCompetitorScore,
+      upload_pressure_score: opportunity.uploadPressureScore,
+      ecosystem_score: clampScore((opportunity.moneyScore + opportunity.attackScore + opportunity.qualityGapScore) / 3),
+      confidence: opportunity.confidence,
+    },
+    summary: opportunity.reason,
+    evidence_video_ids: videos.slice(0, 3).map((video) => video.video_id),
+    competitor_channels: Array.from(
+      new Set(videos.map((video) => video.channel_title || video.channel_id)),
+    ).slice(0, 5),
+  };
+
+  const scan: ScanSummary = {
+    id:
+      globalThis.crypto && "randomUUID" in globalThis.crypto
+        ? globalThis.crypto.randomUUID()
+        : `local-scan-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    platform: "youtube",
+    keyword,
+    status: "completed",
+    error_code: null,
+    error_message: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  return { scan, videos, analysis };
 }
 
 function opportunityFromAnalysis(analysis: ScanAnalysis): Opportunity {
@@ -179,59 +241,6 @@ function opportunityFromAnalysis(analysis: ScanAnalysis): Opportunity {
     confidence: analysis.scores.confidence,
     reason: analysis.summary,
   };
-}
-
-function ApiStatus() {
-  const statusQuery = useQuery({
-    queryKey: ["system-status"],
-    queryFn: getSystemStatus,
-    retry: false,
-    refetchInterval: 30_000,
-  });
-
-  if (statusQuery.isPending) {
-    return <span className="status status--pending">API : vérification...</span>;
-  }
-
-  if (statusQuery.isError) {
-    return <span className="status status--error">API locale indisponible</span>;
-  }
-
-  return (
-    <span className="status status--success">
-      API réelle · {statusQuery.data.environment}
-    </span>
-  );
-}
-
-function MachineNav({
-  activeStep,
-  onSelectStep,
-}: {
-  activeStep: MachineStep;
-  onSelectStep: (step: MachineStep) => void;
-}) {
-  const steps: Array<{ id: MachineStep; label: string; meta: string }> = [
-    { id: "scout", label: "Scout", meta: "détection" },
-    { id: "analyst", label: "Analyste", meta: "scoring" },
-    { id: "producer", label: "Producteur", meta: "préparation" },
-  ];
-
-  return (
-    <nav className="machine-nav" aria-label="Machine">
-      {steps.map((step) => (
-        <button
-          className={activeStep === step.id ? "machine-nav__item is-active" : "machine-nav__item"}
-          key={step.id}
-          onClick={() => onSelectStep(step.id)}
-          type="button"
-        >
-          <span>{step.label}</span>
-          <small>{step.meta}</small>
-        </button>
-      ))}
-    </nav>
-  );
 }
 
 function ScoreBar({ label, value }: { label: string; value: number }) {
@@ -287,13 +296,18 @@ function ScanStatusBadge({ status }: { status: ScanSummary["status"] }) {
 function ScoutConsole({
   scans,
   videosByScan,
+  backendOnline,
+  localModeActive,
+  onLocalScan,
 }: {
   scans: ScanSummary[];
   videosByScan: Map<string, ScanVideoSummary[]>;
+  backendOnline: boolean;
+  localModeActive: boolean;
+  onLocalScan: (payload: { count: number; keyword: string }) => void;
 }) {
   const queryClient = useQueryClient();
   const [keyword, setKeyword] = useState("mini drama ia");
-  const [mode, setMode] = useState<"real" | "demo">("real");
 
   const scanMutation = useMutation({
     mutationFn: async ({ count, keyword }: { count: number; keyword: string }) => {
@@ -320,6 +334,7 @@ function ScoutConsole({
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["scout-scans"] });
       await queryClient.invalidateQueries({ queryKey: ["scan-videos"] });
+      await queryClient.invalidateQueries({ queryKey: ["scan-analysis"] });
     },
   });
 
@@ -330,11 +345,21 @@ function ScoutConsole({
       return;
     }
 
+    if (!backendOnline || localModeActive) {
+      onLocalScan({ count: 1, keyword });
+      return;
+    }
+
     scanMutation.mutate({ count: 1, keyword });
   }
 
   function launchBatch(count: number) {
     if (keyword.trim().length < 2 || scanMutation.isPending) {
+      return;
+    }
+
+    if (!backendOnline || localModeActive) {
+      onLocalScan({ count, keyword });
       return;
     }
 
@@ -369,43 +394,19 @@ function ScoutConsole({
             />
           </label>
 
-          <div className="segmented">
-            <button
-              className={mode === "real" ? "is-active" : ""}
-              onClick={() => setMode("real")}
-              type="button"
-            >
-              API réelle
-            </button>
-            <button
-              className={mode === "demo" ? "is-active" : ""}
-              onClick={() => setMode("demo")}
-              type="button"
-            >
-              Démo signalée
-            </button>
-          </div>
-
-          {mode === "demo" ? (
-            <p className="panel-warning">
-              Mode démonstration visible. Les commandes réelles restent désactivées tant
-              que ce mode est sélectionné.
-            </p>
-          ) : null}
-
           <div className="command-actions">
-            <button disabled={mode !== "real" || scanMutation.isPending} type="submit">
+            <button disabled={scanMutation.isPending} type="submit">
               {scanMutation.isPending ? "WORKING..." : "START SCAN"}
             </button>
             <button
-              disabled={mode !== "real" || scanMutation.isPending}
+              disabled={scanMutation.isPending}
               onClick={() => launchBatch(10)}
               type="button"
             >
               SCAN 10
             </button>
             <button
-              disabled={mode !== "real" || scanMutation.isPending}
+              disabled={scanMutation.isPending}
               onClick={() => launchBatch(50)}
               type="button"
             >
@@ -428,12 +429,12 @@ function ScoutConsole({
         </div>
         <div className="runtime-card">
           <span>Quota estimé</span>
-          <strong>{mode === "real" ? "100u+" : "0u"}</strong>
-          <small>estimation minimale par recherche YouTube</small>
+          <strong>{backendOnline ? "100u+" : "0u"}</strong>
+          <small>{backendOnline ? "estimation minimale par recherche YouTube" : "mode local sans coût API"}</small>
         </div>
         <div className="runtime-card">
           <span>Source</span>
-          <strong>{mode === "real" ? "Supabase" : "Démo"}</strong>
+          <strong>{backendOnline ? "Supabase" : "Local"}</strong>
           <small>pas de `localStorage` métier</small>
         </div>
       </div>
@@ -473,9 +474,11 @@ function ScoutConsole({
 function AnalystConsole({
   analysis,
   videos,
+  backendOnline,
 }: {
   analysis: ScanAnalysis | undefined;
   videos: ScanVideoSummary[];
+  backendOnline: boolean;
 }) {
   const fallbackOpportunity = useMemo(() => buildOpportunity(videos), [videos]);
   const opportunity = analysis ? opportunityFromAnalysis(analysis) : fallbackOpportunity;
@@ -502,7 +505,7 @@ function AnalystConsole({
           <h3>{opportunity.title}</h3>
           <p>{opportunity.reason}</p>
           <small className="model-version">
-            {analysis ? analysis.model_version : "frontend-preview-v0"}
+            {analysis ? analysis.model_version : backendOnline ? "frontend-preview-v0" : "frontend-offline-v0"}
           </small>
           <div className="score-grid">
             <ScoreBar label="money_score" value={opportunity.moneyScore} />
@@ -580,17 +583,24 @@ function EmptyState() {
   return (
     <div className="empty-state">
       <p className="eyebrow">Aperçu vérifié</p>
-      <h2>Dernière collecte réelle disponible</h2>
+      <h2>Dernière collecte visible</h2>
       <p>
-        L’API locale n’a pas encore fourni de scan terminé dans cette session. Le cockpit
-        affiche la dernière collecte YouTube vérifiée pour garder une visualisation concrète.
+        Le cockpit affiche la dernière collecte vérifiée pour garder une visualisation concrète
+        même quand le backend n’est pas joignable.
       </p>
     </div>
   );
 }
 
 export function App() {
-  const [activeStep, setActiveStep] = useState<MachineStep>("scout");
+  const [localRuns, setLocalRuns] = useState<LocalRun[]>([]);
+
+  const statusQuery = useQuery({
+    queryKey: ["system-status"],
+    queryFn: getSystemStatus,
+    retry: false,
+    refetchInterval: 30_000,
+  });
 
   const scansQuery = useQuery({
     queryKey: ["scout-scans"],
@@ -599,11 +609,23 @@ export function App() {
     refetchInterval: 30_000,
   });
 
-  const scans = scansQuery.data?.scans ?? [];
-  const completedScans = scans.filter((scan) => scan.status === "completed");
+  const backendOnline = statusQuery.isSuccess;
+  const backendStatusLabel = statusQuery.isPending
+    ? "API : vérification..."
+    : statusQuery.isError
+      ? "API indisponible · mode local"
+      : `API réelle · ${statusQuery.data.environment}`;
+  const backendStatusClass = statusQuery.isPending
+    ? "status status--pending"
+    : statusQuery.isError
+      ? "status status--error"
+      : "status status--success";
+
+  const scans = [...localRuns.map((run) => run.scan), ...(scansQuery.data?.scans ?? [])];
+  const backendCompletedScans = (scansQuery.data?.scans ?? []).filter((scan) => scan.status === "completed");
 
   const videoQueries = useQueries({
-    queries: completedScans.map((scan) => ({
+    queries: backendCompletedScans.map((scan) => ({
       queryKey: ["scan-videos", scan.id],
       queryFn: () => listScanVideos(scan.id),
       retry: false,
@@ -611,20 +633,32 @@ export function App() {
   });
 
   const videosByScan = new Map<string, ScanVideoSummary[]>();
-
-  completedScans.forEach((scan, index) => {
+  backendCompletedScans.forEach((scan, index) => {
     videosByScan.set(scan.id, videoQueries[index]?.data?.videos ?? []);
+  });
+
+  localRuns.forEach((run) => {
+    videosByScan.set(run.scan.id, run.videos);
   });
 
   const connectedVideos = Array.from(videosByScan.values()).flat();
   const visibleVideos = connectedVideos.length > 0 ? connectedVideos : verifiedSnapshot;
-  const primaryCompletedScan = completedScans[0];
+  const primaryCompletedScan = backendCompletedScans[0] ?? localRuns[0]?.scan;
   const analysisQuery = useQuery({
     queryKey: ["scan-analysis", primaryCompletedScan?.id],
     queryFn: () => getScanAnalysis(primaryCompletedScan?.id ?? ""),
     enabled: Boolean(primaryCompletedScan),
     retry: false,
   });
+
+  const visibleAnalysis = localRuns[0]?.analysis ?? analysisQuery.data;
+
+  function runLocalScan({ count, keyword }: { count: number; keyword: string }) {
+    const batchSize = count === 1 ? 5 : Math.max(5, Math.min(count, 12));
+    const run = buildLocalRun(keyword.trim().replace(/\s+/g, " "), batchSize);
+
+    setLocalRuns((current) => [run, ...current].slice(0, 8));
+  }
 
   return (
     <main className="shell">
@@ -637,10 +671,8 @@ export function App() {
             scorer les opportunités et préparer l’exécution.
           </p>
         </div>
-        <ApiStatus />
+        <span className={backendStatusClass}>{backendStatusLabel}</span>
       </header>
-
-      <MachineNav activeStep={activeStep} onSelectStep={setActiveStep} />
 
       <section className="mission-strip" aria-label="Pipeline cible">
         <span>Scout : radar</span>
@@ -650,21 +682,39 @@ export function App() {
 
       {scansQuery.isError ? (
         <div className="panel-error panel-error--wide">
-          {getErrorMessage(scansQuery.error)} Le cockpit reste visible avec l’aperçu vérifié.
+          {getErrorMessage(scansQuery.error)} Le cockpit garde le mode local et l’aperçu vérifié.
         </div>
       ) : null}
 
       {visibleVideos === verifiedSnapshot && <EmptyState />}
 
-      {activeStep === "scout" ? (
-        <ScoutConsole scans={scans} videosByScan={videosByScan} />
-      ) : null}
-      {activeStep === "analyst" ? (
-        <AnalystConsole analysis={analysisQuery.data} videos={visibleVideos} />
-      ) : null}
-      {activeStep === "producer" ? (
-        <ProducerConsole analysis={analysisQuery.data} videos={visibleVideos} />
-      ) : null}
+      <div className="dashboard-summary">
+        <article>
+          <span>Scans visibles</span>
+          <strong>{scans.length}</strong>
+          <small>{localRuns.length > 0 ? "dont exécutions locales" : "connecté au backend si disponible"}</small>
+        </article>
+        <article>
+          <span>Vidéo de tête</span>
+          <strong>{visibleVideos[0]?.channel_title ?? "aucune donnée"}</strong>
+          <small>{visibleVideos[0]?.title ?? "lance un scan pour remplir le cockpit"}</small>
+        </article>
+        <article>
+          <span>Verdict</span>
+          <strong>{visibleAnalysis?.verdict ?? "WATCH"}</strong>
+          <small>{visibleAnalysis?.summary ?? "analyse locale en attente"}</small>
+        </article>
+      </div>
+
+      <ScoutConsole
+        backendOnline={backendOnline}
+        localModeActive={statusQuery.isError}
+        onLocalScan={runLocalScan}
+        scans={scans}
+        videosByScan={videosByScan}
+      />
+      <AnalystConsole analysis={visibleAnalysis} backendOnline={backendOnline} videos={visibleVideos} />
+      <ProducerConsole analysis={visibleAnalysis} videos={visibleVideos} />
     </main>
   );
 }

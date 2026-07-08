@@ -193,6 +193,40 @@ h3 {
   background: #1e2937;
 }
 
+.dashboard-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.dashboard-summary article {
+  display: grid;
+  gap: 8px;
+  padding: 18px;
+  border: 1px solid #253142;
+  border-radius: 14px;
+  background: #101722;
+}
+
+.dashboard-summary article span {
+  color: #8f9baa;
+  font-size: 0.78rem;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.dashboard-summary article strong {
+  color: #edf3fb;
+  font-size: 1.18rem;
+}
+
+.dashboard-summary article small {
+  color: #9aa7b6;
+  line-height: 1.5;
+}
+
 .mission-strip span {
   padding: 14px 16px;
   background: #0d131c;
@@ -476,13 +510,13 @@ h3 {
 
   .control-grid,
   .opportunity-layout,
-  .execution-plan {
+  .execution-plan,
+  .dashboard-summary {
     grid-template-columns: 1fr;
   }
 
   .score-grid,
-  .mission-strip,
-  .machine-nav {
+  .mission-strip {
     grid-template-columns: 1fr;
   }
 }
