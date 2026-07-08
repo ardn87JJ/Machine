@@ -126,7 +126,7 @@ Deno.serve(async (request) => {
     await storeCollection(scan.id, collection);
 
     const videos = toVideoSummaries(collection);
-    const analysis = buildScanAnalysis(videos);
+    const analysis = buildScanAnalysis(keyword, videos);
     await updateScan(scan.id, "completed", null, null);
     await upsertOpportunity(scan.id, keyword, analysis).catch((error) => {
       if (!isMissingOpportunitiesTable(error)) {
@@ -441,7 +441,7 @@ function toVideoSummaries(
     .sort((left, right) => left.rank - right.rank);
 }
 
-function buildScanAnalysis(videos: ScanVideoSummary[]): ScanAnalysis {
+function buildScanAnalysis(keyword: string, videos: ScanVideoSummary[]): ScanAnalysis {
   const totalViews = videos.reduce((total, video) => total + (video.view_count ?? 0), 0);
   const averageViews = videos.length > 0 ? totalViews / videos.length : 0;
   const competitorChannels = [...new Set(videos.map((video) => video.channel_title || video.channel_id))].sort();
@@ -467,14 +467,52 @@ function buildScanAnalysis(videos: ScanVideoSummary[]): ScanAnalysis {
   }
 
   return {
-    model_version: "edge-business-heuristic-v0.1",
-    opportunity_title: "Mini-drama IA vertical court",
+    model_version: "edge-business-heuristic-v0.2",
+    opportunity_title: inferOpportunityTitle(keyword, videos),
     verdict,
     scores,
     summary: `${Math.round(averageViews).toLocaleString("fr-FR")} vues moyennes sur ${videos.length} vidéos, ${competitorChannels.length} chaînes observées, ${lowViewCount} quality gaps.`,
     evidence_video_ids: videos.slice(0, 3).map((video) => video.video_id),
     competitor_channels: competitorChannels,
   };
+}
+
+function inferOpportunityTitle(keyword: string, videos: ScanVideoSummary[]) {
+  const haystack = [keyword, ...videos.map((video) => video.title)].join(" ").toLowerCase();
+
+  if (hasAny(haystack, ["music", "song", "suno", "udio", "ai music", "musique"])) {
+    return "Chaîne musicale IA monétisable";
+  }
+
+  if (hasAny(haystack, ["faceless", "story", "stories", "narration", "reddit", "histoire"])) {
+    return "Chaîne faceless stories automatisable";
+  }
+
+  if (hasAny(haystack, ["drama", "mini drama", "series", "romance", "revenge", "vertical"])) {
+    return "Mini-drama IA vertical court";
+  }
+
+  if (hasAny(haystack, ["business", "money", "finance", "monetization", "cash", "income"])) {
+    return "Shorts business faceless";
+  }
+
+  if (hasAny(haystack, ["reels", "shorts", "tiktok", "viral"])) {
+    return "Format court viral automatisable";
+  }
+
+  return `${toTitleCase(keyword)} · niche contenu automatisable`;
+}
+
+function hasAny(value: string, needles: string[]) {
+  return needles.some((needle) => value.includes(needle));
+}
+
+function toTitleCase(value: string) {
+  return value
+    .split(" ")
+    .filter(Boolean)
+    .map((word) => `${word.slice(0, 1).toUpperCase()}${word.slice(1).toLowerCase()}`)
+    .join(" ");
 }
 
 function clampScore(value: number) {
@@ -487,6 +525,24 @@ function safeLog10(value: number) {
 
 function buildExecutionPlan(keyword: string, analysis: ScanAnalysis) {
   if (analysis.verdict === "GO") {
+    if (analysis.opportunity_title === "Chaîne musicale IA monétisable") {
+      return {
+        angle: "Chaîne musicale IA faceless orientée playlists et émotions",
+        first_test: `Publier 7 morceaux courts autour de ${keyword} avec visuels cohérents`,
+        criteria_go: "Un morceau dépasse le benchmark de vues initial en 72h",
+        notes: "Tester style musical, niche émotionnelle, miniature et boucle Shorts.",
+      };
+    }
+
+    if (analysis.opportunity_title === "Chaîne faceless stories automatisable") {
+      return {
+        angle: "Stories faceless à tension immédiate",
+        first_test: `Produire 5 histoires courtes autour de ${keyword} sur 7 jours`,
+        criteria_go: "Un épisode dépasse le benchmark de vues initial en 48h",
+        notes: "Optimiser hook narratif, payoff rapide et continuité entre épisodes.",
+      };
+    }
+
     return {
       angle: "Série verticale IA sur tension dramatique courte",
       first_test: `Lancer 5 épisodes courts autour de ${keyword} sur 7 jours`,
@@ -497,7 +553,7 @@ function buildExecutionPlan(keyword: string, analysis: ScanAnalysis) {
 
   if (analysis.verdict === "WATCH") {
     return {
-      angle: "Observer et resserrer l'angle éditorial",
+      angle: `Observer et resserrer: ${analysis.opportunity_title}`,
       first_test: `Tester 3 hooks et 2 formulations de ${keyword}`,
       criteria_go: "Le score money et le score attack montent au-dessus de 70",
       notes: "Le marché est intéressant mais la préparation doit être affinée.",

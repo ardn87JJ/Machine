@@ -229,9 +229,9 @@ describe("App", () => {
                       id: "55555555-5555-5555-5555-555555555555",
                       scan_id: "55555555-5555-5555-5555-555555555551",
                       keyword: "persisted edge niche",
-                      title: "Mini-drama IA vertical court",
+                      title: "Chaîne faceless stories automatisable",
                       verdict: "WATCH",
-                      model_version: "edge-business-heuristic-v0.1",
+                      model_version: "edge-business-heuristic-v0.2",
                       summary: "50000 vues moyennes sur 1 vidéos, 1 chaînes observées, 1 quality gaps.",
                       scores: {
                         money_score: 90,
@@ -246,7 +246,7 @@ describe("App", () => {
                       evidence_video_ids: ["persisted-video-1"],
                       competitor_channels: ["Persisted Creator"],
                       execution_plan: {
-                        angle: "Observer et resserrer l'angle éditorial",
+                        angle: "Observer et resserrer: Chaîne faceless stories automatisable",
                         first_test: "Tester 3 hooks et 2 formulations de persisted edge niche",
                         criteria_go: "Le score money et le score attack montent au-dessus de 70",
                         notes: "Historique Edge persistant.",
@@ -321,8 +321,8 @@ describe("App", () => {
                   },
                 ],
                 analysis: {
-                  model_version: "edge-business-heuristic-v0.1",
-                  opportunity_title: "Mini-drama IA vertical court",
+                  model_version: "edge-business-heuristic-v0.2",
+                  opportunity_title: "Chaîne musicale IA monétisable",
                   verdict: "GO",
                   scores: {
                     money_score: 100,
@@ -341,9 +341,9 @@ describe("App", () => {
                 opportunity: {
                   scan_id: "44444444-4444-4444-4444-444444444444",
                   keyword: "ai music channel",
-                  title: "Mini-drama IA vertical court",
+                  title: "Chaîne musicale IA monétisable",
                   verdict: "GO",
-                  model_version: "edge-business-heuristic-v0.1",
+                  model_version: "edge-business-heuristic-v0.2",
                   summary: "210278 vues moyennes sur 1 vidéos, 1 chaînes observées, 0 quality gaps.",
                   scores: {
                     money_score: 100,
@@ -358,10 +358,10 @@ describe("App", () => {
                   evidence_video_ids: ["edge-video-1"],
                   competitor_channels: ["Edge Creator"],
                   execution_plan: {
-                    angle: "Série verticale IA sur tension dramatique courte",
-                    first_test: "Lancer 5 épisodes courts autour de ai music channel sur 7 jours",
-                    criteria_go: "Un épisode dépasse le benchmark de vues initial en 48h",
-                    notes: "Accélérer le hook.",
+                    angle: "Chaîne musicale IA faceless orientée playlists et émotions",
+                    first_test: "Publier 7 morceaux courts autour de ai music channel avec visuels cohérents",
+                    criteria_go: "Un morceau dépasse le benchmark de vues initial en 72h",
+                    notes: "Tester style musical, niche émotionnelle, miniature et boucle Shorts.",
                   },
                   source: "edge-run-scout",
                 },
@@ -389,8 +389,9 @@ describe("App", () => {
 
     expect(await screen.findByRole("heading", { name: "ai music channel" })).toBeInTheDocument();
     expect(
-      await screen.findByText("edge-business-heuristic-v0.1", { selector: ".model-version" }),
+      await screen.findByText("edge-business-heuristic-v0.2", { selector: ".model-version" }),
     ).toBeInTheDocument();
+    expect(screen.getAllByText("Chaîne musicale IA monétisable").length).toBeGreaterThan(0);
     expect(
       screen.getByText("How To Start an AI Music YouTube Channel", {
         selector: ".video-result__title",
