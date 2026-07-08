@@ -1,5 +1,5 @@
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
-import { type FormEvent, useMemo, useState } from "react";
+import { type FormEvent, useState } from "react";
 import {
   createScan,
   getScanAnalysis,
@@ -109,6 +109,14 @@ type LocalRun = {
   analysis: ScanAnalysis;
 };
 
+type OpportunityRecord = Opportunity & {
+  scanId: string;
+  keyword: string;
+  modelVersion: string;
+  source: "backend" | "local";
+  videos: ScanVideoSummary[];
+};
+
 function getErrorMessage(error: unknown) {
   if (error instanceof ApiError) {
     return error.message;
@@ -189,27 +197,7 @@ function makeSyntheticVideo(keyword: string, index: number, seed: ScanVideoSumma
 function buildLocalRun(keyword: string, count: number): LocalRun {
   const base = verifiedSnapshot.slice(0, Math.max(3, Math.min(count, verifiedSnapshot.length)));
   const videos = base.map((video, index) => makeSyntheticVideo(keyword, index, video));
-  const opportunity = buildOpportunity(videos, `${keyword} · opportunité locale`);
-  const analysis: ScanAnalysis = {
-    model_version: "frontend-offline-v0",
-    opportunity_title: opportunity.title,
-    verdict: opportunity.verdict,
-    scores: {
-      money_score: opportunity.moneyScore,
-      attack_score: opportunity.attackScore,
-      speed_cash_score: opportunity.speedCashScore,
-      quality_gap_score: opportunity.qualityGapScore,
-      weak_competitor_score: opportunity.weakCompetitorScore,
-      upload_pressure_score: opportunity.uploadPressureScore,
-      ecosystem_score: clampScore((opportunity.moneyScore + opportunity.attackScore + opportunity.qualityGapScore) / 3),
-      confidence: opportunity.confidence,
-    },
-    summary: opportunity.reason,
-    evidence_video_ids: videos.slice(0, 3).map((video) => video.video_id),
-    competitor_channels: Array.from(
-      new Set(videos.map((video) => video.channel_title || video.channel_id)),
-    ).slice(0, 5),
-  };
+  const analysis = buildAnalysisFromVideos(videos, `${keyword} · opportunité locale`, "frontend-offline-v0");
 
   const scan: ScanSummary = {
     id:
@@ -228,6 +216,37 @@ function buildLocalRun(keyword: string, count: number): LocalRun {
   return { scan, videos, analysis };
 }
 
+function buildAnalysisFromVideos(
+  videos: ScanVideoSummary[],
+  opportunityTitle = "Mini-drama IA vertical court",
+  modelVersion = "frontend-preview-v0",
+): ScanAnalysis {
+  const opportunity = buildOpportunity(videos, opportunityTitle);
+
+  return {
+    model_version: modelVersion,
+    opportunity_title: opportunity.title,
+    verdict: opportunity.verdict,
+    scores: {
+      money_score: opportunity.moneyScore,
+      attack_score: opportunity.attackScore,
+      speed_cash_score: opportunity.speedCashScore,
+      quality_gap_score: opportunity.qualityGapScore,
+      weak_competitor_score: opportunity.weakCompetitorScore,
+      upload_pressure_score: opportunity.uploadPressureScore,
+      ecosystem_score: clampScore(
+        (opportunity.moneyScore + opportunity.attackScore + opportunity.qualityGapScore) / 3,
+      ),
+      confidence: opportunity.confidence,
+    },
+    summary: opportunity.reason,
+    evidence_video_ids: videos.slice(0, 3).map((video) => video.video_id),
+    competitor_channels: Array.from(
+      new Set(videos.map((video) => video.channel_title || video.channel_id)),
+    ).slice(0, 5),
+  };
+}
+
 function opportunityFromAnalysis(analysis: ScanAnalysis): Opportunity {
   return {
     title: analysis.opportunity_title,
@@ -240,6 +259,29 @@ function opportunityFromAnalysis(analysis: ScanAnalysis): Opportunity {
     uploadPressureScore: analysis.scores.upload_pressure_score,
     confidence: analysis.scores.confidence,
     reason: analysis.summary,
+  };
+}
+
+function buildOpportunityRecord({
+  scan,
+  videos,
+  analysis,
+  source,
+}: {
+  scan: ScanSummary;
+  videos: ScanVideoSummary[];
+  analysis: ScanAnalysis;
+  source: "backend" | "local";
+}): OpportunityRecord {
+  const opportunity = opportunityFromAnalysis(analysis);
+
+  return {
+    ...opportunity,
+    scanId: scan.id,
+    keyword: scan.keyword,
+    modelVersion: analysis.model_version,
+    source,
+    videos,
   };
 }
 
@@ -291,6 +333,85 @@ function ScanStatusBadge({ status }: { status: ScanSummary["status"] }) {
   };
 
   return <span className={`status status--${status}`}>{labelByStatus[status]}</span>;
+}
+
+function OpportunityBadge({ verdict }: { verdict: Opportunity["verdict"] }) {
+  return <span className={`verdict verdict--${verdict.toLowerCase()}`}>{verdict}</span>;
+}
+
+function OpportunityLedger({
+  opportunities,
+  selectedOpportunityId,
+  onSelectOpportunity,
+}: {
+  opportunities: OpportunityRecord[];
+  selectedOpportunityId: string | null;
+  onSelectOpportunity: (id: string) => void;
+}) {
+  return (
+    <section className="cockpit-panel" aria-labelledby="ledger-title">
+      <div className="panel-heading">
+        <div>
+          <p className="eyebrow">Ledger opportunités</p>
+          <h2 id="ledger-title">Classement exploitable</h2>
+        </div>
+        <span className="phase">{opportunities.length} opportunités</span>
+      </div>
+
+      <div className="ledger-grid">
+        <div className="ledger-list">
+          {opportunities.map((opportunity) => {
+            const isSelected = selectedOpportunityId === opportunity.scanId;
+
+            return (
+              <button
+                className={isSelected ? "ledger-item is-selected" : "ledger-item"}
+                key={opportunity.scanId}
+                onClick={() => onSelectOpportunity(opportunity.scanId)}
+                type="button"
+              >
+                <div className="ledger-item__header">
+                  <strong>{opportunity.keyword}</strong>
+                  <OpportunityBadge verdict={opportunity.verdict} />
+                </div>
+                <p>{opportunity.reason}</p>
+                <div className="ledger-item__meta">
+                  <span>{opportunity.modelVersion}</span>
+                  <span>{opportunity.videos.length} vidéos</span>
+                  <span>confiance {opportunity.confidence}/100</span>
+                </div>
+                <div className="ledger-item__scores">
+                  <span>money {opportunity.moneyScore}</span>
+                  <span>attack {opportunity.attackScore}</span>
+                  <span>gap {opportunity.qualityGapScore}</span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        <aside className="execution-card">
+          <p className="eyebrow">File d’exécution</p>
+          <h3>{opportunities[0]?.title ?? "Aucune opportunité"}</h3>
+          <p>{opportunities[0]?.reason ?? "Lance un scan pour alimenter la file."}</p>
+          <div className="execution-card__rows">
+            <div>
+              <span>Priorité</span>
+              <strong>{opportunities[0]?.verdict ?? "WATCH"}</strong>
+            </div>
+            <div>
+              <span>Prochaine action</span>
+              <strong>Hook + script</strong>
+            </div>
+            <div>
+              <span>Bloc actuel</span>
+              <strong>niche / concurrent</strong>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
+  );
 }
 
 function ScoutConsole({
@@ -472,20 +593,16 @@ function ScoutConsole({
 }
 
 function AnalystConsole({
-  analysis,
-  videos,
+  opportunity,
   backendOnline,
 }: {
-  analysis: ScanAnalysis | undefined;
-  videos: ScanVideoSummary[];
+  opportunity: OpportunityRecord | undefined;
   backendOnline: boolean;
 }) {
-  const fallbackOpportunity = useMemo(() => buildOpportunity(videos), [videos]);
-  const opportunity = analysis ? opportunityFromAnalysis(analysis) : fallbackOpportunity;
-  const topChannels = analysis?.competitor_channels.length
-    ? analysis.competitor_channels.slice(0, 5)
-    : Array.from(new Set(videos.map((video) => video.channel_title || video.channel_id))).slice(0, 5);
-  const weakVideos = videos.filter((video) => (video.view_count ?? 0) < 30_000);
+  const topChannels = Array.from(
+    new Set(opportunity?.videos.map((video) => video.channel_title || video.channel_id) ?? []),
+  ).slice(0, 5);
+  const weakVideos = opportunity?.videos.filter((video) => (video.view_count ?? 0) < 30_000) ?? [];
 
   return (
     <section className="cockpit-panel" id="analyst">
@@ -494,33 +611,31 @@ function AnalystConsole({
           <p className="eyebrow">Agent Analyste</p>
           <h2>Scoring business</h2>
         </div>
-        <span className={`verdict verdict--${opportunity.verdict.toLowerCase()}`}>
-          {opportunity.verdict}
-        </span>
+        <OpportunityBadge verdict={opportunity?.verdict ?? "WATCH"} />
       </div>
 
       <div className="opportunity-layout">
         <article className="opportunity-card">
           <p className="eyebrow">Opportunité détectée</p>
-          <h3>{opportunity.title}</h3>
-          <p>{opportunity.reason}</p>
+          <h3>{opportunity?.title ?? "Mini-drama IA vertical court"}</h3>
+          <p>{opportunity?.reason ?? "Lance un scan pour faire émerger une opportunité exploitable."}</p>
           <small className="model-version">
-            {analysis ? analysis.model_version : backendOnline ? "frontend-preview-v0" : "frontend-offline-v0"}
+            {opportunity?.modelVersion ?? (backendOnline ? "frontend-preview-v0" : "frontend-offline-v0")}
           </small>
           <div className="score-grid">
-            <ScoreBar label="money_score" value={opportunity.moneyScore} />
-            <ScoreBar label="attack_score" value={opportunity.attackScore} />
-            <ScoreBar label="speed_cash_score" value={opportunity.speedCashScore} />
-            <ScoreBar label="quality_gap_score" value={opportunity.qualityGapScore} />
-            <ScoreBar label="weak_competitor_score" value={opportunity.weakCompetitorScore} />
-            <ScoreBar label="upload_pressure_score" value={opportunity.uploadPressureScore} />
+            <ScoreBar label="money_score" value={opportunity?.moneyScore ?? 0} />
+            <ScoreBar label="attack_score" value={opportunity?.attackScore ?? 0} />
+            <ScoreBar label="speed_cash_score" value={opportunity?.speedCashScore ?? 0} />
+            <ScoreBar label="quality_gap_score" value={opportunity?.qualityGapScore ?? 0} />
+            <ScoreBar label="weak_competitor_score" value={opportunity?.weakCompetitorScore ?? 0} />
+            <ScoreBar label="upload_pressure_score" value={opportunity?.uploadPressureScore ?? 0} />
           </div>
         </article>
 
         <aside className="signal-stack">
           <div>
             <span>Confiance</span>
-            <strong>{opportunity.confidence}/100</strong>
+            <strong>{opportunity?.confidence ?? 0}/100</strong>
           </div>
           <div>
             <span>Concurrents observés</span>
@@ -539,15 +654,10 @@ function AnalystConsole({
 }
 
 function ProducerConsole({
-  analysis,
-  videos,
+  opportunity,
 }: {
-  analysis: ScanAnalysis | undefined;
-  videos: ScanVideoSummary[];
+  opportunity: OpportunityRecord | undefined;
 }) {
-  const fallbackOpportunity = useMemo(() => buildOpportunity(videos), [videos]);
-  const opportunity = analysis ? opportunityFromAnalysis(analysis) : fallbackOpportunity;
-
   return (
     <section className="cockpit-panel" id="producer">
       <div className="panel-heading">
@@ -571,7 +681,7 @@ function ProducerConsole({
         </article>
         <article>
           <span>Critère GO</span>
-          <strong>{opportunity.moneyScore >= 70 ? "prioritaire" : "à surveiller"}</strong>
+          <strong>{(opportunity?.moneyScore ?? 0) >= 70 ? "prioritaire" : "à surveiller"}</strong>
           <p>Passer en production si un épisode dépasse le benchmark de vues initial en 48h.</p>
         </article>
       </div>
@@ -594,6 +704,7 @@ function EmptyState() {
 
 export function App() {
   const [localRuns, setLocalRuns] = useState<LocalRun[]>([]);
+  const [selectedOpportunityId, setSelectedOpportunityId] = useState<string | null>(null);
 
   const statusQuery = useQuery({
     queryKey: ["system-status"],
@@ -652,12 +763,50 @@ export function App() {
   });
 
   const visibleAnalysis = localRuns[0]?.analysis ?? analysisQuery.data;
+  const backendAnalysisQueries = useQueries({
+    queries: backendCompletedScans.map((scan) => ({
+      queryKey: ["scan-analysis", scan.id],
+      queryFn: () => getScanAnalysis(scan.id),
+      enabled: Boolean(scan.id),
+      retry: false,
+    })),
+  });
+
+  const opportunityRecords = [
+    ...localRuns.map((run) =>
+      buildOpportunityRecord({
+        scan: run.scan,
+        videos: run.videos,
+        analysis: run.analysis,
+        source: "local",
+      }),
+    ),
+    ...backendCompletedScans.map((scan, index) => {
+      const videos = videosByScan.get(scan.id) ?? [];
+      const analysis =
+        backendAnalysisQueries[index]?.data ??
+        buildAnalysisFromVideos(videos, `${scan.keyword} · opportunité backend`, "frontend-preview-v0");
+
+      return buildOpportunityRecord({
+        scan,
+        videos,
+        analysis,
+        source: "backend",
+      });
+    }),
+  ];
+
+  const selectedOpportunity =
+    opportunityRecords.find((record) => record.scanId === selectedOpportunityId) ??
+    opportunityRecords[0] ??
+    undefined;
 
   function runLocalScan({ count, keyword }: { count: number; keyword: string }) {
     const batchSize = count === 1 ? 5 : Math.max(5, Math.min(count, 12));
     const run = buildLocalRun(keyword.trim().replace(/\s+/g, " "), batchSize);
 
     setLocalRuns((current) => [run, ...current].slice(0, 8));
+    setSelectedOpportunityId(run.scan.id);
   }
 
   return (
@@ -706,6 +855,12 @@ export function App() {
         </article>
       </div>
 
+      <OpportunityLedger
+        onSelectOpportunity={setSelectedOpportunityId}
+        opportunities={opportunityRecords}
+        selectedOpportunityId={selectedOpportunity?.scanId ?? null}
+      />
+
       <ScoutConsole
         backendOnline={backendOnline}
         localModeActive={statusQuery.isError}
@@ -713,8 +868,8 @@ export function App() {
         scans={scans}
         videosByScan={videosByScan}
       />
-      <AnalystConsole analysis={visibleAnalysis} backendOnline={backendOnline} videos={visibleVideos} />
-      <ProducerConsole analysis={visibleAnalysis} videos={visibleVideos} />
+      <AnalystConsole backendOnline={backendOnline} opportunity={selectedOpportunity} />
+      <ProducerConsole opportunity={selectedOpportunity} />
     </main>
   );
 }

@@ -155,9 +155,12 @@ describe("App", () => {
       }),
     ).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Scoring business" })).toBeInTheDocument();
-    expect(await screen.findByText("business-heuristic-v0.1")).toBeInTheDocument();
+    expect(
+      await screen.findByText("business-heuristic-v0.1", { selector: ".model-version" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("money_score")).toBeInTheDocument();
     expect(screen.getByText("weak_competitor_score")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Classement exploitable" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Plan d’attaque" })).toBeInTheDocument();
     expect(screen.getByText("5 épisodes courts en 7 jours")).toBeInTheDocument();
     expect(screen.getByText("Scans visibles")).toBeInTheDocument();
@@ -174,8 +177,10 @@ describe("App", () => {
 
     expect(await screen.findByRole("heading", { name: "mini drama ia" })).toBeInTheDocument();
     expect(
-      await screen.findByRole("heading", { name: "mini drama ia · opportunité locale" }),
+      screen.getByText("mini drama ia · opportunité locale", { selector: ".execution-card h3" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("frontend-offline-v0")).toBeInTheDocument();
+    expect(
+      screen.getByText("frontend-offline-v0", { selector: ".model-version" }),
+    ).toBeInTheDocument();
   });
 });

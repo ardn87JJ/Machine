@@ -227,6 +227,97 @@ h3 {
   line-height: 1.5;
 }
 
+.ledger-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.6fr);
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.ledger-list {
+  display: grid;
+  gap: 10px;
+}
+
+.ledger-item {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid #253142;
+  border-radius: 14px;
+  background: #101722;
+  color: inherit;
+  text-align: left;
+}
+
+.ledger-item.is-selected {
+  border-color: #1f6f5f;
+  background: #10211f;
+}
+
+.ledger-item__header,
+.ledger-item__meta,
+.ledger-item__scores,
+.execution-card__rows {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ledger-item__header strong,
+.ledger-item__meta span,
+.ledger-item__scores span,
+.execution-card__rows strong {
+  color: #edf3fb;
+}
+
+.ledger-item__header strong {
+  font-size: 1rem;
+}
+
+.ledger-item p,
+.execution-card p {
+  margin: 0;
+  color: #9aa7b6;
+  line-height: 1.55;
+}
+
+.ledger-item__meta span,
+.ledger-item__scores span {
+  font-size: 0.78rem;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.execution-card {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid #253142;
+  border-radius: 14px;
+  background: #101722;
+}
+
+.execution-card__rows {
+  align-items: stretch;
+}
+
+.execution-card__rows div {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.execution-card__rows span {
+  color: #8f9baa;
+  font-size: 0.78rem;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
 .mission-strip span {
   padding: 14px 16px;
   background: #0d131c;
@@ -511,7 +602,8 @@ h3 {
   .control-grid,
   .opportunity-layout,
   .execution-plan,
-  .dashboard-summary {
+  .dashboard-summary,
+  .ledger-grid {
     grid-template-columns: 1fr;
   }
 
