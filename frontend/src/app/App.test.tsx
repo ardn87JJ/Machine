@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
 
@@ -214,156 +214,73 @@ describe("App", () => {
   });
 
   it("lance le Scout Edge quand l'API FastAPI n'est pas joignable", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
-        const url = String(input);
+    const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
 
-        if (url.includes("/functions/v1/run-scout")) {
-          if (init?.method === "GET") {
-            return Promise.resolve(
-              new Response(
-                JSON.stringify({
-                  opportunities: [
-                    {
-                      id: "55555555-5555-5555-5555-555555555555",
-                      scan_id: "55555555-5555-5555-5555-555555555551",
-                      keyword: "persisted edge niche",
-                      title: "Chaîne faceless stories automatisable",
-                      verdict: "WATCH",
-                      model_version: "edge-business-heuristic-v0.2",
-                      summary: "50000 vues moyennes sur 1 vidéos, 1 chaînes observées, 1 quality gaps.",
-                      scores: {
-                        money_score: 90,
-                        attack_score: 80,
-                        speed_cash_score: 60,
-                        quality_gap_score: 70,
-                        weak_competitor_score: 68,
-                        upload_pressure_score: 58,
-                        ecosystem_score: 72,
-                        confidence: 82,
-                      },
-                      evidence_video_ids: ["persisted-video-1"],
-                      competitor_channels: ["Persisted Creator"],
-                      execution_plan: {
-                        angle: "Observer et resserrer: Chaîne faceless stories automatisable",
-                        first_test: "Tester 3 hooks et 2 formulations de persisted edge niche",
-                        criteria_go: "Le score money et le score attack montent au-dessus de 70",
-                        notes: "Historique Edge persistant.",
-                      },
-                      source: "edge-run-scout",
-                      created_at: "2026-07-08T13:20:00Z",
-                      updated_at: "2026-07-08T13:20:10Z",
-                    },
-                  ],
-                  scans: [
-                    {
-                      id: "55555555-5555-5555-5555-555555555551",
-                      platform: "youtube",
-                      keyword: "persisted edge niche",
-                      status: "completed",
-                      error_code: null,
-                      error_message: null,
-                      created_at: "2026-07-08T13:20:00Z",
-                      updated_at: "2026-07-08T13:20:10Z",
-                    },
-                  ],
-                  videos_by_scan: {
-                    "55555555-5555-5555-5555-555555555551": [
-                      {
-                        rank: 1,
-                        video_id: "persisted-video-1",
-                        title: "Persisted Edge Scout Result",
-                        channel_id: "persisted-channel-1",
-                        channel_title: "Persisted Creator",
-                        view_count: 50000,
-                        like_count: 500,
-                        comment_count: 20,
-                        published_at: "2026-07-01T12:00:00Z",
-                        thumbnail_url: "https://img.youtube.com/vi/persisted-video-1/hqdefault.jpg",
-                      },
-                    ],
-                  },
-                }),
-                {
-                  status: 200,
-                  headers: { "Content-Type": "application/json" },
-                },
-              ),
-            );
-          }
-
+      if (url.includes("/functions/v1/run-scout")) {
+        if (init?.method === "GET") {
           return Promise.resolve(
             new Response(
               JSON.stringify({
-                scan: {
-                  id: "44444444-4444-4444-4444-444444444444",
-                  platform: "youtube",
-                  keyword: "ai music channel",
-                  status: "completed",
-                  error_code: null,
-                  error_message: null,
-                  created_at: "2026-07-08T13:30:00Z",
-                  updated_at: "2026-07-08T13:30:10Z",
-                },
-                videos: [
+                opportunities: [
                   {
-                    rank: 1,
-                    video_id: "edge-video-1",
-                    title: "How To Start an AI Music YouTube Channel",
-                    channel_id: "edge-channel-1",
-                    channel_title: "Edge Creator",
-                    view_count: 210278,
-                    like_count: 4200,
-                    comment_count: 310,
-                    published_at: "2026-07-01T12:00:00Z",
-                    thumbnail_url: "https://img.youtube.com/vi/edge-video-1/hqdefault.jpg",
+                    id: "55555555-5555-5555-5555-555555555555",
+                    scan_id: "55555555-5555-5555-5555-555555555551",
+                    keyword: "persisted edge niche",
+                    title: "Chaîne faceless stories automatisable",
+                    verdict: "WATCH",
+                    model_version: "edge-business-heuristic-v0.2",
+                    summary: "50000 vues moyennes sur 1 vidéos, 1 chaînes observées, 1 quality gaps.",
+                    scores: {
+                      money_score: 90,
+                      attack_score: 80,
+                      speed_cash_score: 60,
+                      quality_gap_score: 70,
+                      weak_competitor_score: 68,
+                      upload_pressure_score: 58,
+                      ecosystem_score: 72,
+                      confidence: 82,
+                    },
+                    evidence_video_ids: ["persisted-video-1"],
+                    competitor_channels: ["Persisted Creator"],
+                    execution_plan: {
+                      angle: "Observer et resserrer: Chaîne faceless stories automatisable",
+                      first_test: "Tester 3 hooks et 2 formulations de persisted edge niche",
+                      criteria_go: "Le score money et le score attack montent au-dessus de 70",
+                      notes: "Historique Edge persistant.",
+                    },
+                    source: "edge-run-scout",
+                    created_at: "2026-07-08T13:20:00Z",
+                    updated_at: "2026-07-08T13:20:10Z",
                   },
                 ],
-                analysis: {
-                  model_version: "edge-business-heuristic-v0.2",
-                  opportunity_title: "Chaîne musicale IA monétisable",
-                  verdict: "GO",
-                  scores: {
-                    money_score: 100,
-                    attack_score: 96,
-                    speed_cash_score: 65,
-                    quality_gap_score: 91,
-                    weak_competitor_score: 88,
-                    upload_pressure_score: 67,
-                    ecosystem_score: 73,
-                    confidence: 95,
+                scans: [
+                  {
+                    id: "55555555-5555-5555-5555-555555555551",
+                    platform: "youtube",
+                    keyword: "persisted edge niche",
+                    status: "completed",
+                    error_code: null,
+                    error_message: null,
+                    created_at: "2026-07-08T13:20:00Z",
+                    updated_at: "2026-07-08T13:20:10Z",
                   },
-                  summary: "210278 vues moyennes sur 1 vidéos, 1 chaînes observées, 0 quality gaps.",
-                  evidence_video_ids: ["edge-video-1"],
-                  competitor_channels: ["Edge Creator"],
-                },
-                opportunity: {
-                  scan_id: "44444444-4444-4444-4444-444444444444",
-                  keyword: "ai music channel",
-                  title: "Chaîne musicale IA monétisable",
-                  verdict: "GO",
-                  model_version: "edge-business-heuristic-v0.2",
-                  summary: "210278 vues moyennes sur 1 vidéos, 1 chaînes observées, 0 quality gaps.",
-                  scores: {
-                    money_score: 100,
-                    attack_score: 96,
-                    speed_cash_score: 65,
-                    quality_gap_score: 91,
-                    weak_competitor_score: 88,
-                    upload_pressure_score: 67,
-                    ecosystem_score: 73,
-                    confidence: 95,
-                  },
-                  evidence_video_ids: ["edge-video-1"],
-                  competitor_channels: ["Edge Creator"],
-                  execution_plan: {
-                    angle: "Chaîne musicale IA faceless orientée playlists et émotions",
-                    first_test: "Publier 7 morceaux courts autour de ai music channel avec visuels cohérents",
-                    criteria_go: "Un morceau dépasse le benchmark de vues initial en 72h",
-                    notes: "Tester style musical, niche émotionnelle, miniature et boucle Shorts.",
-                  },
-                  source: "edge-run-scout",
+                ],
+                videos_by_scan: {
+                  "55555555-5555-5555-5555-555555555551": [
+                    {
+                      rank: 1,
+                      video_id: "persisted-video-1",
+                      title: "Persisted Edge Scout Result",
+                      channel_id: "persisted-channel-1",
+                      channel_title: "Persisted Creator",
+                      view_count: 50000,
+                      like_count: 500,
+                      comment_count: 20,
+                      published_at: "2026-07-01T12:00:00Z",
+                      thumbnail_url: "https://img.youtube.com/vi/persisted-video-1/hqdefault.jpg",
+                    },
+                  ],
                 },
               }),
               {
@@ -374,8 +291,97 @@ describe("App", () => {
           );
         }
 
-        return Promise.reject(new Error("offline"));
-      }),
+        const body = JSON.parse(String(init?.body ?? "{}")) as { keyword?: string };
+        const keyword = body.keyword ?? "ai music channel";
+        const scanId = `scan-${keyword.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`;
+
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              scan: {
+                id: scanId,
+                platform: "youtube",
+                keyword,
+                status: "completed",
+                error_code: null,
+                error_message: null,
+                created_at: "2026-07-08T13:30:00Z",
+                updated_at: "2026-07-08T13:30:10Z",
+              },
+              videos: [
+                {
+                  rank: 1,
+                  video_id: "edge-video-1",
+                  title: "How To Start an AI Music YouTube Channel",
+                  channel_id: "edge-channel-1",
+                  channel_title: "Edge Creator",
+                  view_count: 210278,
+                  like_count: 4200,
+                  comment_count: 310,
+                  published_at: "2026-07-01T12:00:00Z",
+                  thumbnail_url: "https://img.youtube.com/vi/edge-video-1/hqdefault.jpg",
+                },
+              ],
+              analysis: {
+                model_version: "edge-business-heuristic-v0.2",
+                opportunity_title: "Chaîne musicale IA monétisable",
+                verdict: "GO",
+                scores: {
+                  money_score: 100,
+                  attack_score: 96,
+                  speed_cash_score: 65,
+                  quality_gap_score: 91,
+                  weak_competitor_score: 88,
+                  upload_pressure_score: 67,
+                  ecosystem_score: 73,
+                  confidence: 95,
+                },
+                summary: "210278 vues moyennes sur 1 vidéos, 1 chaînes observées, 0 quality gaps.",
+                evidence_video_ids: ["edge-video-1"],
+                competitor_channels: ["Edge Creator"],
+              },
+              opportunity: {
+                scan_id: scanId,
+                keyword,
+                title: "Chaîne musicale IA monétisable",
+                verdict: "GO",
+                model_version: "edge-business-heuristic-v0.2",
+                summary: "210278 vues moyennes sur 1 vidéos, 1 chaînes observées, 0 quality gaps.",
+                scores: {
+                  money_score: 100,
+                  attack_score: 96,
+                  speed_cash_score: 65,
+                  quality_gap_score: 91,
+                  weak_competitor_score: 88,
+                  upload_pressure_score: 67,
+                  ecosystem_score: 73,
+                  confidence: 95,
+                },
+                evidence_video_ids: ["edge-video-1"],
+                competitor_channels: ["Edge Creator"],
+                execution_plan: {
+                  angle: "Chaîne musicale IA faceless orientée playlists et émotions",
+                  first_test: `Publier 7 morceaux courts autour de ${keyword} avec visuels cohérents`,
+                  criteria_go: "Un morceau dépasse le benchmark de vues initial en 72h",
+                  notes: "Tester style musical, niche émotionnelle, miniature et boucle Shorts.",
+                },
+                source: "edge-run-scout",
+              },
+            }),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            },
+          ),
+        );
+      }
+
+      return Promise.reject(new Error("offline"));
+    });
+
+    vi.stubGlobal(
+      "fetch",
+      fetchMock,
     );
 
     renderApp();
@@ -397,5 +403,21 @@ describe("App", () => {
         selector: ".video-result__title",
       }),
     ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "SCAN 10" }));
+
+    await waitFor(() => {
+      const postedKeywords = fetchMock.mock.calls
+        .filter(([url, init]) => String(url).includes("/functions/v1/run-scout") && init?.method === "POST")
+        .map(([, init]) => JSON.parse(String(init?.body ?? "{}")).keyword);
+
+      expect(postedKeywords).toHaveLength(11);
+      expect(postedKeywords.slice(1, 4)).toEqual([
+        "ai music channel",
+        "mini drama ia",
+        "ai mini drama shorts",
+      ]);
+      expect(postedKeywords).not.toContain("ai music channel mini drama ia");
+    });
   });
 });

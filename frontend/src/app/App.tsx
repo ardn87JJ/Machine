@@ -31,6 +31,56 @@ const keywordExpansions = [
   "tiktok drama story",
   "vertical series ai",
   "viral story shorts",
+  "ai horror stories",
+  "reddit story shorts",
+  "sleep stories ai",
+  "animated bible stories",
+  "kids bedtime stories ai",
+  "ai motivation shorts",
+  "stoic wisdom shorts",
+  "faceless finance shorts",
+  "side hustle shorts",
+  "luxury lifestyle shorts",
+  "ai history documentary",
+  "true crime ai narration",
+  "celebrity news shorts",
+  "football edits shorts",
+  "nba story shorts",
+  "fitness transformation shorts",
+  "weight loss faceless",
+  "healthy recipes shorts",
+  "keto meal prep shorts",
+  "ai cooking channel",
+  "pet facts shorts",
+  "space facts shorts",
+  "psychology facts shorts",
+  "relationship advice shorts",
+  "language learning shorts",
+  "english vocabulary shorts",
+  "ai travel guide",
+  "city walking shorts",
+  "satisfying ai animation",
+  "asmr generated videos",
+  "lofi ai music",
+  "meditation music ai",
+  "kids songs ai",
+  "country ai music",
+  "latin ai music",
+  "afrobeats ai music",
+  "ai product reviews",
+  "amazon finds shorts",
+  "tech tips shorts",
+  "notion productivity shorts",
+  "excel tutorial shorts",
+  "chatgpt automation shorts",
+  "ai tools news",
+  "cybersecurity shorts",
+  "real estate investing shorts",
+  "crypto explainers shorts",
+  "stock market shorts",
+  "car facts shorts",
+  "movie recap shorts",
+  "anime recap shorts",
 ];
 
 const verifiedSnapshot: ScanVideoSummary[] = [
@@ -155,6 +205,30 @@ function formatDate(value: string | null) {
 
 function clampScore(value: number) {
   return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function buildScoutKeywords(keyword: string, count: number) {
+  const baseKeyword = keyword.trim().replace(/\s+/g, " ");
+
+  if (count === 1) {
+    return [baseKeyword];
+  }
+
+  const seen = new Set<string>();
+
+  return [baseKeyword, ...keywordExpansions]
+    .map((item) => item.trim().replace(/\s+/g, " "))
+    .filter((item) => {
+      const key = item.toLowerCase();
+
+      if (item.length < 2 || seen.has(key)) {
+        return false;
+      }
+
+      seen.add(key);
+      return true;
+    })
+    .slice(0, count);
 }
 
 function buildOpportunity(videos: ScanVideoSummary[], focus = "Mini-drama IA vertical court"): Opportunity {
@@ -502,6 +576,7 @@ function ScoutConsole({
 }) {
   const queryClient = useQueryClient();
   const [keyword, setKeyword] = useState("mini drama ia");
+  const [lastBatchSummary, setLastBatchSummary] = useState<string | null>(null);
   const realScanEnabled = backendOnline && !localModeActive;
   const edgeScanEnabled = !realScanEnabled;
 
@@ -515,11 +590,7 @@ function ScoutConsole({
       keyword: string;
       mode: "backend" | "edge";
     }) => {
-      const baseKeyword = keyword.trim().replace(/\s+/g, " ");
-      const keywords =
-        count === 1
-          ? [baseKeyword]
-          : keywordExpansions.slice(0, count).map((seed) => `${baseKeyword} ${seed}`);
+      const keywords = buildScoutKeywords(keyword, count);
 
       if (mode === "edge") {
         const runs = [];
@@ -528,7 +599,7 @@ function ScoutConsole({
           runs.push(buildEdgeRun(await runEdgeScout(scanKeyword)));
         }
 
-        return { mode, runs };
+        return { mode, runs, keywords };
       }
 
       const scans = [];
@@ -543,12 +614,18 @@ function ScoutConsole({
         workerRuns.push(await runScoutWorkerOnce());
       }
 
-      return { mode, scans, workerRuns, runs: [] };
+      return { mode, scans, workerRuns, runs: [], keywords };
     },
     onSuccess: async (result) => {
       if (result.mode === "edge") {
         result.runs.forEach(onEdgeScan);
       }
+
+      setLastBatchSummary(
+        result.keywords.length > 1
+          ? `Dernier lot: ${result.keywords.length} niches scannées · ${result.keywords.slice(0, 4).join(" · ")}`
+          : `Dernier scan: ${result.keywords[0]}`,
+      );
 
       await queryClient.invalidateQueries({ queryKey: ["scout-scans"] });
       await queryClient.invalidateQueries({ queryKey: ["scan-videos"] });
@@ -645,6 +722,7 @@ function ScoutConsole({
           {scanMutation.isError ? (
             <p className="panel-error">{getErrorMessage(scanMutation.error)}</p>
           ) : null}
+          {lastBatchSummary ? <p className="panel-substatus">{lastBatchSummary}</p> : null}
         </form>
 
         <div className="runtime-card">
@@ -654,12 +732,12 @@ function ScoutConsole({
         </div>
         <div className="runtime-card">
           <span>Quota estimé</span>
-          <strong>{backendOnline ? "100u+" : "0u"}</strong>
-          <small>{backendOnline ? "estimation minimale par recherche YouTube" : "mode local sans coût API"}</small>
+          <strong>{realScanEnabled || edgeScanEnabled ? "102u/scan" : "0u"}</strong>
+          <small>{realScanEnabled || edgeScanEnabled ? "search + videos + channels YouTube" : "mode local sans coût API"}</small>
         </div>
         <div className="runtime-card">
           <span>Source</span>
-          <strong>{backendOnline ? "Supabase" : "Local"}</strong>
+          <strong>{realScanEnabled ? "FastAPI" : edgeScanEnabled ? "Supabase Edge" : "Local"}</strong>
           <small>pas de `localStorage` métier</small>
         </div>
       </div>
