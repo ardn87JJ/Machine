@@ -398,6 +398,7 @@ describe("App", () => {
       await screen.findByText("edge-business-heuristic-v0.2", { selector: ".model-version" }),
     ).toBeInTheDocument();
     expect(screen.getAllByText("Chaîne musicale IA monétisable").length).toBeGreaterThan(0);
+    expect(screen.getByText("ATTAQUER · 91")).toBeInTheDocument();
     expect(
       screen.getByText("How To Start an AI Music YouTube Channel", {
         selector: ".video-result__title",

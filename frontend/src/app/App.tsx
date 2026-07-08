@@ -173,7 +173,12 @@ type OpportunityRecord = Opportunity & {
   source: "backend" | "local";
   videos: ScanVideoSummary[];
   executionPlan: ExecutionPlan;
+  priorityScore: number;
+  decisionLabel: "ATTAQUER" | "TESTER" | "VEILLE";
+  priorityReasons: string[];
 };
+
+type DecisionLabel = OpportunityRecord["decisionLabel"];
 
 function getErrorMessage(error: unknown) {
   if (error instanceof ApiError) {
@@ -257,6 +262,38 @@ function buildOpportunity(videos: ScanVideoSummary[], focus = "Mini-drama IA ver
     uploadPressureScore,
     confidence,
     reason: `${formatMetric(Math.round(averageViews))} vues moyennes sur ${videos.length} vidéos, ${channelCount} chaînes observées, plusieurs concurrents à faible volume.`,
+  };
+}
+
+function buildPriority(opportunity: Opportunity) {
+  const priorityScore = clampScore(
+    opportunity.moneyScore * 0.28 +
+      opportunity.attackScore * 0.22 +
+      opportunity.speedCashScore * 0.16 +
+      opportunity.qualityGapScore * 0.14 +
+      opportunity.weakCompetitorScore * 0.1 +
+      opportunity.confidence * 0.1,
+  );
+  const priorityReasons = [
+    opportunity.moneyScore >= 80 ? "money fort" : null,
+    opportunity.attackScore >= 75 ? "attaque facile" : null,
+    opportunity.speedCashScore >= 70 ? "cash rapide" : null,
+    opportunity.qualityGapScore >= 70 ? "gap qualité" : null,
+    opportunity.weakCompetitorScore >= 70 ? "concurrents faibles" : null,
+    opportunity.confidence >= 80 ? "signal fiable" : null,
+  ].filter((reason): reason is string => Boolean(reason));
+  const decisionLabel: DecisionLabel =
+    opportunity.verdict === "GO" && priorityScore >= 78
+      ? "ATTAQUER"
+      : opportunity.verdict !== "SKIP" && priorityScore >= 62
+        ? "TESTER"
+        : "VEILLE";
+
+  return {
+    priorityScore,
+    decisionLabel,
+    priorityReasons:
+      priorityReasons.length > 0 ? priorityReasons : ["signaux encore insuffisants"],
   };
 }
 
@@ -389,9 +426,11 @@ function buildOpportunityRecord({
   source: "backend" | "local";
 }): OpportunityRecord {
   const opportunity = opportunityFromAnalysis(analysis);
+  const priority = buildPriority(opportunity);
 
   return {
     ...opportunity,
+    ...priority,
     scanId: scan.id,
     keyword: scan.keyword,
     modelVersion: analysis.model_version,
@@ -410,7 +449,8 @@ function buildOpportunityRecordFromSaved(
   opportunity: OpportunitySummary,
   videos: ScanVideoSummary[],
 ): OpportunityRecord {
-  return {
+  const source: OpportunityRecord["source"] = opportunity.source === "local" ? "local" : "backend";
+  const record = {
     title: opportunity.title,
     verdict: opportunity.verdict,
     moneyScore: opportunity.scores.money_score,
@@ -424,10 +464,39 @@ function buildOpportunityRecordFromSaved(
     scanId: opportunity.scan_id,
     keyword: opportunity.keyword,
     modelVersion: opportunity.model_version,
-    source: opportunity.source === "local" ? "local" : "backend",
+    source,
     videos,
     executionPlan: opportunity.execution_plan,
   };
+
+  return {
+    ...record,
+    ...buildPriority(record),
+  };
+}
+
+function rankOpportunities(opportunities: OpportunityRecord[]) {
+  const byScanId = new Map<string, OpportunityRecord>();
+
+  opportunities.forEach((opportunity) => {
+    const existing = byScanId.get(opportunity.scanId);
+
+    if (!existing || opportunity.videos.length >= existing.videos.length) {
+      byScanId.set(opportunity.scanId, opportunity);
+    }
+  });
+
+  return Array.from(byScanId.values()).sort((left, right) => {
+    if (right.priorityScore !== left.priorityScore) {
+      return right.priorityScore - left.priorityScore;
+    }
+
+    if (right.moneyScore !== left.moneyScore) {
+      return right.moneyScore - left.moneyScore;
+    }
+
+    return right.confidence - left.confidence;
+  });
 }
 
 function ScoreBar({ label, value }: { label: string; value: number }) {
@@ -517,6 +586,7 @@ function OpportunityLedger({
               >
                 <div className="ledger-item__header">
                   <strong>{opportunity.keyword}</strong>
+                  <span className="priority-badge">{opportunity.decisionLabel} · {opportunity.priorityScore}</span>
                   <OpportunityBadge verdict={opportunity.verdict} />
                 </div>
                 <p>{opportunity.reason}</p>
@@ -529,6 +599,7 @@ function OpportunityLedger({
                   <span>money {opportunity.moneyScore}</span>
                   <span>attack {opportunity.attackScore}</span>
                   <span>gap {opportunity.qualityGapScore}</span>
+                  <span>{opportunity.priorityReasons.slice(0, 3).join(" · ")}</span>
                 </div>
               </button>
             );
@@ -542,15 +613,15 @@ function OpportunityLedger({
           <div className="execution-card__rows">
             <div>
               <span>Priorité</span>
-              <strong>{opportunities[0]?.verdict ?? "WATCH"}</strong>
+              <strong>{opportunities[0]?.decisionLabel ?? "TESTER"}</strong>
             </div>
             <div>
-              <span>Prochaine action</span>
-              <strong>Hook + script</strong>
+              <span>Score business</span>
+              <strong>{opportunities[0]?.priorityScore ?? 0}/100</strong>
             </div>
             <div>
-              <span>Bloc actuel</span>
-              <strong>niche / concurrent</strong>
+              <span>Raison</span>
+              <strong>{opportunities[0]?.priorityReasons[0] ?? "signal à qualifier"}</strong>
             </div>
           </div>
         </aside>
@@ -997,7 +1068,7 @@ export function App() {
       ),
   );
 
-  const opportunityRecords = [
+  const opportunityRecordsRaw = [
     ...localRuns.map((run) =>
       buildOpportunityRecord({
         scan: run.scan,
@@ -1010,8 +1081,8 @@ export function App() {
     ...storedOpportunityRecords,
   ];
 
-  if (opportunityRecords.length === 0 && primaryCompletedScan) {
-    opportunityRecords.push(
+  if (opportunityRecordsRaw.length === 0 && primaryCompletedScan) {
+    opportunityRecordsRaw.push(
       buildOpportunityRecord({
         scan: primaryCompletedScan,
         videos: visibleVideos,
@@ -1026,6 +1097,8 @@ export function App() {
       }),
     );
   }
+
+  const opportunityRecords = rankOpportunities(opportunityRecordsRaw);
 
   const selectedOpportunity =
     opportunityRecords.find((record) => record.scanId === selectedOpportunityId) ??

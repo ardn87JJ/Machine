@@ -255,6 +255,16 @@ h3 {
   background: #10211f;
 }
 
+.priority-badge {
+  padding: 7px 9px;
+  border: 1px solid #365241;
+  border-radius: 999px;
+  background: #12241c;
+  color: #9df5ca;
+  font-size: 0.74rem;
+  font-weight: 900;
+}
+
 .ledger-item__header,
 .ledger-item__meta,
 .ledger-item__scores,
