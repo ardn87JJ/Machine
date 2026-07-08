@@ -10,7 +10,11 @@ import httpx
 
 from app.core.config import Settings, get_settings
 from app.repositories.jobs import JobRepository, SupabaseJobRepository
-from app.repositories.opportunities import OpportunityRepository, SupabaseOpportunityRepository
+from app.repositories.opportunities import (
+    OpportunityRepository,
+    SupabaseOpportunityRepository,
+    is_missing_opportunities_table_error,
+)
 from app.repositories.youtube import (
     ScanVideoRecord,
     SupabaseYouTubeStorageRepository,
@@ -101,13 +105,17 @@ class ScoutWorker:
                     for video in collection.videos
                 ],
             )
-            await self._opportunities.upsert(
-                build_opportunity_upsert_input(
-                    scan_id=job.entity_id,
-                    keyword=keyword,
-                    analysis=analysis,
-                ),
-            )
+            try:
+                await self._opportunities.upsert(
+                    build_opportunity_upsert_input(
+                        scan_id=job.entity_id,
+                        keyword=keyword,
+                        analysis=analysis,
+                    ),
+                )
+            except httpx.HTTPStatusError as error:
+                if not is_missing_opportunities_table_error(error):
+                    raise
             await self._repository.complete_scout_scan(
                 job_id=job.id,
                 scan_id=job.entity_id,

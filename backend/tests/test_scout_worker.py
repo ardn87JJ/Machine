@@ -1,6 +1,8 @@
 import asyncio
 from uuid import UUID
 
+import httpx
+
 from app.core.config import Settings
 from app.repositories.jobs import JobRecord
 from app.repositories.opportunities import OpportunityUpsertInput
@@ -62,11 +64,14 @@ class InMemoryYouTubeStorageRepository:
 
 
 class InMemoryOpportunityRepository:
-    def __init__(self) -> None:
+    def __init__(self, error: httpx.HTTPStatusError | None = None) -> None:
+        self.error = error
         self.last_input: OpportunityUpsertInput | None = None
 
     async def upsert(self, opportunity: OpportunityUpsertInput):
         self.last_input = opportunity
+        if self.error is not None:
+            raise self.error
         return None
 
 
@@ -188,3 +193,45 @@ def test_worker_collects_and_completes_scan_when_youtube_key_is_configured() -> 
     assert opportunities.last_input is not None
     assert opportunities.last_input.keyword == "test machine supabase"
     assert opportunities.last_input.verdict in {"GO", "WATCH", "SKIP"}
+
+
+def test_worker_completes_scan_when_opportunity_table_is_missing() -> None:
+    job = JobRecord(
+        id=UUID("11111111-1111-1111-1111-111111111111"),
+        entity_id=UUID("22222222-2222-2222-2222-222222222222"),
+        payload={"keyword": "test machine supabase"},
+        attempt_count=0,
+        max_attempts=3,
+    )
+    repository = InMemoryJobRepository(job=job)
+    storage = InMemoryYouTubeStorageRepository()
+    request = httpx.Request("POST", "https://example.supabase.co/rest/v1/opportunities")
+    response = httpx.Response(
+        404,
+        json={
+            "code": "PGRST205",
+            "message": "Could not find the table 'public.opportunities' in the schema cache",
+        },
+        request=request,
+    )
+    opportunities = InMemoryOpportunityRepository(
+        error=httpx.HTTPStatusError(
+            "missing opportunities table",
+            request=request,
+            response=response,
+        ),
+    )
+    worker = ScoutWorker(
+        settings=Settings(youtube_api_key="test-key"),
+        repository=repository,
+        storage=storage,
+        opportunities=opportunities,
+        worker_id="test-worker",
+        collector=StubYouTubeCollector(),
+    )
+
+    result = asyncio.run(worker.run_once())
+
+    assert result.status == "completed"
+    assert repository.completed_job_id == job.id
+    assert repository.failed_job_id is None

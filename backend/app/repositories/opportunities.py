@@ -83,32 +83,37 @@ class SupabaseOpportunityRepository:
 
     async def list_recent(self, limit: int = 20) -> list[OpportunityRecord]:
         async with self._client() as client:
-            response = await client.get(
-                "/rest/v1/opportunities",
-                params={
-                    "select": ",".join(
-                        [
-                            "id",
-                            "scan_id",
-                            "keyword",
-                            "title",
-                            "verdict",
-                            "model_version",
-                            "summary",
-                            "scores",
-                            "evidence_video_ids",
-                            "competitor_channels",
-                            "execution_plan",
-                            "source",
-                            "created_at",
-                            "updated_at",
-                        ],
-                    ),
-                    "order": "created_at.desc",
-                    "limit": str(limit),
-                },
-            )
-            response.raise_for_status()
+            try:
+                response = await client.get(
+                    "/rest/v1/opportunities",
+                    params={
+                        "select": ",".join(
+                            [
+                                "id",
+                                "scan_id",
+                                "keyword",
+                                "title",
+                                "verdict",
+                                "model_version",
+                                "summary",
+                                "scores",
+                                "evidence_video_ids",
+                                "competitor_channels",
+                                "execution_plan",
+                                "source",
+                                "created_at",
+                                "updated_at",
+                            ],
+                        ),
+                        "order": "created_at.desc",
+                        "limit": str(limit),
+                    },
+                )
+                response.raise_for_status()
+            except httpx.HTTPStatusError as error:
+                if is_missing_opportunities_table_error(error):
+                    return []
+                raise
             payload = response.json()
 
         return [self._to_record(item) for item in payload]
@@ -161,3 +166,15 @@ class SupabaseOpportunityRepository:
             created_at=datetime.fromisoformat(str(item["created_at"]).replace("Z", "+00:00")),
             updated_at=datetime.fromisoformat(str(item["updated_at"]).replace("Z", "+00:00")),
         )
+
+
+def is_missing_opportunities_table_error(error: httpx.HTTPStatusError) -> bool:
+    if error.response.status_code != 404:
+        return False
+
+    try:
+        payload = error.response.json()
+    except ValueError:
+        return False
+
+    return payload.get("code") == "PGRST205"

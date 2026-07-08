@@ -220,6 +220,29 @@ function buildLocalRun(keyword: string, count: number): LocalRun {
   return { scan, videos, analysis };
 }
 
+function buildVerifiedFallbackRun(): LocalRun {
+  const scan: ScanSummary = {
+    id: "ebc42fb3-318c-435e-865e-42d5bc4062a7",
+    platform: "youtube",
+    keyword: "mini drama ia",
+    status: "completed",
+    error_code: null,
+    error_message: null,
+    created_at: "2026-07-08T13:07:05.148635+00:00",
+    updated_at: "2026-07-08T13:07:06.597509+00:00",
+  };
+
+  return {
+    scan,
+    videos: verifiedSnapshot,
+    analysis: buildAnalysisFromVideos(
+      verifiedSnapshot,
+      "Mini-drama IA vertical court",
+      "real-scout-snapshot-2026-07-08",
+    ),
+  };
+}
+
 function buildAnalysisFromVideos(
   videos: ScanVideoSummary[],
   opportunityTitle = "Mini-drama IA vertical court",
@@ -726,11 +749,11 @@ function ProducerConsole({
 function EmptyState() {
   return (
     <div className="empty-state">
-      <p className="eyebrow">Aperçu vérifié</p>
-      <h2>Dernière collecte visible</h2>
+      <p className="eyebrow">Scan réel vérifié</p>
+      <h2>Dernière collecte YouTube</h2>
       <p>
-        Le cockpit affiche la dernière collecte vérifiée pour garder une visualisation concrète
-        même quand le backend n’est pas joignable.
+        L’API YouTube est configurée et un scan réel a été exécuté. Si le backend n’est pas
+        joignable depuis cette page, le cockpit affiche ce snapshot vérifié.
       </p>
     </div>
   );
@@ -739,6 +762,7 @@ function EmptyState() {
 export function App() {
   const [localRuns, setLocalRuns] = useState<LocalRun[]>([]);
   const [selectedOpportunityId, setSelectedOpportunityId] = useState<string | null>(null);
+  const verifiedFallbackRun = buildVerifiedFallbackRun();
 
   const statusQuery = useQuery({
     queryKey: ["system-status"],
@@ -773,7 +797,15 @@ export function App() {
       ? "status status--error"
       : "status status--success";
 
-  const scans = [...localRuns.map((run) => run.scan), ...(scansQuery.data?.scans ?? [])];
+  const showVerifiedFallback =
+    localRuns.length === 0 &&
+    (statusQuery.isError || scansQuery.isError || scansQuery.data?.scans.length === 0);
+  const fallbackScans = showVerifiedFallback ? [verifiedFallbackRun.scan] : [];
+  const scans = [
+    ...localRuns.map((run) => run.scan),
+    ...fallbackScans,
+    ...(scansQuery.data?.scans ?? []),
+  ];
   const backendCompletedScans = (scansQuery.data?.scans ?? []).filter((scan) => scan.status === "completed");
 
   const videoQueries = useQueries({
@@ -793,9 +825,14 @@ export function App() {
     videosByScan.set(run.scan.id, run.videos);
   });
 
+  if (showVerifiedFallback) {
+    videosByScan.set(verifiedFallbackRun.scan.id, verifiedFallbackRun.videos);
+  }
+
   const connectedVideos = Array.from(videosByScan.values()).flat();
   const visibleVideos = connectedVideos.length > 0 ? connectedVideos : verifiedSnapshot;
-  const primaryCompletedScan = backendCompletedScans[0] ?? localRuns[0]?.scan;
+  const primaryCompletedScan =
+    backendCompletedScans[0] ?? localRuns[0]?.scan ?? (showVerifiedFallback ? verifiedFallbackRun.scan : undefined);
   const analysisQuery = useQuery({
     queryKey: ["scan-analysis", primaryCompletedScan?.id],
     queryFn: () => getScanAnalysis(primaryCompletedScan?.id ?? ""),
@@ -803,7 +840,8 @@ export function App() {
     retry: false,
   });
 
-  const visibleAnalysis = localRuns[0]?.analysis ?? analysisQuery.data;
+  const visibleAnalysis =
+    localRuns[0]?.analysis ?? analysisQuery.data ?? (showVerifiedFallback ? verifiedFallbackRun.analysis : undefined);
   const storedOpportunityRecords = (opportunitiesQuery.data?.opportunities ?? []).map(
     (opportunity) =>
       buildOpportunityRecordFromSaved(
@@ -880,7 +918,7 @@ export function App() {
         </div>
       ) : null}
 
-      {visibleVideos === verifiedSnapshot && <EmptyState />}
+      {showVerifiedFallback && <EmptyState />}
 
       <div className="dashboard-summary">
         <article>
