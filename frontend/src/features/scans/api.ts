@@ -101,6 +101,21 @@ interface ListOpportunitiesResponse {
   opportunities: OpportunitySummary[];
 }
 
+export interface RunEdgeScoutResponse {
+  scan: ScanSummary;
+  videos: ScanVideoSummary[];
+  analysis: ScanAnalysis;
+  opportunity: Omit<OpportunitySummary, "id" | "created_at" | "updated_at">;
+}
+
+const configuredScoutFunctionUrl = import.meta.env.VITE_SCOUT_FUNCTION_URL?.trim();
+const configuredSupabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim();
+const defaultSupabaseUrl = "https://uscmdnzbwvsjrocemset.supabase.co";
+
+export const SCOUT_FUNCTION_URL =
+  configuredScoutFunctionUrl ||
+  `${(configuredSupabaseUrl || defaultSupabaseUrl).replace(/\/$/, "")}/functions/v1/run-scout`;
+
 export function listScans() {
   return getJson<ListScansResponse>("/api/v1/scout/scans");
 }
@@ -128,4 +143,30 @@ export function runScoutWorkerOnce() {
     "/api/v1/scout/worker/run-once",
     {},
   );
+}
+
+export async function runEdgeScout(keyword: string) {
+  const response = await fetch(SCOUT_FUNCTION_URL, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ keyword }),
+  });
+
+  if (!response.ok) {
+    let message = `La fonction Scout a repondu avec le statut ${response.status}.`;
+
+    try {
+      const payload = (await response.json()) as { message?: string };
+      message = payload.message || message;
+    } catch {
+      // Keep the status-based message when the Edge Function does not return JSON.
+    }
+
+    throw new Error(message);
+  }
+
+  return response.json() as Promise<RunEdgeScoutResponse>;
 }

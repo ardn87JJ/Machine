@@ -6,9 +6,11 @@ import {
   listScans,
   listOpportunities,
   listScanVideos,
+  runEdgeScout,
   runScoutWorkerOnce,
   type ExecutionPlan,
   type OpportunitySummary,
+  type RunEdgeScoutResponse,
   type ScanAnalysis,
   type ScanSummary,
   type ScanVideoSummary,
@@ -110,6 +112,7 @@ type LocalRun = {
   scan: ScanSummary;
   videos: ScanVideoSummary[];
   analysis: ScanAnalysis;
+  source: "local" | "edge";
 };
 
 type OpportunityRecord = Opportunity & {
@@ -217,7 +220,16 @@ function buildLocalRun(keyword: string, count: number): LocalRun {
     updated_at: new Date().toISOString(),
   };
 
-  return { scan, videos, analysis };
+  return { scan, videos, analysis, source: "local" };
+}
+
+function buildEdgeRun(result: RunEdgeScoutResponse): LocalRun {
+  return {
+    scan: result.scan,
+    videos: result.videos,
+    analysis: result.analysis,
+    source: "edge",
+  };
 }
 
 function buildVerifiedFallbackRun(): LocalRun {
@@ -240,6 +252,7 @@ function buildVerifiedFallbackRun(): LocalRun {
       "Mini-drama IA vertical court",
       "real-scout-snapshot-2026-07-08",
     ),
+    source: "edge",
   };
 }
 
@@ -477,24 +490,45 @@ function ScoutConsole({
   backendOnline,
   localModeActive,
   onLocalScan,
+  onEdgeScan,
 }: {
   scans: ScanSummary[];
   videosByScan: Map<string, ScanVideoSummary[]>;
   backendOnline: boolean;
   localModeActive: boolean;
   onLocalScan: (payload: { count: number; keyword: string }) => void;
+  onEdgeScan: (run: LocalRun) => void;
 }) {
   const queryClient = useQueryClient();
   const [keyword, setKeyword] = useState("mini drama ia");
   const realScanEnabled = backendOnline && !localModeActive;
+  const edgeScanEnabled = !realScanEnabled;
 
   const scanMutation = useMutation({
-    mutationFn: async ({ count, keyword }: { count: number; keyword: string }) => {
+    mutationFn: async ({
+      count,
+      keyword,
+      mode,
+    }: {
+      count: number;
+      keyword: string;
+      mode: "backend" | "edge";
+    }) => {
       const baseKeyword = keyword.trim().replace(/\s+/g, " ");
       const keywords =
         count === 1
           ? [baseKeyword]
           : keywordExpansions.slice(0, count).map((seed) => `${baseKeyword} ${seed}`);
+
+      if (mode === "edge") {
+        const runs = [];
+
+        for (const scanKeyword of keywords) {
+          runs.push(buildEdgeRun(await runEdgeScout(scanKeyword)));
+        }
+
+        return { mode, runs };
+      }
 
       const scans = [];
 
@@ -508,9 +542,13 @@ function ScoutConsole({
         workerRuns.push(await runScoutWorkerOnce());
       }
 
-      return { scans, workerRuns };
+      return { mode, scans, workerRuns, runs: [] };
     },
-    onSuccess: async () => {
+    onSuccess: async (result) => {
+      if (result.mode === "edge") {
+        result.runs.forEach(onEdgeScan);
+      }
+
       await queryClient.invalidateQueries({ queryKey: ["scout-scans"] });
       await queryClient.invalidateQueries({ queryKey: ["scan-videos"] });
       await queryClient.invalidateQueries({ queryKey: ["scan-analysis"] });
@@ -525,12 +563,12 @@ function ScoutConsole({
       return;
     }
 
-    if (!realScanEnabled) {
+    if (!realScanEnabled && !edgeScanEnabled) {
       onLocalScan({ count: 1, keyword });
       return;
     }
 
-    scanMutation.mutate({ count: 1, keyword });
+    scanMutation.mutate({ count: 1, keyword, mode: realScanEnabled ? "backend" : "edge" });
   }
 
   function launchBatch(count: number) {
@@ -538,12 +576,12 @@ function ScoutConsole({
       return;
     }
 
-    if (!realScanEnabled) {
+    if (!realScanEnabled && !edgeScanEnabled) {
       onLocalScan({ count, keyword });
       return;
     }
 
-    scanMutation.mutate({ count, keyword });
+    scanMutation.mutate({ count, keyword, mode: realScanEnabled ? "backend" : "edge" });
   }
 
   const completedScans = scans.filter((scan) => scan.status === "completed").length;
@@ -559,7 +597,7 @@ function ScoutConsole({
           <p className="panel-substatus">
             {realScanEnabled
               ? "Mode réel: création du scan, worker YouTube, stockage Supabase, analyse."
-              : "Mode page publique: scan local visible. Le scan YouTube réel demande une API backend joignable."}
+              : "Mode Edge Supabase: scan YouTube réel depuis une fonction serverless."}
           </p>
         </div>
         <ScanStatusBadge status={scanMutation.isPending ? "running" : "completed"} />
@@ -581,7 +619,7 @@ function ScoutConsole({
 
           <div className="command-actions">
             <button disabled={scanMutation.isPending} type="submit">
-              {scanMutation.isPending ? "WORKING..." : realScanEnabled ? "START REAL SCAN" : "START LOCAL SCAN"}
+              {scanMutation.isPending ? "WORKING..." : realScanEnabled ? "START REAL SCAN" : "RUN EDGE SCOUT"}
             </button>
             <button
               disabled={scanMutation.isPending}
@@ -796,12 +834,12 @@ export function App() {
   const backendStatusLabel = statusQuery.isPending
     ? "API : vérification..."
     : statusQuery.isError
-      ? "API indisponible · mode local"
+      ? "Edge Supabase · scan public"
       : `API réelle · ${statusQuery.data.environment}`;
   const backendStatusClass = statusQuery.isPending
     ? "status status--pending"
     : statusQuery.isError
-      ? "status status--error"
+      ? "status status--success"
       : "status status--success";
 
   const showVerifiedFallback =
@@ -863,7 +901,7 @@ export function App() {
         scan: run.scan,
         videos: run.videos,
         analysis: run.analysis,
-        source: "local",
+        source: run.source === "edge" ? "backend" : "local",
       }),
     ),
     ...storedOpportunityRecords,
@@ -899,6 +937,11 @@ export function App() {
     setSelectedOpportunityId(run.scan.id);
   }
 
+  function addEdgeRun(run: LocalRun) {
+    setLocalRuns((current) => [run, ...current].slice(0, 8));
+    setSelectedOpportunityId(run.scan.id);
+  }
+
   return (
     <main className="shell">
       <header className="hero">
@@ -921,7 +964,7 @@ export function App() {
 
       {scansQuery.isError ? (
         <div className="panel-error panel-error--wide">
-          {getErrorMessage(scansQuery.error)} Le cockpit garde le mode local et l’aperçu vérifié.
+          {getErrorMessage(scansQuery.error)} Le cockpit utilise l’Edge Function Supabase pour les nouveaux scans.
         </div>
       ) : null}
 
@@ -954,6 +997,7 @@ export function App() {
       <ScoutConsole
         backendOnline={backendOnline}
         localModeActive={statusQuery.isError}
+        onEdgeScan={addEdgeRun}
         onLocalScan={runLocalScan}
         scans={scans}
         videosByScan={videosByScan}

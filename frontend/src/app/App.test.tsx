@@ -213,23 +213,114 @@ describe("App", () => {
     expect(screen.getByText("Scans visibles")).toBeInTheDocument();
   });
 
-  it("garde le scan visible en mode local quand l'API n'est pas joignable", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+  it("lance le Scout Edge quand l'API FastAPI n'est pas joignable", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation((input: RequestInfo | URL) => {
+        const url = String(input);
+
+        if (url.includes("/functions/v1/run-scout")) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                scan: {
+                  id: "44444444-4444-4444-4444-444444444444",
+                  platform: "youtube",
+                  keyword: "ai music channel",
+                  status: "completed",
+                  error_code: null,
+                  error_message: null,
+                  created_at: "2026-07-08T13:30:00Z",
+                  updated_at: "2026-07-08T13:30:10Z",
+                },
+                videos: [
+                  {
+                    rank: 1,
+                    video_id: "edge-video-1",
+                    title: "How To Start an AI Music YouTube Channel",
+                    channel_id: "edge-channel-1",
+                    channel_title: "Edge Creator",
+                    view_count: 210278,
+                    like_count: 4200,
+                    comment_count: 310,
+                    published_at: "2026-07-01T12:00:00Z",
+                    thumbnail_url: "https://img.youtube.com/vi/edge-video-1/hqdefault.jpg",
+                  },
+                ],
+                analysis: {
+                  model_version: "edge-business-heuristic-v0.1",
+                  opportunity_title: "Mini-drama IA vertical court",
+                  verdict: "GO",
+                  scores: {
+                    money_score: 100,
+                    attack_score: 96,
+                    speed_cash_score: 65,
+                    quality_gap_score: 91,
+                    weak_competitor_score: 88,
+                    upload_pressure_score: 67,
+                    ecosystem_score: 73,
+                    confidence: 95,
+                  },
+                  summary: "210278 vues moyennes sur 1 vidéos, 1 chaînes observées, 0 quality gaps.",
+                  evidence_video_ids: ["edge-video-1"],
+                  competitor_channels: ["Edge Creator"],
+                },
+                opportunity: {
+                  scan_id: "44444444-4444-4444-4444-444444444444",
+                  keyword: "ai music channel",
+                  title: "Mini-drama IA vertical court",
+                  verdict: "GO",
+                  model_version: "edge-business-heuristic-v0.1",
+                  summary: "210278 vues moyennes sur 1 vidéos, 1 chaînes observées, 0 quality gaps.",
+                  scores: {
+                    money_score: 100,
+                    attack_score: 96,
+                    speed_cash_score: 65,
+                    quality_gap_score: 91,
+                    weak_competitor_score: 88,
+                    upload_pressure_score: 67,
+                    ecosystem_score: 73,
+                    confidence: 95,
+                  },
+                  evidence_video_ids: ["edge-video-1"],
+                  competitor_channels: ["Edge Creator"],
+                  execution_plan: {
+                    angle: "Série verticale IA sur tension dramatique courte",
+                    first_test: "Lancer 5 épisodes courts autour de ai music channel sur 7 jours",
+                    criteria_go: "Un épisode dépasse le benchmark de vues initial en 48h",
+                    notes: "Accélérer le hook.",
+                  },
+                  source: "edge-run-scout",
+                },
+              }),
+              {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+              },
+            ),
+          );
+        }
+
+        return Promise.reject(new Error("offline"));
+      }),
+    );
 
     renderApp();
 
-    expect(await screen.findByText("API indisponible · mode local")).toBeInTheDocument();
+    expect(await screen.findByText("Edge Supabase · scan public")).toBeInTheDocument();
 
     const keywordInput = screen.getByLabelText("Niche / mot-clé de départ");
     fireEvent.change(keywordInput, { target: { value: "ai music channel" } });
-    fireEvent.click(screen.getAllByRole("button", { name: "START LOCAL SCAN" })[0]);
+    fireEvent.click(screen.getAllByRole("button", { name: "RUN EDGE SCOUT" })[0]);
 
     expect(await screen.findByRole("heading", { name: "ai music channel" })).toBeInTheDocument();
     expect(
-      screen.getByText("ai music channel · opportunité locale", { selector: ".execution-card h3" }),
+      await screen.findByText("edge-business-heuristic-v0.1", { selector: ".model-version" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("frontend-offline-v0", { selector: ".model-version" }),
+      screen.getByText("How To Start an AI Music YouTube Channel", {
+        selector: ".video-result__title",
+      }),
     ).toBeInTheDocument();
   });
 });
