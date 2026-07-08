@@ -1123,20 +1123,13 @@ export function App() {
       <header className="hero">
         <div>
           <p className="eyebrow">IA Agent Tool / Agent Scout</p>
-          <h1>GO MONEY MODE</h1>
+          <h1>Centre de commande</h1>
           <p className="subtitle">
-            Cockpit interne pour scanner des niches, détecter des concurrents faibles,
-            scorer les opportunités et préparer l’exécution.
+            Scout, score et plan d’action dans une seule vue opérateur.
           </p>
         </div>
         <span className={backendStatusClass}>{backendStatusLabel}</span>
       </header>
-
-      <section className="mission-strip" aria-label="Pipeline cible">
-        <span>Scout : radar</span>
-        <span>Analyste : scoring</span>
-        <span>Producteur : plan d’action</span>
-      </section>
 
       {scansQuery.isError ? (
         <div className="panel-error panel-error--wide">
@@ -1164,22 +1157,31 @@ export function App() {
         </article>
       </div>
 
-      <OpportunityLedger
-        onSelectOpportunity={setSelectedOpportunityId}
-        opportunities={opportunityRecords}
-        selectedOpportunityId={selectedOpportunity?.scanId ?? null}
-      />
+      <section className="workspace-grid" aria-label="Cockpit agents">
+        <div className="workspace-column workspace-column--scout">
+          <ScoutConsole
+            backendOnline={backendOnline}
+            localModeActive={statusQuery.isError}
+            onEdgeScan={addEdgeRun}
+            onLocalScan={runLocalScan}
+            scans={scans}
+            videosByScan={videosByScan}
+          />
+        </div>
 
-      <ScoutConsole
-        backendOnline={backendOnline}
-        localModeActive={statusQuery.isError}
-        onEdgeScan={addEdgeRun}
-        onLocalScan={runLocalScan}
-        scans={scans}
-        videosByScan={videosByScan}
-      />
-      <AnalystConsole backendOnline={backendOnline} opportunity={selectedOpportunity} />
-      <ProducerConsole opportunity={selectedOpportunity} />
+        <div className="workspace-column workspace-column--ledger">
+          <OpportunityLedger
+            onSelectOpportunity={setSelectedOpportunityId}
+            opportunities={opportunityRecords}
+            selectedOpportunityId={selectedOpportunity?.scanId ?? null}
+          />
+        </div>
+
+        <aside className="workspace-column workspace-column--decision">
+          <AnalystConsole backendOnline={backendOnline} opportunity={selectedOpportunity} />
+          <ProducerConsole opportunity={selectedOpportunity} />
+        </aside>
+      </section>
     </main>
   );
 }

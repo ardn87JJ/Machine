@@ -188,7 +188,7 @@ describe("App", () => {
 
     renderApp();
 
-    expect(screen.getByRole("heading", { name: "GO MONEY MODE" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Centre de commande" })).toBeInTheDocument();
     expect(await screen.findByText("API réelle · test")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "START REAL SCAN" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "SCAN 10" })).toBeInTheDocument();

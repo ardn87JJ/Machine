@@ -38,9 +38,9 @@ button:disabled {
 }
 
 .shell {
-  width: min(1240px, calc(100% - 36px));
+  width: min(1440px, calc(100% - 28px));
   margin: 0 auto;
-  padding: 40px 0 72px;
+  padding: 20px 0 36px;
 }
 
 .hero,
@@ -53,7 +53,7 @@ button:disabled {
 }
 
 .hero {
-  padding: 28px 0 24px;
+  padding: 12px 0 16px;
 }
 
 .eyebrow {
@@ -74,16 +74,16 @@ p {
 
 h1 {
   max-width: 880px;
-  margin-bottom: 16px;
-  font-size: clamp(3.2rem, 9vw, 7.2rem);
-  letter-spacing: -0.075em;
-  line-height: 0.9;
+  margin-bottom: 8px;
+  font-size: clamp(2.1rem, 5vw, 4.4rem);
+  letter-spacing: -0.055em;
+  line-height: 0.95;
 }
 
 h2 {
-  margin-bottom: 10px;
-  font-size: clamp(1.55rem, 3vw, 2.5rem);
-  letter-spacing: -0.045em;
+  margin-bottom: 6px;
+  font-size: clamp(1.15rem, 2vw, 1.65rem);
+  letter-spacing: -0.025em;
 }
 
 h3 {
@@ -96,8 +96,8 @@ h3 {
   max-width: 760px;
   margin-bottom: 0;
   color: #a8b3c2;
-  font-size: 1.12rem;
-  line-height: 1.6;
+  font-size: 1rem;
+  line-height: 1.45;
 }
 
 .status,
@@ -196,16 +196,16 @@ h3 {
 .dashboard-summary {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
-  margin-bottom: 24px;
+  gap: 10px;
+  margin-bottom: 14px;
 }
 
 .dashboard-summary article {
   display: grid;
-  gap: 8px;
-  padding: 18px;
+  gap: 6px;
+  padding: 12px;
   border: 1px solid #253142;
-  border-radius: 14px;
+  border-radius: 10px;
   background: #101722;
 }
 
@@ -223,8 +223,29 @@ h3 {
 }
 
 .dashboard-summary article small {
+  overflow: hidden;
   color: #9aa7b6;
   line-height: 1.5;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-grid {
+  display: grid;
+  grid-template-columns: minmax(300px, 0.8fr) minmax(430px, 1.2fr) minmax(320px, 0.9fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.workspace-column {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.workspace-column--decision {
+  position: sticky;
+  top: 14px;
 }
 
 .ledger-grid {
@@ -237,6 +258,9 @@ h3 {
 .ledger-list {
   display: grid;
   gap: 10px;
+  max-height: 620px;
+  overflow: auto;
+  padding-right: 4px;
 }
 
 .ledger-item {
@@ -337,10 +361,10 @@ h3 {
 
 .cockpit-panel,
 .empty-state {
-  margin-top: 24px;
-  padding: 24px;
+  margin-top: 0;
+  padding: 16px;
   border: 1px solid #1e2937;
-  border-radius: 18px;
+  border-radius: 12px;
   background: #0d131c;
 }
 
@@ -349,6 +373,17 @@ h3 {
   grid-template-columns: minmax(0, 2fr) repeat(3, minmax(150px, 1fr));
   gap: 14px;
   margin-top: 18px;
+}
+
+.workspace-column--scout .control-grid,
+.workspace-column--ledger .ledger-grid,
+.workspace-column--decision .opportunity-layout,
+.workspace-column--decision .execution-plan {
+  grid-template-columns: 1fr;
+}
+
+.workspace-column--scout .runtime-card {
+  min-height: 0;
 }
 
 .command-panel,
@@ -364,8 +399,8 @@ h3 {
 
 .command-panel {
   display: grid;
-  gap: 14px;
-  padding: 18px;
+  gap: 12px;
+  padding: 14px;
 }
 
 .command-panel label,
@@ -414,8 +449,8 @@ h3 {
 
 .runtime-card {
   display: grid;
-  gap: 8px;
-  padding: 18px;
+  gap: 6px;
+  padding: 12px;
 }
 
 .runtime-card span,
@@ -432,7 +467,7 @@ h3 {
 .signal-stack strong,
 .execution-plan strong {
   color: #edf3fb;
-  font-size: 1.5rem;
+  font-size: 1.1rem;
 }
 
 .runtime-card small,
@@ -479,12 +514,15 @@ h3 {
 
 .scan-board {
   display: grid;
-  gap: 14px;
-  margin-top: 18px;
+  gap: 10px;
+  max-height: 640px;
+  margin-top: 12px;
+  overflow: auto;
+  padding-right: 4px;
 }
 
 .scan-card {
-  padding: 18px;
+  padding: 12px;
 }
 
 .scan-card__header h3 {
@@ -493,18 +531,18 @@ h3 {
 
 .video-results {
   display: grid;
-  gap: 10px;
-  margin-top: 16px;
+  gap: 8px;
+  margin-top: 10px;
 }
 
 .video-result {
   display: grid;
-  grid-template-columns: 116px minmax(0, 1fr);
-  gap: 14px;
+  grid-template-columns: 82px minmax(0, 1fr);
+  gap: 10px;
   align-items: center;
-  padding: 10px;
+  padding: 8px;
   border: 1px solid #253142;
-  border-radius: 12px;
+  border-radius: 10px;
   background: #0b1018;
   color: inherit;
   text-decoration: none;
@@ -512,7 +550,7 @@ h3 {
 
 .video-result img,
 .video-result__placeholder {
-  width: 116px;
+  width: 82px;
   aspect-ratio: 16 / 9;
   border-radius: 9px;
   background: #1b2533;
@@ -551,18 +589,18 @@ h3 {
   display: grid;
   grid-template-columns: minmax(0, 2fr) minmax(240px, 0.8fr);
   gap: 14px;
-  margin-top: 18px;
+  margin-top: 12px;
 }
 
 .opportunity-card {
-  padding: 20px;
+  padding: 14px;
 }
 
 .score-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  margin-top: 18px;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin-top: 12px;
 }
 
 .score-bar {
@@ -589,23 +627,35 @@ h3 {
 .signal-stack,
 .execution-plan {
   display: grid;
-  gap: 14px;
+  gap: 10px;
 }
 
 .signal-stack > div,
 .execution-plan article {
   display: grid;
-  gap: 8px;
-  padding: 18px;
+  gap: 6px;
+  padding: 12px;
 }
 
 .execution-plan {
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  margin-top: 18px;
+  margin-top: 12px;
 }
 
 .empty-state {
   border-color: #2d3a4d;
+}
+
+@media (max-width: 1180px) {
+  .workspace-grid {
+    grid-template-columns: minmax(300px, 0.9fr) minmax(420px, 1.1fr);
+  }
+
+  .workspace-column--decision {
+    position: static;
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 900px) {
@@ -619,13 +669,26 @@ h3 {
   .opportunity-layout,
   .execution-plan,
   .dashboard-summary,
-  .ledger-grid {
+  .ledger-grid,
+  .workspace-grid,
+  .workspace-column--decision {
     grid-template-columns: 1fr;
+  }
+
+  .workspace-column--decision {
+    grid-column: auto;
   }
 
   .score-grid,
   .mission-strip {
     grid-template-columns: 1fr;
+  }
+
+  .scan-board,
+  .ledger-list {
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
   }
 }
 
