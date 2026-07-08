@@ -190,7 +190,7 @@ describe("App", () => {
 
     expect(screen.getByRole("heading", { name: "GO MONEY MODE" })).toBeInTheDocument();
     expect(await screen.findByText("API réelle · test")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "START SCAN" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "START REAL SCAN" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "SCAN 10" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "SCAN 50" })).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "mini drama ia" })).toBeInTheDocument();
@@ -220,11 +220,13 @@ describe("App", () => {
 
     expect(await screen.findByText("API indisponible · mode local")).toBeInTheDocument();
 
-    fireEvent.click(screen.getAllByRole("button", { name: "START SCAN" })[0]);
+    const keywordInput = screen.getByLabelText("Niche / mot-clé de départ");
+    fireEvent.change(keywordInput, { target: { value: "ai music channel" } });
+    fireEvent.click(screen.getAllByRole("button", { name: "START LOCAL SCAN" })[0]);
 
-    expect(await screen.findByRole("heading", { name: "mini drama ia" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "ai music channel" })).toBeInTheDocument();
     expect(
-      screen.getByText("mini drama ia · opportunité locale", { selector: ".execution-card h3" }),
+      screen.getByText("ai music channel · opportunité locale", { selector: ".execution-card h3" }),
     ).toBeInTheDocument();
     expect(
       screen.getByText("frontend-offline-v0", { selector: ".model-version" }),

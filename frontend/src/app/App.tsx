@@ -486,6 +486,7 @@ function ScoutConsole({
 }) {
   const queryClient = useQueryClient();
   const [keyword, setKeyword] = useState("mini drama ia");
+  const realScanEnabled = backendOnline && !localModeActive;
 
   const scanMutation = useMutation({
     mutationFn: async ({ count, keyword }: { count: number; keyword: string }) => {
@@ -513,6 +514,7 @@ function ScoutConsole({
       await queryClient.invalidateQueries({ queryKey: ["scout-scans"] });
       await queryClient.invalidateQueries({ queryKey: ["scan-videos"] });
       await queryClient.invalidateQueries({ queryKey: ["scan-analysis"] });
+      await queryClient.invalidateQueries({ queryKey: ["scout-opportunities"] });
     },
   });
 
@@ -523,7 +525,7 @@ function ScoutConsole({
       return;
     }
 
-    if (!backendOnline || localModeActive) {
+    if (!realScanEnabled) {
       onLocalScan({ count: 1, keyword });
       return;
     }
@@ -536,7 +538,7 @@ function ScoutConsole({
       return;
     }
 
-    if (!backendOnline || localModeActive) {
+    if (!realScanEnabled) {
       onLocalScan({ count, keyword });
       return;
     }
@@ -554,6 +556,11 @@ function ScoutConsole({
         <div>
           <p className="eyebrow">Agent Scout</p>
           <h2>Radar opportunités</h2>
+          <p className="panel-substatus">
+            {realScanEnabled
+              ? "Mode réel: création du scan, worker YouTube, stockage Supabase, analyse."
+              : "Mode page publique: scan local visible. Le scan YouTube réel demande une API backend joignable."}
+          </p>
         </div>
         <ScanStatusBadge status={scanMutation.isPending ? "running" : "completed"} />
       </div>
@@ -574,7 +581,7 @@ function ScoutConsole({
 
           <div className="command-actions">
             <button disabled={scanMutation.isPending} type="submit">
-              {scanMutation.isPending ? "WORKING..." : "START SCAN"}
+              {scanMutation.isPending ? "WORKING..." : realScanEnabled ? "START REAL SCAN" : "START LOCAL SCAN"}
             </button>
             <button
               disabled={scanMutation.isPending}
