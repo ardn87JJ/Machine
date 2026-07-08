@@ -10,8 +10,14 @@ import httpx
 
 from app.core.config import Settings, get_settings
 from app.repositories.jobs import JobRepository, SupabaseJobRepository
-from app.repositories.youtube import SupabaseYouTubeStorageRepository, YouTubeStorageRepository
-from app.services.youtube import YouTubeApiError, YouTubeCollection, YouTubeCollector
+from app.repositories.opportunities import OpportunityRepository, SupabaseOpportunityRepository
+from app.repositories.youtube import (
+    ScanVideoRecord,
+    SupabaseYouTubeStorageRepository,
+    YouTubeStorageRepository,
+)
+from app.services.scout import build_opportunity_upsert_input, build_scan_analysis
+from app.services.youtube import YouTubeApiError, YouTubeCollection, YouTubeCollector, YouTubeVideo
 
 WorkerStatus = Literal["no_job", "completed", "failed"]
 
@@ -36,12 +42,14 @@ class ScoutWorker:
         settings: Settings,
         repository: JobRepository,
         storage: YouTubeStorageRepository,
+        opportunities: OpportunityRepository,
         worker_id: str,
         collector: ScoutCollector | None = None,
     ) -> None:
         self._settings = settings
         self._repository = repository
         self._storage = storage
+        self._opportunities = opportunities
         self._worker_id = worker_id
         self._collector = collector
 
@@ -83,6 +91,23 @@ class ScoutWorker:
         try:
             collection = await collector.collect(keyword=keyword)
             await self._storage.store_scan_collection(scan_id=job.entity_id, collection=collection)
+            channel_titles = {channel.id: channel.title for channel in collection.channels}
+            analysis = build_scan_analysis(
+                [
+                    _collection_video_to_record(
+                        video=video,
+                        channel_title=channel_titles.get(video.channel_id, ""),
+                    )
+                    for video in collection.videos
+                ],
+            )
+            await self._opportunities.upsert(
+                build_opportunity_upsert_input(
+                    scan_id=job.entity_id,
+                    keyword=keyword,
+                    analysis=analysis,
+                ),
+            )
             await self._repository.complete_scout_scan(
                 job_id=job.id,
                 scan_id=job.entity_id,
@@ -138,9 +163,25 @@ async def run_once() -> ScoutWorkerResult:
         settings=settings,
         repository=SupabaseJobRepository(settings=settings),
         storage=SupabaseYouTubeStorageRepository(settings=settings),
+        opportunities=SupabaseOpportunityRepository(settings=settings),
         worker_id=worker_id,
     )
     return await worker.run_once()
+
+
+def _collection_video_to_record(video: YouTubeVideo, channel_title: str) -> ScanVideoRecord:
+    return ScanVideoRecord(
+        rank=0,
+        video_id=video.id,
+        title=video.title,
+        channel_id=video.channel_id,
+        channel_title=channel_title,
+        view_count=video.view_count,
+        like_count=video.like_count,
+        comment_count=video.comment_count,
+        published_at=video.published_at,
+        thumbnail_url=video.thumbnail_url,
+    )
 
 
 def main() -> None:

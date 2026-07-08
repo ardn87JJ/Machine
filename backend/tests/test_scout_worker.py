@@ -3,6 +3,7 @@ from uuid import UUID
 
 from app.core.config import Settings
 from app.repositories.jobs import JobRecord
+from app.repositories.opportunities import OpportunityUpsertInput
 from app.services.youtube import YouTubeChannel, YouTubeCollection, YouTubeVideo
 from app.workers.scout import ScoutWorker
 
@@ -60,6 +61,15 @@ class InMemoryYouTubeStorageRepository:
         self.collection = collection
 
 
+class InMemoryOpportunityRepository:
+    def __init__(self) -> None:
+        self.last_input: OpportunityUpsertInput | None = None
+
+    async def upsert(self, opportunity: OpportunityUpsertInput):
+        self.last_input = opportunity
+        return None
+
+
 class StubYouTubeCollector:
     async def collect(self, keyword: str) -> YouTubeCollection:
         return YouTubeCollection(
@@ -98,10 +108,12 @@ class StubYouTubeCollector:
 def test_worker_returns_no_job_when_queue_is_empty() -> None:
     repository = InMemoryJobRepository(job=None)
     storage = InMemoryYouTubeStorageRepository()
+    opportunities = InMemoryOpportunityRepository()
     worker = ScoutWorker(
         settings=Settings(youtube_api_key=None),
         repository=repository,
         storage=storage,
+        opportunities=opportunities,
         worker_id="test-worker",
     )
 
@@ -122,10 +134,12 @@ def test_worker_marks_scan_failed_when_youtube_key_is_missing() -> None:
     )
     repository = InMemoryJobRepository(job=job)
     storage = InMemoryYouTubeStorageRepository()
+    opportunities = InMemoryOpportunityRepository()
     worker = ScoutWorker(
         settings=Settings(youtube_api_key=None),
         repository=repository,
         storage=storage,
+        opportunities=opportunities,
         worker_id="test-worker",
     )
 
@@ -150,10 +164,12 @@ def test_worker_collects_and_completes_scan_when_youtube_key_is_configured() -> 
     )
     repository = InMemoryJobRepository(job=job)
     storage = InMemoryYouTubeStorageRepository()
+    opportunities = InMemoryOpportunityRepository()
     worker = ScoutWorker(
         settings=Settings(youtube_api_key="test-key"),
         repository=repository,
         storage=storage,
+        opportunities=opportunities,
         worker_id="test-worker",
         collector=StubYouTubeCollector(),
     )
@@ -169,3 +185,6 @@ def test_worker_collects_and_completes_scan_when_youtube_key_is_configured() -> 
     assert repository.completed_job_id == job.id
     assert repository.completed_scan_id == job.entity_id
     assert repository.completed_video_count == 1
+    assert opportunities.last_input is not None
+    assert opportunities.last_input.keyword == "test machine supabase"
+    assert opportunities.last_input.verdict in {"GO", "WATCH", "SKIP"}

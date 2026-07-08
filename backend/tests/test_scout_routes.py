@@ -9,6 +9,7 @@ from pytest import MonkeyPatch
 from app.api.dependencies import get_scan_repository, get_youtube_repository
 from app.core.http_errors import ConfigurationError
 from app.main import app
+from app.repositories.opportunities import OpportunityRecord
 from app.repositories.scans import CreateScanInput
 from app.repositories.youtube import ScanVideoRecord
 from app.workers.scout import ScoutWorkerResult
@@ -92,6 +93,49 @@ class StubYouTubeRepository:
                 comment_count=45,
                 published_at="2026-07-01T12:00:00Z",
                 thumbnail_url="https://img.youtube.com/vi/video-1/hqdefault.jpg",
+            )
+        ]
+
+
+class StubOpportunityRepository:
+    async def upsert(self, opportunity: object) -> object:
+        return opportunity
+
+    async def list_recent(self, limit: int = 20) -> list[OpportunityRecord]:
+        now = datetime(2026, 7, 5, 9, 0, tzinfo=UTC)
+        return [
+            OpportunityRecord(
+                id=UUID("33333333-3333-3333-3333-333333333333"),
+                scan_id=UUID("11111111-1111-1111-1111-111111111111"),
+                keyword="mini drama ia",
+                title="Mini-drama IA vertical court",
+                verdict="GO",
+                model_version="business-heuristic-v0.1",
+                summary="19863 vues moyennes sur 1 vidéos, 1 chaînes observées, 1 quality gaps.",
+                scores={
+                    "money_score": 82,
+                    "attack_score": 71,
+                    "speed_cash_score": 68,
+                    "quality_gap_score": 77,
+                    "weak_competitor_score": 74,
+                    "upload_pressure_score": 63,
+                    "ecosystem_score": 69,
+                    "confidence": 72,
+                },
+                evidence_video_ids=["video-1"],
+                competitor_channels=["Demo channel"],
+                execution_plan={
+                    "angle": "Série verticale IA sur tension dramatique courte",
+                    "first_test": "Lancer 5 épisodes courts autour de mini drama ia sur 7 jours",
+                    "criteria_go": "Un épisode dépasse le benchmark de vues initial en 48h",
+                    "notes": (
+                        "Accélérer le hook, garder des formats courts, "
+                        "pousser le volume d'itérations."
+                    ),
+                },
+                source="scout",
+                created_at=now,
+                updated_at=now,
             )
         ]
 
@@ -218,6 +262,23 @@ def test_read_scan_analysis() -> None:
     assert payload["scores"]["money_score"] > 0
     assert payload["evidence_video_ids"] == ["video-1"]
     assert payload["competitor_channels"] == ["Demo channel"]
+
+
+def test_list_opportunities() -> None:
+    from app.api.dependencies import get_opportunity_repository
+
+    app.dependency_overrides[get_opportunity_repository] = lambda: StubOpportunityRepository()
+
+    response = asyncio.run(get("/api/v1/scout/opportunities"))
+
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["opportunities"][0]["keyword"] == "mini drama ia"
+    assert payload["opportunities"][0]["execution_plan"]["angle"] == (
+        "Série verticale IA sur tension dramatique courte"
+    )
 
 
 def test_run_scout_worker_once(monkeypatch: MonkeyPatch) -> None:

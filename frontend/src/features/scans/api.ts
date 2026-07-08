@@ -53,6 +53,30 @@ export interface ScanAnalysis {
   competitor_channels: string[];
 }
 
+export interface ExecutionPlan {
+  angle: string;
+  first_test: string;
+  criteria_go: string;
+  notes: string;
+}
+
+export interface OpportunitySummary {
+  id: string;
+  scan_id: string;
+  keyword: string;
+  title: string;
+  verdict: "GO" | "WATCH" | "SKIP";
+  model_version: string;
+  summary: string;
+  scores: BusinessScores;
+  evidence_video_ids: string[];
+  competitor_channels: string[];
+  execution_plan: ExecutionPlan;
+  source: string;
+  created_at: string;
+  updated_at: string;
+}
+
 interface ListScansResponse {
   scans: ScanSummary[];
 }
@@ -73,6 +97,10 @@ interface RunScoutWorkerResponse {
   error_message: string | null;
 }
 
+interface ListOpportunitiesResponse {
+  opportunities: OpportunitySummary[];
+}
+
 export function listScans() {
   return getJson<ListScansResponse>("/api/v1/scout/scans");
 }
@@ -89,6 +117,10 @@ export function listScanVideos(scanId: string) {
 
 export function getScanAnalysis(scanId: string) {
   return getJson<ScanAnalysis>(`/api/v1/scout/scans/${scanId}/analysis`);
+}
+
+export function listOpportunities() {
+  return getJson<ListOpportunitiesResponse>("/api/v1/scout/opportunities");
 }
 
 export function runScoutWorkerOnce() {

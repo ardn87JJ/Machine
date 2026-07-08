@@ -7,6 +7,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.repositories.opportunities import OpportunityUpsertInput
 from app.repositories.scans import CreateScanInput, ScanRepository
 from app.repositories.youtube import ScanVideoRecord, YouTubeStorageRepository
 
@@ -87,6 +88,34 @@ class ScanAnalysisResponse(BaseModel):
     competitor_channels: list[str]
 
 
+class ExecutionPlanResponse(BaseModel):
+    angle: str
+    first_test: str
+    criteria_go: str
+    notes: str
+
+
+class OpportunityResponse(BaseModel):
+    id: UUID
+    scan_id: UUID
+    keyword: str
+    title: str
+    verdict: Literal["GO", "WATCH", "SKIP"]
+    model_version: str
+    summary: str
+    scores: BusinessScores
+    evidence_video_ids: list[str]
+    competitor_channels: list[str]
+    execution_plan: ExecutionPlanResponse
+    source: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class ListOpportunitiesResponse(BaseModel):
+    opportunities: list[OpportunityResponse]
+
+
 def normalize_keyword(keyword: str) -> str:
     return " ".join(keyword.split()).strip()
 
@@ -132,6 +161,55 @@ def _to_scan_video_summary(video: ScanVideoRecord) -> ScanVideoSummary:
         comment_count=video.comment_count,
         published_at=video.published_at,
         thumbnail_url=video.thumbnail_url,
+    )
+
+
+def build_execution_plan(
+    analysis: ScanAnalysisResponse,
+    keyword: str,
+) -> ExecutionPlanResponse:
+    if analysis.verdict == "GO":
+        angle = "Série verticale IA sur tension dramatique courte"
+        first_test = f"Lancer 5 épisodes courts autour de {keyword} sur 7 jours"
+        criteria_go = "Un épisode dépasse le benchmark de vues initial en 48h"
+        notes = "Accélérer le hook, garder des formats courts, pousser le volume d'itérations."
+    elif analysis.verdict == "WATCH":
+        angle = "Observer et resserrer l'angle éditorial"
+        first_test = f"Tester 3 hooks et 2 formulations de {keyword}"
+        criteria_go = "Le score money et le score attack montent au-dessus de 70"
+        notes = "Le marché est intéressant mais la préparation doit être affinée."
+    else:
+        angle = "Retirer cette piste du plan actif"
+        first_test = f"Conserver {keyword} uniquement pour veille"
+        criteria_go = "Réouverture si la concurrence baisse ou si les signaux montent"
+        notes = "Ne pas investir de temps de production pour l'instant."
+
+    return ExecutionPlanResponse(
+        angle=angle,
+        first_test=first_test,
+        criteria_go=criteria_go,
+        notes=notes,
+    )
+
+
+def build_opportunity_upsert_input(
+    scan_id: UUID,
+    keyword: str,
+    analysis: ScanAnalysisResponse,
+) -> OpportunityUpsertInput:
+    execution_plan = build_execution_plan(analysis=analysis, keyword=keyword)
+
+    return OpportunityUpsertInput(
+        scan_id=scan_id,
+        keyword=keyword,
+        title=analysis.opportunity_title,
+        verdict=analysis.verdict,
+        model_version=analysis.model_version,
+        summary=analysis.summary,
+        scores=analysis.scores.model_dump(),
+        evidence_video_ids=analysis.evidence_video_ids,
+        competitor_channels=analysis.competitor_channels,
+        execution_plan=execution_plan.model_dump(),
     )
 
 

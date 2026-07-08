@@ -4,15 +4,24 @@ from uuid import UUID
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from app.api.dependencies import get_scan_repository, get_youtube_repository
+from app.api.dependencies import (
+    get_opportunity_repository,
+    get_scan_repository,
+    get_youtube_repository,
+)
 from app.core.http_errors import ConfigurationError, configuration_http_exception
+from app.repositories.opportunities import OpportunityRepository
 from app.repositories.scans import ScanRepository
 from app.repositories.youtube import YouTubeStorageRepository
 from app.services.scout import (
+    BusinessScores,
     CreateScanRequest,
     CreateScanResponse,
+    ExecutionPlanResponse,
+    ListOpportunitiesResponse,
     ListScansResponse,
     ListScanVideosResponse,
+    OpportunityResponse,
     ScanAnalysisResponse,
     analyze_scan,
     create_scan,
@@ -89,3 +98,35 @@ async def read_scan_analysis(
         return await analyze_scan(scan_id=scan_id, repository=repository)
     except ConfigurationError as error:
         raise configuration_http_exception(error) from error
+
+
+@router.get("/opportunities", response_model=ListOpportunitiesResponse)
+async def read_opportunities(
+    repository: Annotated[OpportunityRepository, Depends(get_opportunity_repository)],
+) -> ListOpportunitiesResponse:
+    try:
+        opportunities = await repository.list_recent()
+    except ConfigurationError as error:
+        raise configuration_http_exception(error) from error
+
+    return ListOpportunitiesResponse(
+        opportunities=[
+            OpportunityResponse(
+                id=opportunity.id,
+                scan_id=opportunity.scan_id,
+                keyword=opportunity.keyword,
+                title=opportunity.title,
+                verdict=opportunity.verdict,  # type: ignore[arg-type]
+                model_version=opportunity.model_version,
+                summary=opportunity.summary,
+                scores=BusinessScores.model_validate(opportunity.scores),
+                evidence_video_ids=opportunity.evidence_video_ids,
+                competitor_channels=opportunity.competitor_channels,
+                execution_plan=ExecutionPlanResponse.model_validate(opportunity.execution_plan),
+                source=opportunity.source,
+                created_at=opportunity.created_at,
+                updated_at=opportunity.updated_at,
+            )
+            for opportunity in opportunities
+        ],
+    )

@@ -4,8 +4,11 @@ import {
   createScan,
   getScanAnalysis,
   listScans,
+  listOpportunities,
   listScanVideos,
   runScoutWorkerOnce,
+  type ExecutionPlan,
+  type OpportunitySummary,
   type ScanAnalysis,
   type ScanSummary,
   type ScanVideoSummary,
@@ -115,6 +118,7 @@ type OpportunityRecord = Opportunity & {
   modelVersion: string;
   source: "backend" | "local";
   videos: ScanVideoSummary[];
+  executionPlan: ExecutionPlan;
 };
 
 function getErrorMessage(error: unknown) {
@@ -282,6 +286,36 @@ function buildOpportunityRecord({
     modelVersion: analysis.model_version,
     source,
     videos,
+    executionPlan: {
+      angle: "Série verticale IA sur tension dramatique courte",
+      first_test: `Lancer 5 épisodes courts autour de ${scan.keyword} sur 7 jours`,
+      criteria_go: "Un épisode dépasse le benchmark de vues initial en 48h",
+      notes: analysis.summary,
+    },
+  };
+}
+
+function buildOpportunityRecordFromSaved(
+  opportunity: OpportunitySummary,
+  videos: ScanVideoSummary[],
+): OpportunityRecord {
+  return {
+    title: opportunity.title,
+    verdict: opportunity.verdict,
+    moneyScore: opportunity.scores.money_score,
+    attackScore: opportunity.scores.attack_score,
+    speedCashScore: opportunity.scores.speed_cash_score,
+    qualityGapScore: opportunity.scores.quality_gap_score,
+    weakCompetitorScore: opportunity.scores.weak_competitor_score,
+    uploadPressureScore: opportunity.scores.upload_pressure_score,
+    confidence: opportunity.scores.confidence,
+    reason: opportunity.summary,
+    scanId: opportunity.scan_id,
+    keyword: opportunity.keyword,
+    modelVersion: opportunity.model_version,
+    source: opportunity.source === "local" ? "local" : "backend",
+    videos,
+    executionPlan: opportunity.execution_plan,
   };
 }
 
@@ -671,18 +705,18 @@ function ProducerConsole({
       <div className="execution-plan">
         <article>
           <span>Angle</span>
-          <strong>Série verticale IA sur tension dramatique courte</strong>
-          <p>Reprendre le format mini-drama, mais attaquer par hooks plus nets et rythme plus dense.</p>
+          <strong>{opportunity?.executionPlan.angle ?? "Série verticale IA sur tension dramatique courte"}</strong>
+          <p>{opportunity?.executionPlan.notes ?? "Reprendre le format mini-drama, mais attaquer par hooks plus nets et rythme plus dense."}</p>
         </article>
         <article>
           <span>Premier test</span>
-          <strong>5 épisodes courts en 7 jours</strong>
+          <strong>{opportunity?.executionPlan.first_test ?? "5 épisodes courts en 7 jours"}</strong>
           <p>Tester 3 hooks émotionnels, 2 niches narratives et comparer rétention / commentaires.</p>
         </article>
         <article>
           <span>Critère GO</span>
           <strong>{(opportunity?.moneyScore ?? 0) >= 70 ? "prioritaire" : "à surveiller"}</strong>
-          <p>Passer en production si un épisode dépasse le benchmark de vues initial en 48h.</p>
+          <p>{opportunity?.executionPlan.criteria_go ?? "Passer en production si un épisode dépasse le benchmark de vues initial en 48h."}</p>
         </article>
       </div>
     </section>
@@ -716,6 +750,13 @@ export function App() {
   const scansQuery = useQuery({
     queryKey: ["scout-scans"],
     queryFn: listScans,
+    retry: false,
+    refetchInterval: 30_000,
+  });
+
+  const opportunitiesQuery = useQuery({
+    queryKey: ["scout-opportunities"],
+    queryFn: listOpportunities,
     retry: false,
     refetchInterval: 30_000,
   });
@@ -763,14 +804,13 @@ export function App() {
   });
 
   const visibleAnalysis = localRuns[0]?.analysis ?? analysisQuery.data;
-  const backendAnalysisQueries = useQueries({
-    queries: backendCompletedScans.map((scan) => ({
-      queryKey: ["scan-analysis", scan.id],
-      queryFn: () => getScanAnalysis(scan.id),
-      enabled: Boolean(scan.id),
-      retry: false,
-    })),
-  });
+  const storedOpportunityRecords = (opportunitiesQuery.data?.opportunities ?? []).map(
+    (opportunity) =>
+      buildOpportunityRecordFromSaved(
+        opportunity,
+        videosByScan.get(opportunity.scan_id) ?? [],
+      ),
+  );
 
   const opportunityRecords = [
     ...localRuns.map((run) =>
@@ -781,20 +821,25 @@ export function App() {
         source: "local",
       }),
     ),
-    ...backendCompletedScans.map((scan, index) => {
-      const videos = videosByScan.get(scan.id) ?? [];
-      const analysis =
-        backendAnalysisQueries[index]?.data ??
-        buildAnalysisFromVideos(videos, `${scan.keyword} · opportunité backend`, "frontend-preview-v0");
-
-      return buildOpportunityRecord({
-        scan,
-        videos,
-        analysis,
-        source: "backend",
-      });
-    }),
+    ...storedOpportunityRecords,
   ];
+
+  if (opportunityRecords.length === 0 && primaryCompletedScan) {
+    opportunityRecords.push(
+      buildOpportunityRecord({
+        scan: primaryCompletedScan,
+        videos: visibleVideos,
+        analysis:
+          visibleAnalysis ??
+          buildAnalysisFromVideos(
+            visibleVideos,
+            `${primaryCompletedScan.keyword} · opportunité backend`,
+            "frontend-preview-v0",
+          ),
+        source: "backend",
+      }),
+    );
+  }
 
   const selectedOpportunity =
     opportunityRecords.find((record) => record.scanId === selectedOpportunityId) ??

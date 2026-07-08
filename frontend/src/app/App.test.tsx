@@ -137,6 +137,51 @@ describe("App", () => {
           );
         }
 
+        if (url.endsWith("/api/v1/scout/opportunities")) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                opportunities: [
+                  {
+                    id: "33333333-3333-3333-3333-333333333333",
+                    scan_id: "11111111-1111-1111-1111-111111111111",
+                    keyword: "mini drama ia",
+                    title: "Mini-drama IA vertical court",
+                    verdict: "GO",
+                    model_version: "business-heuristic-v0.1",
+                    summary: "19863 vues moyennes sur 1 vidéos, 1 chaînes observées, 1 quality gaps.",
+                    scores: {
+                      money_score: 82,
+                      attack_score: 71,
+                      speed_cash_score: 68,
+                      quality_gap_score: 77,
+                      weak_competitor_score: 74,
+                      upload_pressure_score: 63,
+                      ecosystem_score: 69,
+                      confidence: 72,
+                    },
+                    evidence_video_ids: ["L48-pHflCnk"],
+                    competitor_channels: ["AI Creator"],
+                    execution_plan: {
+                      angle: "Série verticale IA sur tension dramatique courte",
+                      first_test: "Lancer 5 épisodes courts autour de mini drama ia sur 7 jours",
+                      criteria_go: "Un épisode dépasse le benchmark de vues initial en 48h",
+                      notes: "Accélérer le hook, garder des formats courts, pousser le volume d'itérations.",
+                    },
+                    source: "scout",
+                    created_at: "2026-07-05T09:00:00Z",
+                    updated_at: "2026-07-05T09:00:00Z",
+                  },
+                ],
+              }),
+              {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+              },
+            ),
+          );
+        }
+
         return Promise.reject(new Error(`Unhandled fetch for ${url}`));
       }),
     );
@@ -162,7 +207,9 @@ describe("App", () => {
     expect(screen.getByText("weak_competitor_score")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Classement exploitable" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Plan d’attaque" })).toBeInTheDocument();
-    expect(screen.getByText("5 épisodes courts en 7 jours")).toBeInTheDocument();
+    expect(
+      screen.getByText("Lancer 5 épisodes courts autour de mini drama ia sur 7 jours"),
+    ).toBeInTheDocument();
     expect(screen.getByText("Scans visibles")).toBeInTheDocument();
   });
 
