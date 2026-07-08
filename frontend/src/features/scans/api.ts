@@ -108,6 +108,12 @@ export interface RunEdgeScoutResponse {
   opportunity: Omit<OpportunitySummary, "id" | "created_at" | "updated_at">;
 }
 
+export interface EdgeScoutLedgerResponse {
+  opportunities: OpportunitySummary[];
+  scans: ScanSummary[];
+  videos_by_scan: Record<string, ScanVideoSummary[]>;
+}
+
 const configuredScoutFunctionUrl = import.meta.env.VITE_SCOUT_FUNCTION_URL?.trim();
 const configuredSupabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim();
 const defaultSupabaseUrl = "https://uscmdnzbwvsjrocemset.supabase.co";
@@ -169,4 +175,28 @@ export async function runEdgeScout(keyword: string) {
   }
 
   return response.json() as Promise<RunEdgeScoutResponse>;
+}
+
+export async function listEdgeScoutLedger() {
+  const response = await fetch(`${SCOUT_FUNCTION_URL}?limit=20`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    let message = `La fonction Scout a repondu avec le statut ${response.status}.`;
+
+    try {
+      const payload = (await response.json()) as { message?: string };
+      message = payload.message || message;
+    } catch {
+      // Keep the status-based message when the Edge Function does not return JSON.
+    }
+
+    throw new Error(message);
+  }
+
+  return response.json() as Promise<EdgeScoutLedgerResponse>;
 }

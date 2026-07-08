@@ -60,10 +60,32 @@ type ScanAnalysis = {
   competitor_channels: string[];
 };
 
+type OpportunitySummary = {
+  id: string;
+  scan_id: string;
+  keyword: string;
+  title: string;
+  verdict: "GO" | "WATCH" | "SKIP";
+  model_version: string;
+  summary: string;
+  scores: BusinessScores;
+  evidence_video_ids: string[];
+  competitor_channels: string[];
+  execution_plan: {
+    angle: string;
+    first_test: string;
+    criteria_go: string;
+    notes: string;
+  };
+  source: string;
+  created_at: string;
+  updated_at: string;
+};
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
 };
 
 const youtubeApiKey = Deno.env.get("YOUTUBE_API_KEY") ?? "";
@@ -73,6 +95,16 @@ const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
+  }
+
+  if (request.method === "GET") {
+    try {
+      assertConfigured();
+      return json(await listScoutLedger(request));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Erreur inconnue.";
+      return json({ error: "list_scout_ledger_failed", message }, 500);
+    }
   }
 
   if (request.method !== "POST") {
@@ -117,6 +149,53 @@ Deno.serve(async (request) => {
     return json({ error: "run_scout_failed", message }, 500);
   }
 });
+
+async function listScoutLedger(request: Request) {
+  const url = new URL(request.url);
+  const limit = Math.max(1, Math.min(50, Number(url.searchParams.get("limit") ?? 20)));
+  const opportunities = await supabaseFetch<OpportunitySummary[]>(
+    `/rest/v1/opportunities?select=id,scan_id,keyword,title,verdict,model_version,summary,scores,evidence_video_ids,competitor_channels,execution_plan,source,created_at,updated_at&order=created_at.desc&limit=${limit}`,
+  );
+  const scanIds = opportunities.map((opportunity) => opportunity.scan_id);
+
+  if (scanIds.length === 0) {
+    return { opportunities, scans: [], videos_by_scan: {} };
+  }
+
+  const scans = await supabaseFetch<JsonRecord[]>(
+    `/rest/v1/scans?select=id,platform,keyword,status,error_code,error_message,created_at,updated_at&id=in.(${scanIds.join(",")})`,
+  );
+  const scanVideos = await supabaseFetch<JsonRecord[]>(
+    `/rest/v1/scan_videos?select=scan_id,rank,video_id,youtube_videos(title,channel_id,view_count,like_count,comment_count,published_at,thumbnail_url,youtube_channels(title))&scan_id=in.(${scanIds.join(",")})&order=rank.asc`,
+  );
+  const videosByScan: Record<string, ScanVideoSummary[]> = {};
+
+  scanVideos.forEach((item) => {
+    const scanId = String(item.scan_id);
+    const video = item.youtube_videos as JsonRecord | undefined;
+    const channel = video?.youtube_channels as JsonRecord | undefined;
+    const summary = {
+      rank: Number(item.rank),
+      video_id: String(item.video_id),
+      title: String(video?.title ?? ""),
+      channel_id: String(video?.channel_id ?? ""),
+      channel_title: String(channel?.title ?? ""),
+      view_count: optionalNumber(video?.view_count),
+      like_count: optionalNumber(video?.like_count),
+      comment_count: optionalNumber(video?.comment_count),
+      published_at: optionalString(video?.published_at),
+      thumbnail_url: optionalString(video?.thumbnail_url),
+    };
+
+    videosByScan[scanId] = [...(videosByScan[scanId] ?? []), summary];
+  });
+
+  return {
+    opportunities,
+    scans,
+    videos_by_scan: videosByScan,
+  };
+}
 
 function json(payload: unknown, status = 200) {
   return new Response(JSON.stringify(payload), {

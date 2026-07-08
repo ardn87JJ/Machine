@@ -216,10 +216,83 @@ describe("App", () => {
   it("lance le Scout Edge quand l'API FastAPI n'est pas joignable", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
         const url = String(input);
 
         if (url.includes("/functions/v1/run-scout")) {
+          if (init?.method === "GET") {
+            return Promise.resolve(
+              new Response(
+                JSON.stringify({
+                  opportunities: [
+                    {
+                      id: "55555555-5555-5555-5555-555555555555",
+                      scan_id: "55555555-5555-5555-5555-555555555551",
+                      keyword: "persisted edge niche",
+                      title: "Mini-drama IA vertical court",
+                      verdict: "WATCH",
+                      model_version: "edge-business-heuristic-v0.1",
+                      summary: "50000 vues moyennes sur 1 vidéos, 1 chaînes observées, 1 quality gaps.",
+                      scores: {
+                        money_score: 90,
+                        attack_score: 80,
+                        speed_cash_score: 60,
+                        quality_gap_score: 70,
+                        weak_competitor_score: 68,
+                        upload_pressure_score: 58,
+                        ecosystem_score: 72,
+                        confidence: 82,
+                      },
+                      evidence_video_ids: ["persisted-video-1"],
+                      competitor_channels: ["Persisted Creator"],
+                      execution_plan: {
+                        angle: "Observer et resserrer l'angle éditorial",
+                        first_test: "Tester 3 hooks et 2 formulations de persisted edge niche",
+                        criteria_go: "Le score money et le score attack montent au-dessus de 70",
+                        notes: "Historique Edge persistant.",
+                      },
+                      source: "edge-run-scout",
+                      created_at: "2026-07-08T13:20:00Z",
+                      updated_at: "2026-07-08T13:20:10Z",
+                    },
+                  ],
+                  scans: [
+                    {
+                      id: "55555555-5555-5555-5555-555555555551",
+                      platform: "youtube",
+                      keyword: "persisted edge niche",
+                      status: "completed",
+                      error_code: null,
+                      error_message: null,
+                      created_at: "2026-07-08T13:20:00Z",
+                      updated_at: "2026-07-08T13:20:10Z",
+                    },
+                  ],
+                  videos_by_scan: {
+                    "55555555-5555-5555-5555-555555555551": [
+                      {
+                        rank: 1,
+                        video_id: "persisted-video-1",
+                        title: "Persisted Edge Scout Result",
+                        channel_id: "persisted-channel-1",
+                        channel_title: "Persisted Creator",
+                        view_count: 50000,
+                        like_count: 500,
+                        comment_count: 20,
+                        published_at: "2026-07-01T12:00:00Z",
+                        thumbnail_url: "https://img.youtube.com/vi/persisted-video-1/hqdefault.jpg",
+                      },
+                    ],
+                  },
+                }),
+                {
+                  status: 200,
+                  headers: { "Content-Type": "application/json" },
+                },
+              ),
+            );
+          }
+
           return Promise.resolve(
             new Response(
               JSON.stringify({
@@ -308,6 +381,7 @@ describe("App", () => {
     renderApp();
 
     expect(await screen.findByText("Edge Supabase · scan public")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "persisted edge niche" })).toBeInTheDocument();
 
     const keywordInput = screen.getByLabelText("Niche / mot-clé de départ");
     fireEvent.change(keywordInput, { target: { value: "ai music channel" } });

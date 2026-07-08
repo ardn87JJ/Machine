@@ -3,6 +3,7 @@ import { type FormEvent, useState } from "react";
 import {
   createScan,
   getScanAnalysis,
+  listEdgeScoutLedger,
   listScans,
   listOpportunities,
   listScanVideos,
@@ -553,6 +554,7 @@ function ScoutConsole({
       await queryClient.invalidateQueries({ queryKey: ["scan-videos"] });
       await queryClient.invalidateQueries({ queryKey: ["scan-analysis"] });
       await queryClient.invalidateQueries({ queryKey: ["scout-opportunities"] });
+      await queryClient.invalidateQueries({ queryKey: ["edge-scout-ledger"] });
     },
   });
 
@@ -830,6 +832,14 @@ export function App() {
     refetchInterval: 30_000,
   });
 
+  const edgeLedgerQuery = useQuery({
+    queryKey: ["edge-scout-ledger"],
+    queryFn: listEdgeScoutLedger,
+    enabled: statusQuery.isError,
+    retry: false,
+    refetchInterval: 30_000,
+  });
+
   const backendOnline = statusQuery.isSuccess;
   const backendStatusLabel = statusQuery.isPending
     ? "API : vérification..."
@@ -842,12 +852,15 @@ export function App() {
       ? "status status--success"
       : "status status--success";
 
+  const edgeScans = edgeLedgerQuery.data?.scans ?? [];
   const showVerifiedFallback =
     localRuns.length === 0 &&
+    edgeScans.length === 0 &&
     (statusQuery.isError || scansQuery.isError || scansQuery.data?.scans.length === 0);
   const fallbackScans = showVerifiedFallback ? [verifiedFallbackRun.scan] : [];
   const scans = [
     ...localRuns.map((run) => run.scan),
+    ...edgeScans,
     ...fallbackScans,
     ...(scansQuery.data?.scans ?? []),
   ];
@@ -868,6 +881,10 @@ export function App() {
 
   localRuns.forEach((run) => {
     videosByScan.set(run.scan.id, run.videos);
+  });
+
+  Object.entries(edgeLedgerQuery.data?.videos_by_scan ?? {}).forEach(([scanId, videos]) => {
+    videosByScan.set(scanId, videos);
   });
 
   if (showVerifiedFallback) {
@@ -894,6 +911,13 @@ export function App() {
         videosByScan.get(opportunity.scan_id) ?? [],
       ),
   );
+  const edgeOpportunityRecords = (edgeLedgerQuery.data?.opportunities ?? []).map(
+    (opportunity) =>
+      buildOpportunityRecordFromSaved(
+        opportunity,
+        videosByScan.get(opportunity.scan_id) ?? [],
+      ),
+  );
 
   const opportunityRecords = [
     ...localRuns.map((run) =>
@@ -904,6 +928,7 @@ export function App() {
         source: run.source === "edge" ? "backend" : "local",
       }),
     ),
+    ...edgeOpportunityRecords,
     ...storedOpportunityRecords,
   ];
 
