@@ -263,6 +263,36 @@ h3 {
   padding-right: 4px;
 }
 
+.ledger-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.ledger-filters button {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  border: 1px solid #253142;
+  border-radius: 999px;
+  padding: 8px 10px;
+  color: #aab6c4;
+  background: #0b1018;
+  font-size: 0.76rem;
+  font-weight: 850;
+}
+
+.ledger-filters button.is-active {
+  border-color: #1f6f5f;
+  color: #83f1d8;
+  background: #10211f;
+}
+
+.ledger-filters span {
+  color: #edf3fb;
+}
+
 .ledger-item {
   display: grid;
   gap: 10px;

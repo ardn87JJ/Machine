@@ -179,6 +179,7 @@ type OpportunityRecord = Opportunity & {
 };
 
 type DecisionLabel = OpportunityRecord["decisionLabel"];
+type DecisionFilter = DecisionLabel | "ALL";
 
 function getErrorMessage(error: unknown) {
   if (error instanceof ApiError) {
@@ -555,13 +556,32 @@ function OpportunityBadge({ verdict }: { verdict: Opportunity["verdict"] }) {
 
 function OpportunityLedger({
   opportunities,
+  allOpportunities,
+  decisionFilter,
   selectedOpportunityId,
+  onDecisionFilterChange,
   onSelectOpportunity,
 }: {
   opportunities: OpportunityRecord[];
+  allOpportunities: OpportunityRecord[];
+  decisionFilter: DecisionFilter;
   selectedOpportunityId: string | null;
+  onDecisionFilterChange: (filter: DecisionFilter) => void;
   onSelectOpportunity: (id: string) => void;
 }) {
+  const filterOptions: Array<{ label: string; value: DecisionFilter }> = [
+    { label: "Tous", value: "ALL" },
+    { label: "ATTAQUER", value: "ATTAQUER" },
+    { label: "TESTER", value: "TESTER" },
+    { label: "VEILLE", value: "VEILLE" },
+  ];
+  const countByFilter = {
+    ALL: allOpportunities.length,
+    ATTAQUER: allOpportunities.filter((opportunity) => opportunity.decisionLabel === "ATTAQUER").length,
+    TESTER: allOpportunities.filter((opportunity) => opportunity.decisionLabel === "TESTER").length,
+    VEILLE: allOpportunities.filter((opportunity) => opportunity.decisionLabel === "VEILLE").length,
+  };
+
   return (
     <section className="cockpit-panel" aria-labelledby="ledger-title">
       <div className="panel-heading">
@@ -569,11 +589,27 @@ function OpportunityLedger({
           <p className="eyebrow">Ledger opportunités</p>
           <h2 id="ledger-title">Classement exploitable</h2>
         </div>
-        <span className="phase">{opportunities.length} opportunités</span>
+        <span className="phase">{opportunities.length} affichées</span>
+      </div>
+
+      <div className="ledger-filters" aria-label="Filtrer les opportunités">
+        {filterOptions.map((option) => (
+          <button
+            className={decisionFilter === option.value ? "is-active" : ""}
+            key={option.value}
+            onClick={() => onDecisionFilterChange(option.value)}
+            type="button"
+          >
+            {option.label} <span>{countByFilter[option.value]}</span>
+          </button>
+        ))}
       </div>
 
       <div className="ledger-grid">
         <div className="ledger-list">
+          {opportunities.length === 0 ? (
+            <p className="panel-empty">Aucune opportunité dans ce filtre.</p>
+          ) : null}
           {opportunities.map((opportunity) => {
             const isSelected = selectedOpportunityId === opportunity.scanId;
 
@@ -958,6 +994,7 @@ function EmptyState() {
 export function App() {
   const [localRuns, setLocalRuns] = useState<LocalRun[]>([]);
   const [selectedOpportunityId, setSelectedOpportunityId] = useState<string | null>(null);
+  const [decisionFilter, setDecisionFilter] = useState<DecisionFilter>("ALL");
   const verifiedFallbackRun = buildVerifiedFallbackRun();
 
   const statusQuery = useQuery({
@@ -1099,11 +1136,17 @@ export function App() {
   }
 
   const opportunityRecords = rankOpportunities(opportunityRecordsRaw);
+  const filteredOpportunityRecords =
+    decisionFilter === "ALL"
+      ? opportunityRecords
+      : opportunityRecords.filter((opportunity) => opportunity.decisionLabel === decisionFilter);
 
   const selectedOpportunity =
-    opportunityRecords.find((record) => record.scanId === selectedOpportunityId) ??
+    filteredOpportunityRecords.find((record) => record.scanId === selectedOpportunityId) ??
+    filteredOpportunityRecords[0] ??
     opportunityRecords[0] ??
     undefined;
+  const attackCount = opportunityRecords.filter((opportunity) => opportunity.decisionLabel === "ATTAQUER").length;
 
   function runLocalScan({ count, keyword }: { count: number; keyword: string }) {
     const batchSize = count === 1 ? 5 : Math.max(5, Math.min(count, 12));
@@ -1151,9 +1194,9 @@ export function App() {
           <small>{visibleVideos[0]?.title ?? "lance un scan pour remplir le cockpit"}</small>
         </article>
         <article>
-          <span>Verdict</span>
-          <strong>{visibleAnalysis?.verdict ?? "WATCH"}</strong>
-          <small>{visibleAnalysis?.summary ?? "analyse locale en attente"}</small>
+          <span>À attaquer</span>
+          <strong>{attackCount}</strong>
+          <small>{selectedOpportunity ? `${selectedOpportunity.keyword} · score ${selectedOpportunity.priorityScore}` : "aucune priorité active"}</small>
         </article>
       </div>
 
@@ -1171,8 +1214,11 @@ export function App() {
 
         <div className="workspace-column workspace-column--ledger">
           <OpportunityLedger
+            allOpportunities={opportunityRecords}
+            decisionFilter={decisionFilter}
+            onDecisionFilterChange={setDecisionFilter}
             onSelectOpportunity={setSelectedOpportunityId}
-            opportunities={opportunityRecords}
+            opportunities={filteredOpportunityRecords}
             selectedOpportunityId={selectedOpportunity?.scanId ?? null}
           />
         </div>
