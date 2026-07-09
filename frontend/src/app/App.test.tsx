@@ -205,6 +205,9 @@ describe("App", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("money_score")).toBeInTheDocument();
     expect(screen.getByText("weak_competitor_score")).toBeInTheDocument();
+    expect(screen.getByText("Intel concurrents")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Qui attaquer / copier" })).toBeInTheDocument();
+    expect(screen.getByText("CIBLE FAIBLE")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Classement exploitable" })).toBeInTheDocument();
     expect(screen.getByText("Fiche action")).toBeInTheDocument();
     expect(screen.getByText("Décision TESTER · score 75/100")).toBeInTheDocument();
@@ -403,6 +406,7 @@ describe("App", () => {
     expect(screen.getAllByText("Chaîne musicale IA monétisable").length).toBeGreaterThan(0);
     expect(screen.getByText("ATTAQUER · 91")).toBeInTheDocument();
     expect(screen.getByText("Décision ATTAQUER · score 91/100")).toBeInTheDocument();
+    expect(screen.getByText("BENCHMARK")).toBeInTheDocument();
     expect(
       screen.getAllByText("Publier 7 morceaux courts autour de ai music channel avec visuels cohérents").length,
     ).toBeGreaterThan(0);

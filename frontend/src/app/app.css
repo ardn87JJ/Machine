@@ -422,6 +422,7 @@ h3 {
 .opportunity-card,
 .brief-command,
 .brief-grid > div,
+.competitor-row,
 .signal-stack > div,
 .execution-plan article,
 .scan-card {
@@ -490,6 +491,7 @@ h3 {
 .brief-command span,
 .brief-grid span,
 .brief-evidence > span,
+.intel-heading span,
 .signal-stack span,
 .execution-plan span,
 .brief-scores span {
@@ -712,6 +714,114 @@ h3 {
   white-space: nowrap;
 }
 
+.competitor-intel {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.intel-heading {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.intel-heading h3 {
+  margin-bottom: 0;
+}
+
+.competitor-list {
+  display: grid;
+  gap: 8px;
+}
+
+.competitor-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+}
+
+.competitor-row > div {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.competitor-row strong,
+.competitor-row small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.competitor-row strong {
+  color: #edf3fb;
+}
+
+.competitor-row small {
+  color: #9aa7b6;
+}
+
+.competitor-row dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(72px, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.competitor-row dl div {
+  display: grid;
+  gap: 3px;
+  padding: 8px;
+  border: 1px solid #253142;
+  border-radius: 9px;
+  background: #0b1018;
+}
+
+.competitor-row dt,
+.competitor-row dd {
+  margin: 0;
+}
+
+.competitor-row dt {
+  color: #8f9baa;
+  font-size: 0.7rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.competitor-row dd {
+  color: #edf3fb;
+  font-weight: 850;
+}
+
+.competitor-tag {
+  width: fit-content;
+  padding: 6px 8px;
+  border: 1px solid #253142;
+  border-radius: 999px;
+  color: #c8d3df;
+  background: #0b1018;
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+}
+
+.competitor-tag--cible-faible {
+  border-color: #1f6f5f;
+  color: #83f1d8;
+  background: #10211f;
+}
+
+.competitor-tag--benchmark {
+  border-color: #7b5a1b;
+  color: #ffd28a;
+  background: #1c160a;
+}
+
 .opportunity-layout {
   display: grid;
   grid-template-columns: minmax(0, 2fr) minmax(240px, 0.8fr);
@@ -796,6 +906,7 @@ h3 {
   .opportunity-layout,
   .execution-plan,
   .brief-grid,
+  .competitor-row,
   .dashboard-summary,
   .ledger-grid,
   .workspace-grid,
@@ -817,6 +928,10 @@ h3 {
     max-height: none;
     overflow: visible;
     padding-right: 0;
+  }
+
+  .competitor-row dl {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 

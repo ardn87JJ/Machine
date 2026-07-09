@@ -182,6 +182,17 @@ type OpportunityRecord = Opportunity & {
 type DecisionLabel = OpportunityRecord["decisionLabel"];
 type DecisionFilter = DecisionLabel | "ALL";
 
+type CompetitorRow = {
+  channelId: string;
+  channelTitle: string;
+  videoCount: number;
+  averageViews: number;
+  totalViews: number;
+  weakSignals: number;
+  bestVideo: ScanVideoSummary;
+  attackTag: "CIBLE FAIBLE" | "BENCHMARK" | "À OBSERVER";
+};
+
 function getErrorMessage(error: unknown) {
   if (error instanceof ApiError) {
     return error.message;
@@ -503,6 +514,57 @@ function rankOpportunities(opportunities: OpportunityRecord[]) {
 
     return right.confidence - left.confidence;
   });
+}
+
+function buildCompetitorRows(videos: ScanVideoSummary[]): CompetitorRow[] {
+  const byChannel = new Map<string, ScanVideoSummary[]>();
+
+  videos.forEach((video) => {
+    const key = video.channel_id || video.channel_title || "unknown-channel";
+    const current = byChannel.get(key) ?? [];
+
+    current.push(video);
+    byChannel.set(key, current);
+  });
+
+  return Array.from(byChannel.entries())
+    .map(([channelId, channelVideos]) => {
+      const totalViews = channelVideos.reduce((total, video) => total + (video.view_count ?? 0), 0);
+      const averageViews = channelVideos.length > 0 ? totalViews / channelVideos.length : 0;
+      const bestVideo = [...channelVideos].sort((left, right) => (right.view_count ?? 0) - (left.view_count ?? 0))[0];
+      const weakSignals = channelVideos.filter((video) => (video.view_count ?? 0) < 30_000).length;
+      const attackTag: CompetitorRow["attackTag"] =
+        averageViews < 30_000 || weakSignals >= 2
+          ? "CIBLE FAIBLE"
+          : (bestVideo.view_count ?? 0) >= 100_000
+            ? "BENCHMARK"
+            : "À OBSERVER";
+
+      return {
+        channelId,
+        channelTitle: bestVideo.channel_title || channelId,
+        videoCount: channelVideos.length,
+        averageViews,
+        totalViews,
+        weakSignals,
+        bestVideo,
+        attackTag,
+      };
+    })
+    .sort((left, right) => {
+      if (left.attackTag !== right.attackTag) {
+        const order: Record<CompetitorRow["attackTag"], number> = {
+          "CIBLE FAIBLE": 0,
+          BENCHMARK: 1,
+          "À OBSERVER": 2,
+        };
+
+        return order[left.attackTag] - order[right.attackTag];
+      }
+
+      return right.averageViews - left.averageViews;
+    })
+    .slice(0, 5);
 }
 
 function ScoreBar({ label, value }: { label: string; value: number }) {
@@ -910,6 +972,7 @@ function AnalystConsole({
   opportunity: OpportunityRecord | undefined;
   backendOnline: boolean;
 }) {
+  const competitorRows = buildCompetitorRows(opportunity?.videos ?? []);
   const topChannels = Array.from(
     new Set(opportunity?.videos.map((video) => video.channel_title || video.channel_id) ?? []),
   ).slice(0, 5);
@@ -959,6 +1022,48 @@ function AnalystConsole({
             <small>vidéos à faible volume ou exécution améliorable</small>
           </div>
         </aside>
+      </div>
+
+      <div className="competitor-intel" aria-label="Intel concurrents">
+        <div className="intel-heading">
+          <div>
+            <p className="eyebrow">Intel concurrents</p>
+            <h3>Qui attaquer / copier</h3>
+          </div>
+          <span>{competitorRows.length} chaînes</span>
+        </div>
+
+        {competitorRows.length === 0 ? (
+          <p className="panel-empty">Aucune chaîne concurrente disponible.</p>
+        ) : (
+          <div className="competitor-list">
+            {competitorRows.map((competitor) => (
+              <article className="competitor-row" key={competitor.channelId}>
+                <div>
+                  <span className={`competitor-tag competitor-tag--${competitor.attackTag.toLowerCase().replace(/\s+/g, "-")}`}>
+                    {competitor.attackTag}
+                  </span>
+                  <strong>{competitor.channelTitle}</strong>
+                  <small>{competitor.bestVideo.title}</small>
+                </div>
+                <dl>
+                  <div>
+                    <dt>Vues moy.</dt>
+                    <dd>{formatMetric(Math.round(competitor.averageViews))}</dd>
+                  </div>
+                  <div>
+                    <dt>Vidéos</dt>
+                    <dd>{competitor.videoCount}</dd>
+                  </div>
+                  <div>
+                    <dt>Faiblesses</dt>
+                    <dd>{competitor.weakSignals}</dd>
+                  </div>
+                </dl>
+              </article>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );
