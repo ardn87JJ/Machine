@@ -193,7 +193,7 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: "START REAL SCAN" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "SCAN 10" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "SCAN 50" })).toBeInTheDocument();
-    expect(await screen.findByRole("heading", { name: "mini drama ia" })).toBeInTheDocument();
+    expect((await screen.findAllByRole("heading", { name: "mini drama ia" })).length).toBeGreaterThan(0);
     expect(
       await screen.findByText("I Made a Netflix-Level Drama Series in 24 HOURS Using ONLY AI!", {
         selector: ".video-result__title",
@@ -206,10 +206,13 @@ describe("App", () => {
     expect(screen.getByText("money_score")).toBeInTheDocument();
     expect(screen.getByText("weak_competitor_score")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Classement exploitable" })).toBeInTheDocument();
+    expect(screen.getByText("Fiche action")).toBeInTheDocument();
+    expect(screen.getByText("Décision TESTER · score 75/100")).toBeInTheDocument();
+    expect(screen.getByText("Prochaine action")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Plan d’attaque" })).toBeInTheDocument();
     expect(
-      screen.getByText("Lancer 5 épisodes courts autour de mini drama ia sur 7 jours"),
-    ).toBeInTheDocument();
+      screen.getAllByText("Lancer 5 épisodes courts autour de mini drama ia sur 7 jours").length,
+    ).toBeGreaterThan(0);
     expect(screen.getByText("Scans visibles")).toBeInTheDocument();
   });
 
@@ -387,18 +390,22 @@ describe("App", () => {
     renderApp();
 
     expect(await screen.findByText("Edge Supabase · scan public")).toBeInTheDocument();
-    expect(await screen.findByRole("heading", { name: "persisted edge niche" })).toBeInTheDocument();
+    expect((await screen.findAllByRole("heading", { name: "persisted edge niche" })).length).toBeGreaterThan(0);
 
     const keywordInput = screen.getByLabelText("Niche / mot-clé de départ");
     fireEvent.change(keywordInput, { target: { value: "ai music channel" } });
     fireEvent.click(screen.getAllByRole("button", { name: "RUN EDGE SCOUT" })[0]);
 
-    expect(await screen.findByRole("heading", { name: "ai music channel" })).toBeInTheDocument();
+    expect((await screen.findAllByRole("heading", { name: "ai music channel" })).length).toBeGreaterThan(0);
     expect(
       await screen.findByText("edge-business-heuristic-v0.2", { selector: ".model-version" }),
     ).toBeInTheDocument();
     expect(screen.getAllByText("Chaîne musicale IA monétisable").length).toBeGreaterThan(0);
     expect(screen.getByText("ATTAQUER · 91")).toBeInTheDocument();
+    expect(screen.getByText("Décision ATTAQUER · score 91/100")).toBeInTheDocument();
+    expect(
+      screen.getAllByText("Publier 7 morceaux courts autour de ai music channel avec visuels cohérents").length,
+    ).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "ATTAQUER 1" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "TESTER 1" })).toBeInTheDocument();
     expect(

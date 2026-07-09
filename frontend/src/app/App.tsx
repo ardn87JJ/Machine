@@ -163,6 +163,7 @@ type LocalRun = {
   scan: ScanSummary;
   videos: ScanVideoSummary[];
   analysis: ScanAnalysis;
+  executionPlan?: ExecutionPlan;
   source: "local" | "edge";
 };
 
@@ -341,6 +342,7 @@ function buildEdgeRun(result: RunEdgeScoutResponse): LocalRun {
     scan: result.scan,
     videos: result.videos,
     analysis: result.analysis,
+    executionPlan: result.opportunity.execution_plan,
     source: "edge",
   };
 }
@@ -419,11 +421,13 @@ function buildOpportunityRecord({
   scan,
   videos,
   analysis,
+  executionPlan,
   source,
 }: {
   scan: ScanSummary;
   videos: ScanVideoSummary[];
   analysis: ScanAnalysis;
+  executionPlan?: ExecutionPlan;
   source: "backend" | "local";
 }): OpportunityRecord {
   const opportunity = opportunityFromAnalysis(analysis);
@@ -437,12 +441,13 @@ function buildOpportunityRecord({
     modelVersion: analysis.model_version,
     source,
     videos,
-    executionPlan: {
-      angle: "Série verticale IA sur tension dramatique courte",
-      first_test: `Lancer 5 épisodes courts autour de ${scan.keyword} sur 7 jours`,
-      criteria_go: "Un épisode dépasse le benchmark de vues initial en 48h",
-      notes: analysis.summary,
-    },
+    executionPlan:
+      executionPlan ?? {
+        angle: "Série verticale IA sur tension dramatique courte",
+        first_test: `Lancer 5 épisodes courts autour de ${scan.keyword} sur 7 jours`,
+        criteria_go: "Un épisode dépasse le benchmark de vues initial en 48h",
+        notes: analysis.summary,
+      },
   };
 }
 
@@ -533,6 +538,23 @@ function VideoResult({ video }: { video: ScanVideoSummary }) {
           {formatDate(video.published_at)}
         </span>
       </span>
+    </a>
+  );
+}
+
+function EvidenceVideo({ video }: { video: ScanVideoSummary }) {
+  return (
+    <a
+      className="evidence-video"
+      href={`https://www.youtube.com/watch?v=${video.video_id}`}
+      rel="noreferrer"
+      target="_blank"
+    >
+      <span>#{video.rank}</span>
+      <strong>{video.title}</strong>
+      <small>
+        {video.channel_title || video.channel_id} · {formatMetric(video.view_count)} vues
+      </small>
     </a>
   );
 }
@@ -978,6 +1000,64 @@ function ProducerConsole({
   );
 }
 
+function ExecutionBrief({
+  opportunity,
+}: {
+  opportunity: OpportunityRecord | undefined;
+}) {
+  const evidenceVideos = opportunity?.videos.slice(0, 3) ?? [];
+  const decisionText = opportunity
+    ? `Décision ${opportunity.decisionLabel} · score ${opportunity.priorityScore}/100`
+    : "Décision en attente · lance un scan";
+
+  return (
+    <section className="cockpit-panel action-brief" aria-labelledby="action-brief-title">
+      <div className="panel-heading">
+        <div>
+          <p className="eyebrow">Fiche action</p>
+          <h2 id="action-brief-title">{opportunity?.keyword ?? "Aucune niche sélectionnée"}</h2>
+          <p className="panel-substatus">{opportunity?.title ?? "Sélectionne une opportunité dans le ledger."}</p>
+        </div>
+        <span className="priority-badge">{decisionText}</span>
+      </div>
+
+      <div className="brief-command">
+        <span>Prochaine action</span>
+        <strong>{opportunity?.executionPlan.first_test ?? "Lancer un scan Scout puis choisir une opportunité."}</strong>
+      </div>
+
+      <div className="brief-grid">
+        <div>
+          <span>Pourquoi</span>
+          <strong>{opportunity?.priorityReasons.slice(0, 3).join(" · ") ?? "signal à qualifier"}</strong>
+          <small>{opportunity?.reason ?? "Les raisons seront générées après collecte YouTube."}</small>
+        </div>
+        <div>
+          <span>Critère de validation</span>
+          <strong>{opportunity?.executionPlan.criteria_go ?? "Attendre un benchmark exploitable."}</strong>
+          <small>Si le critère est atteint, passer en production courte.</small>
+        </div>
+      </div>
+
+      <div className="brief-scores" aria-label="Scores décisionnels">
+        <span>money {opportunity?.moneyScore ?? 0}</span>
+        <span>attack {opportunity?.attackScore ?? 0}</span>
+        <span>speed {opportunity?.speedCashScore ?? 0}</span>
+        <span>gap {opportunity?.qualityGapScore ?? 0}</span>
+      </div>
+
+      <div className="brief-evidence">
+        <span>Preuves vidéo</span>
+        {evidenceVideos.length > 0 ? (
+          evidenceVideos.map((video) => <EvidenceVideo key={video.video_id} video={video} />)
+        ) : (
+          <p className="panel-empty">Aucune vidéo preuve disponible.</p>
+        )}
+      </div>
+    </section>
+  );
+}
+
 function EmptyState() {
   return (
     <div className="empty-state">
@@ -1111,6 +1191,7 @@ export function App() {
         scan: run.scan,
         videos: run.videos,
         analysis: run.analysis,
+        executionPlan: run.executionPlan,
         source: run.source === "edge" ? "backend" : "local",
       }),
     ),
@@ -1224,6 +1305,7 @@ export function App() {
         </div>
 
         <aside className="workspace-column workspace-column--decision">
+          <ExecutionBrief opportunity={selectedOpportunity} />
           <AnalystConsole backendOnline={backendOnline} opportunity={selectedOpportunity} />
           <ProducerConsole opportunity={selectedOpportunity} />
         </aside>
