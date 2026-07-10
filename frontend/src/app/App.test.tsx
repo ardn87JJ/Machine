@@ -452,6 +452,27 @@ describe("App", () => {
           );
         }
 
+        if ((body as { action?: string }).action === "update-draft") {
+          const patch = body as {
+            draft_id: string;
+            status: "DRAFT" | "READY" | "USED";
+          };
+          const draft = {
+            ...drafts[0],
+            status: patch.status,
+            updated_at: "2026-07-08T13:50:00Z",
+          };
+
+          drafts = [draft];
+
+          return Promise.resolve(
+            new Response(JSON.stringify({ draft }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            }),
+          );
+        }
+
         const keyword = body.keyword ?? "ai music channel";
         const scanId = `scan-${keyword.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`;
 
@@ -589,6 +610,21 @@ describe("App", () => {
     expect(await screen.findByRole("button", { name: "Draft sauvegardé" })).toBeDisabled();
     expect(screen.getByRole("heading", { name: "Drafts production" })).toBeInTheDocument();
     expect(screen.getAllByText("J’ai créé une musique IA addictive sur ai music channel").length).toBeGreaterThan(0);
+    expect(screen.getByText("Script détaillé")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Copier" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Exporter TXT" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Marquer USED" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Marquer USED" })).toBeDisabled();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Marquer READY" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Marquer READY" })).toBeDisabled();
+    });
+
     expect(screen.getByRole("button", { name: "ATTAQUER 1" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "TESTER 1" })).toBeInTheDocument();
     expect(
@@ -624,6 +660,18 @@ describe("App", () => {
         fetchMock.mock.calls.some(([, init]) => {
           const payload = JSON.parse(String(init?.body ?? "{}")) as { action?: string; title?: string };
           return payload.action === "create-draft" && payload.title === "J’ai créé une musique IA addictive sur ai music channel";
+        }),
+      ).toBe(true);
+      expect(
+        fetchMock.mock.calls.some(([, init]) => {
+          const payload = JSON.parse(String(init?.body ?? "{}")) as { action?: string; status?: string };
+          return payload.action === "update-draft" && payload.status === "READY";
+        }),
+      ).toBe(true);
+      expect(
+        fetchMock.mock.calls.some(([, init]) => {
+          const payload = JSON.parse(String(init?.body ?? "{}")) as { action?: string; status?: string };
+          return payload.action === "update-draft" && payload.status === "USED";
         }),
       ).toBe(true);
     });

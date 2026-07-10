@@ -87,11 +87,17 @@ Critère de sortie :
 
 ## Producteur futur
 
-- [ ] Concepts de contenu.
-- [ ] Scripts.
-- [ ] Hooks.
-- [ ] Titres et descriptions.
-- [ ] Prompts image / voix.
+- [x] Concepts de contenu.
+- [x] Scripts.
+- [x] Hooks.
+- [x] Titres et descriptions.
+- [x] Prompts image.
+- [x] Drafts sauvegardés dans Supabase.
+- [x] Statuts de draft `DRAFT`, `READY`, `USED`.
+- [x] Copie/export texte d’un draft.
+- [ ] Variantes de hooks/titres.
+- [ ] Checklist de production courte.
+- [ ] Prompts voix.
 - [ ] Plan de montage.
 
 ## Plateformes futures

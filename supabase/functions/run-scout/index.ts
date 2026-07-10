@@ -168,6 +168,11 @@ Deno.serve(async (request) => {
       return json(await createProductionDraft(body));
     }
 
+    if (body.action === "update-draft") {
+      assertConfigured();
+      return json(await updateProductionDraft(body));
+    }
+
     const keyword = normalizeKeyword(String(body.keyword ?? ""));
 
     if (keyword.length < 2) {
@@ -252,6 +257,38 @@ async function createProductionDraft(body: JsonRecord) {
       }),
     },
   );
+
+  return { draft: rows[0] };
+}
+
+async function updateProductionDraft(body: JsonRecord) {
+  const draftId = String(body.draft_id ?? "");
+  const status = String(body.status ?? "") as ProductionDraftSummary["status"];
+  const allowedStatuses = new Set(["DRAFT", "READY", "USED"]);
+
+  if (!draftId) {
+    throw new Error("draft_id est requis pour mettre a jour un draft.");
+  }
+
+  if (!allowedStatuses.has(status)) {
+    throw new Error("Statut de draft invalide.");
+  }
+
+  const rows = await supabaseFetch<ProductionDraftSummary[]>(
+    `/rest/v1/production_drafts?id=eq.${draftId}`,
+    {
+      method: "PATCH",
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify({
+        status,
+        updated_at: new Date().toISOString(),
+      }),
+    },
+  );
+
+  if (!rows[0]) {
+    throw new Error("Draft introuvable.");
+  }
 
   return { draft: rows[0] };
 }

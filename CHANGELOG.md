@@ -40,6 +40,11 @@ Le format suit les principes de [Keep a Changelog](https://keepachangelog.com/fr
   analyse business versionnée ;
 - première console Analyste avec scores business heuristiques et détection de signaux ;
 - première console Producteur avec plan d’attaque issu de l’opportunité détectée.
+- fichier `HANDOFF.md` pour reprendre le projet proprement après un chat interrompu ;
+- persistance Supabase des drafts Producteur dans `production_drafts` ;
+- actions Producteur pour sauvegarder, marquer `READY` / `USED`, copier et exporter un
+  draft de production ;
+- affichage d’un script détaillé à partir d’un draft sauvegardé.
 
 ### Décidé
 

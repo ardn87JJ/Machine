@@ -14,6 +14,7 @@ import {
   runEdgeScout,
   runScoutWorkerOnce,
   updateEdgeExperiment,
+  updateEdgeProductionDraftStatus,
   type ExecutionPlan,
   type ExecutionExperimentSummary,
   type OpportunitySummary,
@@ -1264,14 +1265,99 @@ function ProducerConsole({
   );
 }
 
+function buildDetailedScript(draft: ProductionDraftSummary) {
+  const hook = draft.content.hooks[0] ?? "Ouvrir avec une promesse claire.";
+  const proof = draft.content.script[1] ?? "Montrer le signal principal.";
+  const development = draft.content.script[2] ?? "Developper deux preuves visuelles rapides.";
+  const close = draft.content.script[3] ?? "Fermer avec un appel a l'action.";
+
+  return [
+    {
+      label: "0-3s - Hook",
+      text: `${hook} Afficher le titre en grand, couper toute intro, entrer directement dans le conflit ou la promesse.`,
+    },
+    {
+      label: "3-12s - Preuve",
+      text: `${proof} Montrer une capture, un exemple de format ou une preuve chiffrable liee a ${draft.keyword}.`,
+    },
+    {
+      label: "12-30s - Deroule",
+      text: `${development} Alterner phrase courte, preuve visuelle et sous-titre lisible toutes les 3 a 5 secondes.`,
+    },
+    {
+      label: "30-45s - Cloture",
+      text: `${close} Terminer par ${draft.content.cta}`,
+    },
+  ];
+}
+
+function formatDraftForExport(draft: ProductionDraftSummary) {
+  const detailedScript = buildDetailedScript(draft);
+
+  return [
+    `TITRE: ${draft.title}`,
+    `STATUT: ${draft.status}`,
+    `NICHE: ${draft.keyword}`,
+    "",
+    "CONCEPT",
+    draft.content.concept,
+    "",
+    "HOOKS",
+    ...draft.content.hooks.map((hook, index) => `${index + 1}. ${hook}`),
+    "",
+    "SCRIPT DETAILLE",
+    ...detailedScript.map((step) => `${step.label}: ${step.text}`),
+    "",
+    "PROMPT VISUEL",
+    draft.content.visualPrompt,
+    "",
+    "DESCRIPTION",
+    draft.content.description,
+    "",
+    "CTA",
+    draft.content.cta,
+  ].join("\n");
+}
+
+async function copyTextToClipboard(text: string) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const textArea = document.createElement("textarea");
+  textArea.value = text;
+  textArea.setAttribute("readonly", "true");
+  textArea.style.position = "fixed";
+  textArea.style.opacity = "0";
+  document.body.appendChild(textArea);
+  textArea.select();
+  document.execCommand("copy");
+  document.body.removeChild(textArea);
+}
+
+function exportDraftAsText(draft: ProductionDraftSummary) {
+  const blob = new Blob([formatDraftForExport(draft)], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${draft.keyword.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-production-draft.txt`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 function ProductionDraftsPanel({
   drafts,
   isLoading,
   error,
+  isUpdatingDraft,
+  onUpdateDraftStatus,
 }: {
   drafts: ProductionDraftSummary[];
   isLoading: boolean;
   error: unknown;
+  isUpdatingDraft: boolean;
+  onUpdateDraftStatus: (draft: ProductionDraftSummary, status: ProductionDraftSummary["status"]) => void;
 }) {
   return (
     <section className="cockpit-panel production-drafts" aria-labelledby="production-drafts-title">
@@ -1292,13 +1378,46 @@ function ProductionDraftsPanel({
           <p className="panel-empty">Aucun draft sauvegardé. Génère un pack puis sauvegarde-le.</p>
         ) : null}
         {drafts.slice(0, 5).map((draft) => (
-          <article className="draft-card" key={draft.id}>
+          <article className={`draft-card draft-card--${draft.status.toLowerCase()}`} key={draft.id}>
             <div>
               <span>{draft.status}</span>
               <strong>{draft.title}</strong>
               <small>{draft.keyword} · {formatDate(draft.created_at)}</small>
             </div>
             <p>{draft.content.concept}</p>
+            <div className="draft-actions">
+              <button
+                disabled={isUpdatingDraft || draft.status === "READY"}
+                onClick={() => onUpdateDraftStatus(draft, "READY")}
+                type="button"
+              >
+                Marquer READY
+              </button>
+              <button
+                disabled={isUpdatingDraft || draft.status === "USED"}
+                onClick={() => onUpdateDraftStatus(draft, "USED")}
+                type="button"
+              >
+                Marquer USED
+              </button>
+              <button onClick={() => copyTextToClipboard(formatDraftForExport(draft))} type="button">
+                Copier
+              </button>
+              <button onClick={() => exportDraftAsText(draft)} type="button">
+                Exporter TXT
+              </button>
+            </div>
+            <details className="draft-script">
+              <summary>Script détaillé</summary>
+              <ol>
+                {buildDetailedScript(draft).map((step) => (
+                  <li key={step.label}>
+                    <strong>{step.label}</strong>
+                    <p>{step.text}</p>
+                  </li>
+                ))}
+              </ol>
+            </details>
             <ul>
               {draft.content.hooks.slice(0, 2).map((hook) => (
                 <li key={hook}>{hook}</li>
@@ -1757,6 +1876,20 @@ export function App() {
     },
   });
 
+  const updateProductionDraftMutation = useMutation({
+    mutationFn: (payload: {
+      draft: ProductionDraftSummary;
+      status: ProductionDraftSummary["status"];
+    }) =>
+      updateEdgeProductionDraftStatus({
+        draft_id: payload.draft.id,
+        status: payload.status,
+      }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["edge-production-drafts"] });
+    },
+  });
+
   const backendOnline = statusQuery.isSuccess;
   const backendStatusLabel = statusQuery.isPending
     ? "API : vérification..."
@@ -1992,6 +2125,10 @@ export function App() {
             drafts={productionDrafts}
             error={edgeProductionDraftsQuery.error}
             isLoading={edgeProductionDraftsQuery.isLoading}
+            isUpdatingDraft={updateProductionDraftMutation.isPending}
+            onUpdateDraftStatus={(draft, status) =>
+              updateProductionDraftMutation.mutate({ draft, status })
+            }
           />
         </aside>
       </section>
