@@ -1073,36 +1073,169 @@ function AnalystConsole({
   );
 }
 
+function buildProductionPack(
+  opportunity: OpportunityRecord | undefined,
+  activeExperiment: ExecutionExperimentSummary | undefined,
+) {
+  const keyword = opportunity?.keyword ?? "niche à valider";
+  const title = opportunity?.title ?? "Format court automatisable";
+  const haystack = `${keyword} ${title}`.toLowerCase();
+  const isMusic = haystack.includes("music") || haystack.includes("musicale") || haystack.includes("song");
+  const isStory = haystack.includes("story") || haystack.includes("stories") || haystack.includes("faceless");
+  const isDrama = haystack.includes("drama") || haystack.includes("série") || haystack.includes("romance");
+  const status =
+    activeExperiment?.outcome === "PASSED"
+      ? "draft prioritaire"
+      : activeExperiment
+        ? "draft test"
+        : "draft préparatoire";
+
+  if (isMusic) {
+    return {
+      status,
+      concept: `Chaîne musicale IA faceless autour de ${keyword}, avec identité visuelle stable et boucle Shorts.`,
+      hooks: [
+        "Ce son IA paraît sorti d’un film, mais personne ne connaît l’artiste.",
+        "J’ai demandé à l’IA de composer le morceau parfait pour cette émotion.",
+        "Si cette boucle reste dans ta tête, l’IA a gagné.",
+      ],
+      title: `J’ai créé une musique IA addictive sur ${keyword}`,
+      script: [
+        "0-3s: lancer le refrain ou la boucle la plus forte immédiatement.",
+        "3-12s: afficher le visuel principal et nommer l’émotion ciblée.",
+        "12-28s: faire évoluer le son avec 2 variations visuelles rapides.",
+        "28-40s: revenir au hook sonore et pousser le replay.",
+      ],
+      visualPrompt: `Vertical 9:16, music visualizer, ${keyword}, cinematic neon lighting, coherent faceless AI music brand, clean readable title space.`,
+      description: `Musique IA test sur ${keyword}. Si le hook tient, décliner en série de 7 morceaux courts.`,
+      cta: "Sauvegarde si tu veux la version longue.",
+    };
+  }
+
+  if (isStory) {
+    return {
+      status,
+      concept: `Short faceless narratif sur ${keyword}, construit pour tension immédiate et payoff rapide.`,
+      hooks: [
+        "Il pensait que personne ne verrait ce détail, mais l’IA l’a repéré.",
+        "Tout commence par une phrase banale, puis la situation dérape.",
+        "Elle n’avait que 10 secondes pour comprendre qui mentait.",
+      ],
+      title: `${keyword}: l’histoire courte qui bascule en 30 secondes`,
+      script: [
+        "0-3s: poser le conflit avec une phrase choc.",
+        "3-12s: révéler le personnage et l’enjeu.",
+        "12-28s: ajouter un retournement simple et visuel.",
+        "28-45s: conclure avec payoff + question commentaire.",
+      ],
+      visualPrompt: `Vertical 9:16, faceless story scene, ${keyword}, expressive cinematic stills, strong contrast, readable captions, suspense mood.`,
+      description: `Test faceless stories sur ${keyword}. Objectif: valider hook, tension et commentaires.`,
+      cta: "Commente la suite que tu veux voir.",
+    };
+  }
+
+  if (isDrama) {
+    return {
+      status,
+      concept: `Mini-drama IA vertical sur ${keyword}, avec conflit social fort et cliffhanger rapide.`,
+      hooks: [
+        "Elle découvre la vérité au pire moment possible.",
+        "Il la rejette sans savoir qui elle est vraiment.",
+        "Le contrat semblait simple, jusqu’à cette phrase.",
+      ],
+      title: `${keyword}: mini-drama IA épisode 1`,
+      script: [
+        "0-3s: ouvrir sur humiliation ou révélation.",
+        "3-15s: présenter le rapport de force.",
+        "15-32s: basculer avec un indice de revanche.",
+        "32-45s: finir sur cliffhanger et promesse épisode 2.",
+      ],
+      visualPrompt: `Vertical 9:16, AI mini drama, ${keyword}, luxury office or dramatic street scene, emotional close-up, cinematic lighting, subtitle-safe composition.`,
+      description: `Épisode test mini-drama IA sur ${keyword}. Mesurer rétention, replay et demandes d’épisode 2.`,
+      cta: "Épisode 2 si tu veux la revanche.",
+    };
+  }
+
+  return {
+    status,
+    concept: `Format court automatisable sur ${keyword}, optimisé pour apprendre vite avec un test à faible coût.`,
+    hooks: [
+      `Personne ne regarde ${keyword} de cette manière.`,
+      `Voici le signal caché derrière ${keyword}.`,
+      `J’ai testé ${keyword} pour voir si la niche mérite d’être attaquée.`,
+    ],
+    title: `${keyword}: test de niche en format court`,
+    script: [
+      "0-3s: poser la promesse ou le contraste.",
+      "3-12s: montrer la preuve ou le signal marché.",
+      "12-30s: dérouler 2 points utiles.",
+      "30-45s: conclure avec test suivant et CTA.",
+    ],
+    visualPrompt: `Vertical 9:16, ${keyword}, clean faceless content, high contrast, readable captions, modern social video style.`,
+    description: `Test rapide sur ${keyword}. Objectif: valider intérêt, commentaires et potentiel de déclinaison.`,
+    cta: "Dis si je dois tester une variante.",
+  };
+}
+
 function ProducerConsole({
   opportunity,
+  activeExperiment,
 }: {
   opportunity: OpportunityRecord | undefined;
+  activeExperiment: ExecutionExperimentSummary | undefined;
 }) {
+  const pack = buildProductionPack(opportunity, activeExperiment);
+
   return (
     <section className="cockpit-panel" id="producer">
       <div className="panel-heading">
         <div>
           <p className="eyebrow">Agent Producteur</p>
-          <h2>Plan d’attaque</h2>
+          <h2>Pack production</h2>
+          <p className="panel-substatus">Draft court prêt à tester à partir de l’opportunité sélectionnée.</p>
         </div>
-        <span className="phase">futur contrôlé</span>
+        <span className="phase">{pack.status}</span>
       </div>
 
-      <div className="execution-plan">
-        <article>
-          <span>Angle</span>
-          <strong>{opportunity?.executionPlan.angle ?? "Série verticale IA sur tension dramatique courte"}</strong>
-          <p>{opportunity?.executionPlan.notes ?? "Reprendre le format mini-drama, mais attaquer par hooks plus nets et rythme plus dense."}</p>
+      <div className="production-pack">
+        <article className="production-concept">
+          <span>Concept</span>
+          <strong>{pack.concept}</strong>
+          <p>{opportunity?.executionPlan.notes ?? "Draft préparatoire, à valider par un test court avant production en série."}</p>
         </article>
-        <article>
-          <span>Premier test</span>
-          <strong>{opportunity?.executionPlan.first_test ?? "5 épisodes courts en 7 jours"}</strong>
-          <p>Tester 3 hooks émotionnels, 2 niches narratives et comparer rétention / commentaires.</p>
+
+        <article className="production-hooks">
+          <span>3 hooks</span>
+          <ol>
+            {pack.hooks.map((hook) => (
+              <li key={hook}>{hook}</li>
+            ))}
+          </ol>
         </article>
-        <article>
-          <span>Critère GO</span>
-          <strong>{(opportunity?.moneyScore ?? 0) >= 70 ? "prioritaire" : "à surveiller"}</strong>
-          <p>{opportunity?.executionPlan.criteria_go ?? "Passer en production si un épisode dépasse le benchmark de vues initial en 48h."}</p>
+
+        <article className="production-script">
+          <span>Script 30-45s</span>
+          <strong>{pack.title}</strong>
+          <ol>
+            {pack.script.map((beat) => (
+              <li key={beat}>{beat}</li>
+            ))}
+          </ol>
+        </article>
+
+        <article className="production-assets">
+          <div>
+            <span>Prompt visuel</span>
+            <p>{pack.visualPrompt}</p>
+          </div>
+          <div>
+            <span>Description</span>
+            <p>{pack.description}</p>
+          </div>
+          <div>
+            <span>CTA</span>
+            <strong>{pack.cta}</strong>
+          </div>
         </article>
       </div>
     </section>
@@ -1747,7 +1880,7 @@ export function App() {
           />
           <OptimizerPanel experiments={edgeExperiments} />
           <AnalystConsole backendOnline={backendOnline} opportunity={selectedOpportunity} />
-          <ProducerConsole opportunity={selectedOpportunity} />
+          <ProducerConsole activeExperiment={activeExperiment} opportunity={selectedOpportunity} />
         </aside>
       </section>
     </main>

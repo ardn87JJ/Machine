@@ -409,7 +409,8 @@ h3 {
 .workspace-column--scout .control-grid,
 .workspace-column--ledger .ledger-grid,
 .workspace-column--decision .opportunity-layout,
-.workspace-column--decision .execution-plan {
+.workspace-column--decision .execution-plan,
+.workspace-column--decision .production-pack {
   grid-template-columns: 1fr;
 }
 
@@ -1068,21 +1069,73 @@ h3 {
 }
 
 .signal-stack,
-.execution-plan {
+.execution-plan,
+.production-pack {
   display: grid;
   gap: 10px;
 }
 
 .signal-stack > div,
-.execution-plan article {
+.execution-plan article,
+.production-pack article {
   display: grid;
   gap: 6px;
   padding: 12px;
 }
 
-.execution-plan {
+.execution-plan,
+.production-pack {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   margin-top: 12px;
+}
+
+.production-concept,
+.production-hooks,
+.production-script,
+.production-assets {
+  border: 1px solid #253142;
+  border-radius: 14px;
+  background: #101722;
+}
+
+.production-pack span {
+  color: #8f9baa;
+  font-size: 0.78rem;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.production-pack strong {
+  color: #edf3fb;
+  line-height: 1.4;
+}
+
+.production-pack p,
+.production-pack li {
+  color: #9aa7b6;
+  line-height: 1.5;
+}
+
+.production-pack p,
+.production-pack ol {
+  margin: 0;
+}
+
+.production-pack ol {
+  display: grid;
+  gap: 7px;
+  padding-left: 18px;
+}
+
+.production-assets {
+  gap: 12px;
+}
+
+.production-assets div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
 }
 
 .empty-state {
@@ -1111,6 +1164,7 @@ h3 {
   .control-grid,
   .opportunity-layout,
   .execution-plan,
+  .production-pack,
   .brief-grid,
   .competitor-row,
   .dashboard-summary,

@@ -214,7 +214,9 @@ describe("App", () => {
     expect(screen.getByText("Prochaine action")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "File de tests" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Créer test" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Plan d’attaque" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Pack production" })).toBeInTheDocument();
+    expect(screen.getByText("3 hooks")).toBeInTheDocument();
+    expect(screen.getByText("Script 30-45s")).toBeInTheDocument();
     expect(
       screen.getAllByText("Lancer 5 épisodes courts autour de mini drama ia sur 7 jours").length,
     ).toBeGreaterThan(0);
@@ -511,6 +513,8 @@ describe("App", () => {
     expect(await screen.findByText("PASSED")).toBeInTheDocument();
     expect(screen.getByText("Doubler le test sur ai music channel")).toBeInTheDocument();
     expect(screen.getAllByText("Bon signal initial, continuer le test.").length).toBeGreaterThan(0);
+    expect(screen.getByText("J’ai créé une musique IA addictive sur ai music channel")).toBeInTheDocument();
+    expect(screen.getByText("Sauvegarde si tu veux la version longue.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "ATTAQUER 1" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "TESTER 1" })).toBeInTheDocument();
     expect(
