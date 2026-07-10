@@ -459,7 +459,8 @@ async function generateAssetWithLlm(
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+      const errorText = await response.text().catch(() => "");
+      throw new Error(`HTTP ${response.status}${formatLlmErrorDetail(errorText)}`);
     }
 
     const json = await response.json() as JsonRecord;
@@ -496,6 +497,20 @@ function parseJsonObject(value: string): JsonRecord {
   }
 
   throw new Error("JSON invalide");
+}
+
+function formatLlmErrorDetail(value: string) {
+  const parsed = tryParseJson(value);
+  const error = parsed?.error as JsonRecord | undefined;
+  const message = typeof error?.message === "string" ? error.message : "";
+  const code = typeof error?.code === "string" ? error.code : "";
+  const detail = [code, message].filter(Boolean).join(": ");
+
+  if (detail) {
+    return ` (${detail.slice(0, 240)})`;
+  }
+
+  return "";
 }
 
 function tryParseJson(value: string): JsonRecord | null {
