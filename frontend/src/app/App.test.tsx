@@ -541,7 +541,7 @@ describe("App", () => {
           };
 
           return Promise.resolve(
-            new Response(JSON.stringify({ asset }), {
+            new Response(JSON.stringify({ asset, source: "llm" }), {
               status: 200,
               headers: { "Content-Type": "application/json" },
             }),

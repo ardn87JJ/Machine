@@ -199,8 +199,10 @@ interface UpdateEdgeProductionDraftResponse {
   draft: ProductionDraftSummary;
 }
 
-interface RegenerateEdgeProductionAssetResponse {
+export interface RegenerateEdgeProductionAssetResponse {
   asset: ProductionAsset;
+  source: "llm" | "fallback";
+  warning?: string;
 }
 
 const configuredScoutFunctionUrl = import.meta.env.VITE_SCOUT_FUNCTION_URL?.trim();

@@ -29,7 +29,7 @@ scorables, tests actionnables, drafts de production et apprentissages.
 
 - Depot Git : `ardn87JJ/Machine`
 - Branche : `main`
-- Dernier commit stable au depart de cette tranche : `86a9347 Make factory assets editable`
+- Dernier commit stable au depart de cette tranche : `1e36eca Add asset regeneration action`
 - App publique : `https://ardn87jj.github.io/Machine/`
 - Supabase project ref : `uscmdnzbwvsjrocemset`
 - Edge Function active : `run-scout`
@@ -59,21 +59,23 @@ scorables, tests actionnables, drafts de production et apprentissages.
   prompt voix, puis sauvegarder ces edits dans le draft Supabase.
 - regenerer une scene via l'Edge Function `run-scout`, recevoir un JSON asset
   structure et remplacer uniquement la scene cible dans l'atelier.
+- appeler un endpoint LLM compatible OpenAI depuis `regenerate-asset` quand
+  `LLM_API_KEY` existe, valider le JSON, puis basculer en fallback deterministe
+  si le modele est absent ou invalide.
 
 ## Tranche en cours
 
-Preparer un vrai moteur IA serveur pour les assets :
+Activer le vrai moteur IA en environnement Supabase :
 
-- choisir le fournisseur LLM serveur ;
-- ajouter la cle uniquement en secret Supabase ;
-- remplacer la regeneration deterministe actuelle par une generation semantique
-  tout en gardant le meme contrat JSON.
+- ajouter le secret `LLM_API_KEY` ;
+- optionnellement definir `LLM_BASE_URL` et `LLM_MODEL` ;
+- tester `regenerate-asset` avec `source: "llm"`.
 
 ## Prochaine etape apres cette tranche
 
-Brancher un LLM serveur sur `regenerate-asset` :
+Configurer les secrets LLM Supabase :
 
-- definir le prompt systeme pour produire storyboard, texte ecran, prompt visuel
-  et prompt voix ;
-- appeler le modele depuis l'Edge Function avec les secrets Supabase ;
-- garder une validation JSON stricte avant retour au frontend.
+- `LLM_API_KEY` est requis pour activer le modele ;
+- `LLM_BASE_URL` vaut `https://api.openai.com/v1` par defaut ;
+- `LLM_MODEL` vaut `gpt-4o-mini` par defaut ;
+- sans secret, la fonction reste operationnelle en fallback.

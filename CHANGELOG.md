@@ -61,6 +61,9 @@ Le format suit les principes de [Keep a Changelog](https://keepachangelog.com/fr
   et prompt voix, avec sauvegarde dans le draft Supabase.
 - régénération assistée par scène via l’Edge Function `run-scout`, avec retour
   JSON structuré et remplacement local de l’asset ciblé.
+- branchement LLM serveur optionnel sur `regenerate-asset` via `LLM_API_KEY`,
+  `LLM_BASE_URL` et `LLM_MODEL`, avec validation JSON stricte et fallback
+  déterministe si le modèle est indisponible.
 
 ### Décidé
 

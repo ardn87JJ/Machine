@@ -23,6 +23,7 @@ import {
   type ProductionAsset,
   type ProductionDraftSummary,
   type ProductionPackContent,
+  type RegenerateEdgeProductionAssetResponse,
   type RunEdgeScoutResponse,
   type ScanAnalysis,
   type ScanSummary,
@@ -1675,7 +1676,10 @@ function ContentFactoryWorkbench({
     content: ProductionPackContent,
     title: string,
   ) => void;
-  onRegenerateAsset: (draft: ProductionDraftSummary, asset: ProductionAsset) => Promise<ProductionAsset>;
+  onRegenerateAsset: (
+    draft: ProductionDraftSummary,
+    asset: ProductionAsset,
+  ) => Promise<RegenerateEdgeProductionAssetResponse>;
 }) {
   const variants = draft ? buildFactoryVariants(draft) : { titles: [], hooks: [], checklist: [] };
   const [selectedTitle, setSelectedTitle] = useState("");
@@ -1683,6 +1687,7 @@ function ContentFactoryWorkbench({
   const [doneChecklistItems, setDoneChecklistItems] = useState<string[]>([]);
   const [assetEdits, setAssetEdits] = useState<Partial<Record<string, Omit<ProductionAsset, "scene">>>>({});
   const [assetRegenerationError, setAssetRegenerationError] = useState("");
+  const [assetRegenerationNotice, setAssetRegenerationNotice] = useState("");
 
   useEffect(() => {
     if (!draft) {
@@ -1691,6 +1696,7 @@ function ContentFactoryWorkbench({
       setDoneChecklistItems([]);
       setAssetEdits({});
       setAssetRegenerationError("");
+      setAssetRegenerationNotice("");
       return;
     }
 
@@ -1706,6 +1712,7 @@ function ContentFactoryWorkbench({
       (draft.content.factory?.assets ?? []).map(({ scene, ...asset }) => [scene, asset]),
     ));
     setAssetRegenerationError("");
+    setAssetRegenerationNotice("");
   }, [draft?.id, draft?.updated_at, draft]);
 
   if (!draft) {
@@ -1890,6 +1897,7 @@ function ContentFactoryWorkbench({
           <small>{completedAssetCount}/{assets.length} DONE</small>
         </div>
         {assetRegenerationError ? <p className="panel-error">{assetRegenerationError}</p> : null}
+        {assetRegenerationNotice ? <p className="panel-substatus">{assetRegenerationNotice}</p> : null}
         <div className="asset-list">
           {assets.map((asset) => (
             <article className={`asset-card asset-card--${asset.status.toLowerCase()}`} key={asset.scene}>
@@ -1955,9 +1963,13 @@ function ContentFactoryWorkbench({
                   disabled={isRegeneratingAsset}
                   onClick={async () => {
                     setAssetRegenerationError("");
+                    setAssetRegenerationNotice("");
                     try {
-                      const regeneratedAsset = await onRegenerateAsset(draft, asset);
-                      replaceAsset(regeneratedAsset);
+                      const regenerated = await onRegenerateAsset(draft, asset);
+                      replaceAsset(regenerated.asset);
+                      if (regenerated.source === "fallback") {
+                        setAssetRegenerationNotice(regenerated.warning ?? "Fallback serveur utilise.");
+                      }
                     } catch (error) {
                       setAssetRegenerationError(getErrorMessage(error));
                     }
@@ -2810,7 +2822,7 @@ export function App() {
             regeneratingAssetScene={regeneratingAssetScene}
             onRegenerateAsset={async (draft, asset) => {
               const response = await regenerateAssetMutation.mutateAsync({ draft, asset });
-              return response.asset;
+              return response;
             }}
             onSaveFactory={(draft, content, title) =>
               saveFactoryDraftMutation.mutate({ draft, content, title })

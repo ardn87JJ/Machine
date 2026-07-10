@@ -129,6 +129,9 @@ const corsHeaders = {
 const youtubeApiKey = Deno.env.get("YOUTUBE_API_KEY") ?? "";
 const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
 const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+const llmApiKey = Deno.env.get("LLM_API_KEY") ?? "";
+const llmBaseUrl = (Deno.env.get("LLM_BASE_URL") ?? "https://api.openai.com/v1").replace(/\/$/, "");
+const llmModel = Deno.env.get("LLM_MODEL") ?? "gpt-4o-mini";
 
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") {
@@ -352,9 +355,178 @@ async function regenerateProductionAsset(body: JsonRecord) {
     throw new Error("Draft introuvable.");
   }
 
-  return {
-    asset: buildRegeneratedAsset(draft, scene, currentAsset),
+  const fallbackAsset = buildRegeneratedAsset(draft, scene, currentAsset);
+
+  if (!llmApiKey) {
+    return {
+      asset: fallbackAsset,
+      source: "fallback",
+      warning: "LLM_API_KEY absent: regeneration deterministe utilisee.",
+    };
+  }
+
+  try {
+    return {
+      asset: await generateAssetWithLlm(draft, scene, currentAsset, fallbackAsset),
+      source: "llm",
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erreur LLM inconnue.";
+
+    return {
+      asset: fallbackAsset,
+      source: "fallback",
+      warning: `LLM indisponible: ${message}`,
+    };
+  }
+}
+
+async function generateAssetWithLlm(
+  draft: ProductionDraftSummary,
+  scene: string,
+  currentAsset: Partial<ProductionAsset>,
+  fallbackAsset: ProductionAsset,
+): Promise<ProductionAsset> {
+  const content = draft.content;
+  const factory = content.factory as JsonRecord | undefined;
+  const payload = {
+    objective: "Regenerer une seule scene de contenu court vertical monetisable.",
+    constraints: [
+      "Repondre uniquement en JSON valide.",
+      "Ne pas ajouter de markdown.",
+      "Garder le meme nom de scene.",
+      "Produire du contenu directement exploitable en production.",
+      "Texte ecran court et lisible.",
+      "Prompt visuel vertical 9:16 avec zone sous-titres libre.",
+      "Prompt voix direct, rythme rapide, sans intro generique.",
+    ],
+    output_schema: {
+      scene: "string",
+      status: "TODO | IN_PROGRESS | DONE",
+      storyboard: "string",
+      screenText: "string",
+      visualPrompt: "string",
+      voicePrompt: "string",
+    },
+    draft: {
+      keyword: draft.keyword,
+      title: String(content.title ?? draft.title),
+      concept: String(content.concept ?? ""),
+      cta: String(content.cta ?? ""),
+      selectedTitle: String(factory?.selectedTitle ?? content.title ?? draft.title),
+      selectedHook: String(factory?.selectedHook ?? ""),
+      montagePlan: Array.isArray(factory?.montagePlan) ? factory?.montagePlan : [],
+      voicePrompt: String(factory?.voicePrompt ?? ""),
+    },
+    scene,
+    currentAsset,
+    deterministicFallback: fallbackAsset,
   };
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20_000);
+
+  try {
+    const response = await fetch(`${llmBaseUrl}/chat/completions`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${llmApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: llmModel,
+        temperature: 0.6,
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "system",
+            content: [
+              "Tu es un producteur de Shorts/Reels business.",
+              "Tu transformes une opportunite en asset de production concret.",
+              "Tu respectes strictement le schema JSON demande.",
+            ].join(" "),
+          },
+          {
+            role: "user",
+            content: JSON.stringify(payload),
+          },
+        ],
+      }),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const json = await response.json() as JsonRecord;
+    const choices = json.choices as Array<{ message?: { content?: string } }> | undefined;
+    const contentText = choices?.[0]?.message?.content;
+
+    if (!contentText) {
+      throw new Error("reponse vide");
+    }
+
+    return sanitizeLlmAsset(scene, currentAsset, parseJsonObject(contentText));
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function parseJsonObject(value: string): JsonRecord {
+  const trimmed = value.trim();
+  const direct = tryParseJson(trimmed);
+
+  if (direct) {
+    return direct;
+  }
+
+  const start = trimmed.indexOf("{");
+  const end = trimmed.lastIndexOf("}");
+
+  if (start >= 0 && end > start) {
+    const extracted = tryParseJson(trimmed.slice(start, end + 1));
+
+    if (extracted) {
+      return extracted;
+    }
+  }
+
+  throw new Error("JSON invalide");
+}
+
+function tryParseJson(value: string): JsonRecord | null {
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as JsonRecord : null;
+  } catch {
+    return null;
+  }
+}
+
+function sanitizeLlmAsset(
+  scene: string,
+  currentAsset: Partial<ProductionAsset>,
+  value: JsonRecord,
+): ProductionAsset {
+  const status = typeof value.status === "string" && ["TODO", "IN_PROGRESS", "DONE"].includes(value.status)
+    ? value.status as ProductionAsset["status"]
+    : currentAsset.status && ["TODO", "IN_PROGRESS", "DONE"].includes(currentAsset.status)
+      ? currentAsset.status
+      : "IN_PROGRESS";
+
+  return {
+    scene,
+    status,
+    storyboard: sanitizeAssetField(value.storyboard, "Storyboard indisponible."),
+    screenText: sanitizeAssetField(value.screenText, "Signal a tester."),
+    visualPrompt: sanitizeAssetField(value.visualPrompt, "Vertical 9:16, composition claire, zone sous-titres libre."),
+    voicePrompt: sanitizeAssetField(value.voicePrompt, "Voix off courte, directe, rythme rapide."),
+  };
+}
+
+function sanitizeAssetField(value: unknown, fallback: string) {
+  const text = typeof value === "string" ? value.trim() : "";
+  return (text || fallback).slice(0, 1400);
 }
 
 function buildRegeneratedAsset(
