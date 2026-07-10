@@ -1373,7 +1373,7 @@ function buildAssetQueue(
   draft: ProductionDraftSummary,
   selectedTitle: string,
   selectedHook: string,
-  assetStatuses: Partial<Record<string, ProductionAsset["status"]>> = {},
+  assetEdits: Partial<Record<string, Omit<ProductionAsset, "scene">>> = {},
 ) {
   const montagePlan = buildMontagePlan(draft, selectedTitle, selectedHook);
   const voicePrompt = buildVoicePrompt(draft, selectedHook);
@@ -1386,7 +1386,8 @@ function buildAssetQueue(
 
   return montagePlan.map((step, index) => {
     const scene = `Scene ${index + 1}`;
-    const previousStatus = draft.content.factory?.assets.find((asset) => asset.scene === scene)?.status;
+    const previousAsset = draft.content.factory?.assets.find((asset) => asset.scene === scene);
+    const editedAsset = assetEdits[scene];
 
     return {
       scene,
@@ -1394,7 +1395,9 @@ function buildAssetQueue(
       visualPrompt: `${draft.content.visualPrompt} Scene ${index + 1}, composition claire, texte ecran lisible, pas de surcharge.`,
       voicePrompt: `${voicePrompt} Segment ${index + 1}: ${step}`,
       screenText: screenTexts[index] ?? draft.content.cta,
-      status: assetStatuses[scene] ?? previousStatus ?? "TODO",
+      status: "TODO" as ProductionAsset["status"],
+      ...previousAsset,
+      ...editedAsset,
     };
   });
 }
@@ -1404,7 +1407,7 @@ function buildFactoryContent(
   selectedTitle: string,
   selectedHook: string,
   doneChecklistItems: string[],
-  assetStatuses: Partial<Record<string, ProductionAsset["status"]>> = {},
+  assetEdits: Partial<Record<string, Omit<ProductionAsset, "scene">>> = {},
 ) {
   const variants = buildFactoryVariants(draft);
 
@@ -1421,7 +1424,7 @@ function buildFactoryContent(
       })),
       montagePlan: buildMontagePlan(draft, selectedTitle, selectedHook),
       voicePrompt: buildVoicePrompt(draft, selectedHook),
-      assets: buildAssetQueue(draft, selectedTitle, selectedHook, assetStatuses),
+      assets: buildAssetQueue(draft, selectedTitle, selectedHook, assetEdits),
       updatedAt: new Date().toISOString(),
     },
   };
@@ -1671,14 +1674,14 @@ function ContentFactoryWorkbench({
   const [selectedTitle, setSelectedTitle] = useState("");
   const [selectedHook, setSelectedHook] = useState("");
   const [doneChecklistItems, setDoneChecklistItems] = useState<string[]>([]);
-  const [assetStatuses, setAssetStatuses] = useState<Partial<Record<string, ProductionAsset["status"]>>>({});
+  const [assetEdits, setAssetEdits] = useState<Partial<Record<string, Omit<ProductionAsset, "scene">>>>({});
 
   useEffect(() => {
     if (!draft) {
       setSelectedTitle("");
       setSelectedHook("");
       setDoneChecklistItems([]);
-      setAssetStatuses({});
+      setAssetEdits({});
       return;
     }
 
@@ -1690,8 +1693,8 @@ function ContentFactoryWorkbench({
         .filter((item) => item.done)
         .map((item) => item.label) ?? [],
     );
-    setAssetStatuses(Object.fromEntries(
-      (draft.content.factory?.assets ?? []).map((asset) => [asset.scene, asset.status]),
+    setAssetEdits(Object.fromEntries(
+      (draft.content.factory?.assets ?? []).map(({ scene, ...asset }) => [scene, asset]),
     ));
   }, [draft?.id, draft?.updated_at, draft]);
 
@@ -1712,13 +1715,40 @@ function ContentFactoryWorkbench({
   }
 
   const detailedScript = buildDetailedScript(draft);
-  const factoryContent = buildFactoryContent(draft, selectedTitle, selectedHook, doneChecklistItems, assetStatuses);
+  const factoryContent = buildFactoryContent(draft, selectedTitle, selectedHook, doneChecklistItems, assetEdits);
   const montagePlan = factoryContent.factory?.montagePlan ?? [];
   const voicePrompt = factoryContent.factory?.voicePrompt ?? "";
   const assets = factoryContent.factory?.assets ?? [];
   const markdownExport = formatFactoryMarkdown(draft, factoryContent);
   const completedCount = doneChecklistItems.length;
   const completedAssetCount = assets.filter((asset) => asset.status === "DONE").length;
+  const updateAsset = (scene: string, patch: Partial<Omit<ProductionAsset, "scene">>) => {
+    const sourceAsset = assets.find((asset) => asset.scene === scene);
+    const sourceEdit: Omit<ProductionAsset, "scene"> = sourceAsset
+      ? {
+          storyboard: sourceAsset.storyboard,
+          visualPrompt: sourceAsset.visualPrompt,
+          voicePrompt: sourceAsset.voicePrompt,
+          screenText: sourceAsset.screenText,
+          status: sourceAsset.status,
+        }
+      : {
+          storyboard: "",
+          visualPrompt: "",
+          voicePrompt: "",
+          screenText: "",
+          status: "TODO",
+        };
+
+    setAssetEdits((current) => ({
+      ...current,
+      [scene]: {
+        ...sourceEdit,
+        ...current[scene],
+        ...patch,
+      },
+    }));
+  };
 
   return (
     <section className="cockpit-panel content-factory" aria-labelledby="content-factory-title">
@@ -1847,10 +1877,9 @@ function ContentFactoryWorkbench({
                   <select
                     aria-label={`Statut ${asset.scene}`}
                     onChange={(event) =>
-                      setAssetStatuses((current) => ({
-                        ...current,
-                        [asset.scene]: event.target.value as ProductionAsset["status"],
-                      }))
+                      updateAsset(asset.scene, {
+                        status: event.target.value as ProductionAsset["status"],
+                      })
                     }
                     value={asset.status}
                   >
@@ -1860,21 +1889,44 @@ function ContentFactoryWorkbench({
                   </select>
                 </label>
               </div>
-              <p>{asset.storyboard}</p>
-              <dl>
-                <div>
-                  <dt>Texte écran</dt>
-                  <dd>{asset.screenText}</dd>
-                </div>
-                <div>
-                  <dt>Visuel</dt>
-                  <dd>{asset.visualPrompt}</dd>
-                </div>
-                <div>
-                  <dt>Voix</dt>
-                  <dd>{asset.voicePrompt}</dd>
-                </div>
-              </dl>
+              <div className="asset-edit-grid">
+                <label>
+                  Storyboard
+                  <textarea
+                    aria-label={`Storyboard ${asset.scene}`}
+                    onChange={(event) => updateAsset(asset.scene, { storyboard: event.target.value })}
+                    rows={3}
+                    value={asset.storyboard}
+                  />
+                </label>
+                <label>
+                  Texte écran
+                  <textarea
+                    aria-label={`Texte écran ${asset.scene}`}
+                    onChange={(event) => updateAsset(asset.scene, { screenText: event.target.value })}
+                    rows={2}
+                    value={asset.screenText}
+                  />
+                </label>
+                <label>
+                  Prompt visuel
+                  <textarea
+                    aria-label={`Prompt visuel ${asset.scene}`}
+                    onChange={(event) => updateAsset(asset.scene, { visualPrompt: event.target.value })}
+                    rows={4}
+                    value={asset.visualPrompt}
+                  />
+                </label>
+                <label>
+                  Prompt voix
+                  <textarea
+                    aria-label={`Prompt voix ${asset.scene}`}
+                    onChange={(event) => updateAsset(asset.scene, { voicePrompt: event.target.value })}
+                    rows={4}
+                    value={asset.voicePrompt}
+                  />
+                </label>
+              </div>
               <div className="asset-actions">
                 <button onClick={() => copyTextToClipboard(formatAssetMarkdown(draft, asset))} type="button">
                   Copier asset

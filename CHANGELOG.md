@@ -57,6 +57,8 @@ Le format suit les principes de [Keep a Changelog](https://keepachangelog.com/fr
 - pilotage exécutable des assets Content Factory : statut par scène
   `TODO` / `IN_PROGRESS` / `DONE`, sauvegarde dans le draft et export Markdown
   individuel par asset.
+- édition manuelle des assets par scène : storyboard, texte écran, prompt visuel
+  et prompt voix, avec sauvegarde dans le draft Supabase.
 
 ### Décidé
 

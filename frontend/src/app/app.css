@@ -1451,24 +1451,39 @@ h3 {
   font-weight: 800;
 }
 
-.asset-card p,
-.asset-card dd {
-  margin: 0;
-  color: #9aa7b6;
-  line-height: 1.5;
-}
-
-.asset-card dl {
+.asset-edit-grid {
   display: grid;
-  gap: 8px;
-  margin: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
 
-.asset-card dt {
+.asset-edit-grid label {
+  display: grid;
+  gap: 6px;
   color: #edf3fb;
   font-size: 0.72rem;
   font-weight: 900;
+  text-align: left;
   text-transform: uppercase;
+}
+
+.asset-edit-grid textarea {
+  width: 100%;
+  min-height: 76px;
+  resize: vertical;
+  border: 1px solid #253142;
+  border-radius: 10px;
+  padding: 9px 10px;
+  color: #edf3fb;
+  background: #0c121b;
+  font: inherit;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.asset-edit-grid textarea:focus {
+  outline: 2px solid rgba(131, 241, 216, 0.25);
+  outline-offset: 1px;
 }
 
 .asset-actions {
@@ -1533,6 +1548,7 @@ h3 {
   .competitor-row,
   .dashboard-summary,
   .factory-grid,
+  .asset-edit-grid,
   .ledger-grid,
   .workspace-grid,
   .workspace-stage,

@@ -29,7 +29,7 @@ scorables, tests actionnables, drafts de production et apprentissages.
 
 - Depot Git : `ardn87JJ/Machine`
 - Branche : `main`
-- Dernier commit stable au depart de cette tranche : `b77cbaf Segment cockpit workspace`
+- Dernier commit stable au depart de cette tranche : `ecfd90c Make factory assets executable`
 - App publique : `https://ardn87jj.github.io/Machine/`
 - Supabase project ref : `uscmdnzbwvsjrocemset`
 - Edge Function active : `run-scout`
@@ -55,21 +55,23 @@ scorables, tests actionnables, drafts de production et apprentissages.
   et `Optimizer`.
 - piloter les assets par scene avec statuts `TODO`, `IN_PROGRESS`, `DONE`,
   sauvegarde dans le draft et export Markdown individuel.
+- modifier les assets par scene : storyboard, texte ecran, prompt visuel et
+  prompt voix, puis sauvegarder ces edits dans le draft Supabase.
 
 ## Tranche en cours
 
-Passer de production manuelle a assets plus directement exploitables :
+Preparer la regeneration assistee des assets :
 
-- enrichir les assets avec champs editables par scene ;
-- preparer des prompts plus normalises pour image, voix et montage ;
-- poser la structure necessaire pour brancher un generateur serveur plus tard.
+- definir le format de requete serveur pour regenerer une scene ;
+- garder les secrets LLM cote serveur ;
+- permettre a l'interface de remplacer uniquement une scene sans ecraser tout le
+  draft.
 
 ## Prochaine etape apres cette tranche
 
-Rendre les assets modifiables :
+Ajouter une regeneration assistee par scene :
 
-- rendre storyboard, texte ecran, prompt visuel et prompt voix editables dans
-  l'interface ;
-- sauvegarder les edits dans Supabase ;
-- ajouter une action de regeneration assistee plus tard cote serveur ;
-- plus tard, brancher un LLM serveur pour variantes plus fines.
+- bouton `Regenerer` sur chaque asset ;
+- appel a une action serveur/Edge Function avec contexte draft + scene ;
+- retour JSON structure pour remplacer storyboard, texte ecran, prompt visuel et
+  prompt voix de la scene cible.

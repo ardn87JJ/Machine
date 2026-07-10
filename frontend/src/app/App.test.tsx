@@ -669,14 +669,22 @@ describe("App", () => {
     fireEvent.click(screen.getByLabelText("ai music channel: le test qui decide si on attaque"));
     fireEvent.click(screen.getByLabelText("Monter en vertical 9:16 avec sous-titres lisibles."));
     fireEvent.change(screen.getByLabelText("Statut Scene 1"), { target: { value: "IN_PROGRESS" } });
+    fireEvent.change(screen.getByLabelText("Texte écran Scene 1"), {
+      target: { value: "Hook edite pour test terrain" },
+    });
+    fireEvent.change(screen.getByLabelText("Prompt visuel Scene 1"), {
+      target: { value: "Plan serre vertical avec interface musique IA visible" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "Sauvegarder factory" }));
 
     expect(await screen.findByText(/Dernière sauvegarde/)).toBeInTheDocument();
     expect(screen.getByText("Plan montage")).toBeInTheDocument();
-    expect(screen.getByText("Prompt voix")).toBeInTheDocument();
+    expect(screen.getAllByText("Prompt voix").length).toBeGreaterThan(0);
     expect(screen.getByText("Assets à produire")).toBeInTheDocument();
     expect(screen.getByText("Scene 1")).toBeInTheDocument();
     expect(screen.getByDisplayValue("IN_PROGRESS")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Hook edite pour test terrain")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Plan serre vertical avec interface musique IA visible")).toBeInTheDocument();
     expect(screen.getAllByText("Texte écran").length).toBeGreaterThan(0);
     expect(screen.getAllByRole("button", { name: "Copier asset" }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("button", { name: "Export asset" }).length).toBeGreaterThan(0);
@@ -762,7 +770,12 @@ describe("App", () => {
                 selectedTitle?: string;
                 montagePlan?: string[];
                 voicePrompt?: string;
-                assets?: Array<{ scene: string; status: string }>;
+                assets?: Array<{
+                  scene: string;
+                  status: string;
+                  screenText: string;
+                  visualPrompt: string;
+                }>;
               };
             };
           };
@@ -772,7 +785,9 @@ describe("App", () => {
             Array.isArray(payload.content.factory.montagePlan) &&
             Boolean(payload.content.factory.voicePrompt) &&
             payload.content.factory.assets?.[0]?.scene === "Scene 1" &&
-            payload.content.factory.assets[0].status === "IN_PROGRESS";
+            payload.content.factory.assets[0].status === "IN_PROGRESS" &&
+            payload.content.factory.assets[0].screenText === "Hook edite pour test terrain" &&
+            payload.content.factory.assets[0].visualPrompt === "Plan serre vertical avec interface musique IA visible";
         }),
       ).toBe(true);
     });
