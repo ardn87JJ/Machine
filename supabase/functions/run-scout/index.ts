@@ -90,8 +90,10 @@ type ExecutionExperimentSummary = {
   decision_label: "ATTAQUER" | "TESTER" | "VEILLE";
   priority_score: number;
   status: "READY" | "RUNNING" | "DONE" | "PAUSED";
+  outcome: "UNKNOWN" | "PASSED" | "FAILED";
   next_action: string;
   success_criteria: string;
+  result_note: string;
   evidence_video_ids: string[];
   created_at: string;
   updated_at: string;
@@ -140,6 +142,11 @@ Deno.serve(async (request) => {
       return json(await createExecutionExperiment(body));
     }
 
+    if (body.action === "update-experiment") {
+      assertConfigured();
+      return json(await updateExecutionExperiment(body));
+    }
+
     const keyword = normalizeKeyword(String(body.keyword ?? ""));
 
     if (keyword.length < 2) {
@@ -181,7 +188,7 @@ async function listExecutionExperiments(request: Request) {
   const url = new URL(request.url);
   const limit = Math.max(1, Math.min(50, Number(url.searchParams.get("limit") ?? 20)));
   const experiments = await supabaseFetch<ExecutionExperimentSummary[]>(
-    `/rest/v1/execution_experiments?select=id,opportunity_scan_id,keyword,title,decision_label,priority_score,status,next_action,success_criteria,evidence_video_ids,created_at,updated_at&order=created_at.desc&limit=${limit}`,
+    `/rest/v1/execution_experiments?select=id,opportunity_scan_id,keyword,title,decision_label,priority_score,status,outcome,next_action,success_criteria,result_note,evidence_video_ids,created_at,updated_at&order=created_at.desc&limit=${limit}`,
   );
 
   return { experiments };
@@ -217,13 +224,56 @@ async function createExecutionExperiment(body: JsonRecord) {
         decision_label: decisionLabel,
         priority_score: priorityScore,
         status: "READY",
+        outcome: "UNKNOWN",
         next_action: opportunity.execution_plan.first_test,
         success_criteria: opportunity.execution_plan.criteria_go,
+        result_note: "",
         evidence_video_ids: opportunity.evidence_video_ids,
         updated_at: new Date().toISOString(),
       }),
     },
   );
+
+  return { experiment: rows[0] };
+}
+
+async function updateExecutionExperiment(body: JsonRecord) {
+  const experimentId = String(body.experiment_id ?? "");
+  const status = String(body.status ?? "");
+  const outcome = String(body.outcome ?? "UNKNOWN");
+  const resultNote = String(body.result_note ?? "").slice(0, 1000);
+  const allowedStatuses = new Set(["READY", "RUNNING", "DONE", "PAUSED"]);
+  const allowedOutcomes = new Set(["UNKNOWN", "PASSED", "FAILED"]);
+
+  if (!experimentId) {
+    throw new Error("experiment_id est requis pour mettre a jour un test.");
+  }
+
+  if (!allowedStatuses.has(status)) {
+    throw new Error("Statut de test invalide.");
+  }
+
+  if (!allowedOutcomes.has(outcome)) {
+    throw new Error("Resultat de test invalide.");
+  }
+
+  const rows = await supabaseFetch<ExecutionExperimentSummary[]>(
+    `/rest/v1/execution_experiments?id=eq.${experimentId}`,
+    {
+      method: "PATCH",
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify({
+        status,
+        outcome,
+        result_note: resultNote,
+        updated_at: new Date().toISOString(),
+      }),
+    },
+  );
+
+  if (!rows[0]) {
+    throw new Error("Test introuvable.");
+  }
 
   return { experiment: rows[0] };
 }

@@ -3,14 +3,15 @@ import { type FormEvent, useState } from "react";
 import {
   createScan,
   createEdgeExperiment,
-  listEdgeExperiments,
   getScanAnalysis,
+  listEdgeExperiments,
   listEdgeScoutLedger,
   listScans,
   listOpportunities,
   listScanVideos,
   runEdgeScout,
   runScoutWorkerOnce,
+  updateEdgeExperiment,
   type ExecutionPlan,
   type ExecutionExperimentSummary,
   type OpportunitySummary,
@@ -1191,11 +1192,24 @@ function ExperimentQueue({
   experiments,
   isLoading,
   error,
+  isUpdatingExperiment,
+  onUpdateExperiment,
 }: {
   experiments: ExecutionExperimentSummary[];
   isLoading: boolean;
   error: unknown;
+  isUpdatingExperiment: boolean;
+  onUpdateExperiment: (
+    experiment: ExecutionExperimentSummary,
+    patch: Pick<ExecutionExperimentSummary, "status" | "outcome" | "result_note">,
+  ) => void;
 }) {
+  const [notesByExperiment, setNotesByExperiment] = useState<Record<string, string>>({});
+
+  function noteFor(experiment: ExecutionExperimentSummary) {
+    return notesByExperiment[experiment.id] ?? experiment.result_note ?? "";
+  }
+
   return (
     <section className="cockpit-panel experiment-queue" aria-labelledby="experiment-queue-title">
       <div className="panel-heading">
@@ -1217,14 +1231,86 @@ function ExperimentQueue({
         {experiments.slice(0, 5).map((experiment) => (
           <article className="experiment-card" key={experiment.id}>
             <div>
-              <span className="experiment-status">{experiment.status}</span>
+              <span className={`experiment-status experiment-status--${experiment.status.toLowerCase()}`}>
+                {experiment.status}
+              </span>
               <strong>{experiment.keyword}</strong>
               <small>{experiment.title}</small>
             </div>
             <p>{experiment.next_action}</p>
+            <label className="experiment-note">
+              <span>Note résultat</span>
+              <textarea
+                maxLength={1000}
+                onChange={(event) =>
+                  setNotesByExperiment((current) => ({
+                    ...current,
+                    [experiment.id]: event.target.value,
+                  }))
+                }
+                placeholder="Ex: hook trop lent, CTR faible, bon signal commentaires..."
+                rows={3}
+                value={noteFor(experiment)}
+              />
+            </label>
+            <div className="experiment-actions">
+              <button
+                disabled={isUpdatingExperiment || experiment.status === "RUNNING"}
+                onClick={() =>
+                  onUpdateExperiment(experiment, {
+                    status: "RUNNING",
+                    outcome: "UNKNOWN",
+                    result_note: noteFor(experiment),
+                  })
+                }
+                type="button"
+              >
+                Démarrer
+              </button>
+              <button
+                disabled={isUpdatingExperiment || experiment.status === "PAUSED"}
+                onClick={() =>
+                  onUpdateExperiment(experiment, {
+                    status: "PAUSED",
+                    outcome: "UNKNOWN",
+                    result_note: noteFor(experiment),
+                  })
+                }
+                type="button"
+              >
+                Pause
+              </button>
+              <button
+                disabled={isUpdatingExperiment}
+                onClick={() =>
+                  onUpdateExperiment(experiment, {
+                    status: "DONE",
+                    outcome: "PASSED",
+                    result_note: noteFor(experiment),
+                  })
+                }
+                type="button"
+              >
+                Réussi
+              </button>
+              <button
+                disabled={isUpdatingExperiment}
+                onClick={() =>
+                  onUpdateExperiment(experiment, {
+                    status: "DONE",
+                    outcome: "FAILED",
+                    result_note: noteFor(experiment),
+                  })
+                }
+                type="button"
+              >
+                Échec
+              </button>
+            </div>
             <div className="experiment-meta">
               <span>{experiment.decision_label}</span>
               <span>score {experiment.priority_score}</span>
+              <span>{experiment.outcome}</span>
               <span>{formatDate(experiment.created_at)}</span>
             </div>
           </article>
@@ -1297,6 +1383,20 @@ export function App() {
         scan_id: opportunity.scanId,
         decision_label: opportunity.decisionLabel,
         priority_score: opportunity.priorityScore,
+      }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["edge-experiments"] });
+    },
+  });
+
+  const updateExperimentMutation = useMutation({
+    mutationFn: (payload: {
+      experiment: ExecutionExperimentSummary;
+      patch: Pick<ExecutionExperimentSummary, "status" | "outcome" | "result_note">;
+    }) =>
+      updateEdgeExperiment({
+        experiment_id: payload.experiment.id,
+        ...payload.patch,
       }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["edge-experiments"] });
@@ -1516,6 +1616,10 @@ export function App() {
             error={edgeExperimentsQuery.error}
             experiments={edgeExperiments}
             isLoading={edgeExperimentsQuery.isLoading}
+            isUpdatingExperiment={updateExperimentMutation.isPending}
+            onUpdateExperiment={(experiment, patch) =>
+              updateExperimentMutation.mutate({ experiment, patch })
+            }
           />
           <AnalystConsole backendOnline={backendOnline} opportunity={selectedOpportunity} />
           <ProducerConsole opportunity={selectedOpportunity} />

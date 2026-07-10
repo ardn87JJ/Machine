@@ -229,9 +229,11 @@ describe("App", () => {
       title: string;
       decision_label: "ATTAQUER" | "TESTER" | "VEILLE";
       priority_score: number;
-      status: "READY";
+      status: "READY" | "RUNNING" | "DONE" | "PAUSED";
+      outcome: "UNKNOWN" | "PASSED" | "FAILED";
       next_action: string;
       success_criteria: string;
+      result_note: string;
       evidence_video_ids: string[];
       created_at: string;
       updated_at: string;
@@ -335,11 +337,38 @@ describe("App", () => {
             decision_label: "ATTAQUER" as const,
             priority_score: 91,
             status: "READY" as const,
+            outcome: "UNKNOWN" as const,
             next_action: "Publier 7 morceaux courts autour de ai music channel avec visuels cohérents",
             success_criteria: "Un morceau dépasse le benchmark de vues initial en 72h",
+            result_note: "",
             evidence_video_ids: ["edge-video-1"],
             created_at: "2026-07-08T13:35:00Z",
             updated_at: "2026-07-08T13:35:00Z",
+          };
+
+          experiments = [experiment];
+
+          return Promise.resolve(
+            new Response(JSON.stringify({ experiment }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            }),
+          );
+        }
+
+        if ((body as { action?: string }).action === "update-experiment") {
+          const patch = body as {
+            experiment_id: string;
+            status: "READY" | "RUNNING" | "DONE" | "PAUSED";
+            outcome: "UNKNOWN" | "PASSED" | "FAILED";
+            result_note: string;
+          };
+          const experiment = {
+            ...experiments[0],
+            status: patch.status,
+            outcome: patch.outcome,
+            result_note: patch.result_note,
+            updated_at: "2026-07-08T13:40:00Z",
           };
 
           experiments = [experiment];
@@ -468,6 +497,16 @@ describe("App", () => {
 
     expect(await screen.findByText("READY")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Test créé" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Démarrer" }));
+
+    expect(await screen.findByText("RUNNING")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Note résultat"), {
+      target: { value: "Bon signal initial, continuer le test." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Réussi" }));
+
+    expect(await screen.findByText("PASSED")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "ATTAQUER 1" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "TESTER 1" })).toBeInTheDocument();
     expect(
@@ -491,6 +530,12 @@ describe("App", () => {
         "ai mini drama shorts",
       ]);
       expect(postedKeywords).not.toContain("ai music channel mini drama ia");
+      expect(
+        fetchMock.mock.calls.some(([, init]) => {
+          const payload = JSON.parse(String(init?.body ?? "{}")) as { action?: string; result_note?: string };
+          return payload.action === "update-experiment" && payload.result_note === "Bon signal initial, continuer le test.";
+        }),
+      ).toBe(true);
     });
   });
 });

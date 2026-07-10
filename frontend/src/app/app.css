@@ -893,6 +893,69 @@ h3 {
   font-weight: 900;
 }
 
+.experiment-status--paused {
+  border-color: #7b5a1b;
+  color: #ffd28a;
+  background: #1c160a;
+}
+
+.experiment-status--done {
+  border-color: #35506b;
+  color: #b9d7ff;
+  background: #101a28;
+}
+
+.experiment-note {
+  display: grid;
+  gap: 6px;
+}
+
+.experiment-note span {
+  color: #8f9baa;
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.experiment-note textarea {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid #253142;
+  border-radius: 10px;
+  padding: 10px;
+  color: #edf3fb;
+  background: #0b1018;
+  line-height: 1.45;
+}
+
+.experiment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.experiment-actions button {
+  border: 1px solid #2d3a4d;
+  border-radius: 999px;
+  padding: 8px 10px;
+  color: #c8d3df;
+  background: #0b1018;
+  font-size: 0.76rem;
+  font-weight: 850;
+}
+
+.experiment-actions button:nth-child(3) {
+  border-color: #1f6f5f;
+  color: #83f1d8;
+  background: #10211f;
+}
+
+.experiment-actions button:nth-child(4) {
+  border-color: #7a3c3c;
+  color: #ffaca7;
+  background: #201111;
+}
+
 .experiment-meta {
   display: flex;
   flex-wrap: wrap;
