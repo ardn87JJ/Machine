@@ -29,7 +29,7 @@ scorables, tests actionnables, drafts de production et apprentissages.
 
 - Depot Git : `ardn87JJ/Machine`
 - Branche : `main`
-- Dernier commit stable au depart de cette tranche : `768e0a9 Make production drafts actionable`
+- Dernier commit stable au depart de cette tranche : `ac4170a Add content factory workbench`
 - App publique : `https://ardn87jj.github.io/Machine/`
 - Supabase project ref : `uscmdnzbwvsjrocemset`
 - Edge Function active : `run-scout`
@@ -47,17 +47,10 @@ scorables, tests actionnables, drafts de production et apprentissages.
 - sauvegarder un draft Producteur dans Supabase.
 - marquer un draft `READY` ou `USED`, copier/exporter le pack et voir un script
   detaille.
+- selectionner un draft actif, voir variantes titres/hooks, checklist courte et
+  liaison au test associe.
 
 ## Tranche en cours
-
-Transformer les drafts en vraie file Content Factory :
-
-- selectionner un draft comme actif ;
-- generer plusieurs variantes de hooks/titres ;
-- ajouter une checklist de production courte ;
-- relier un draft utilise a un resultat de test pour alimenter l'Optimizer.
-
-## Prochaine etape apres cette tranche
 
 Approfondir la Content Factory :
 
@@ -65,3 +58,12 @@ Approfondir la Content Factory :
 - ajouter un vrai etat de checklist persistant ;
 - produire un plan de montage structure ;
 - preparer les prompts voix.
+
+## Prochaine etape apres cette tranche
+
+Passer de draft a execution contenu :
+
+- ajouter une file `assets a produire` depuis un draft sauvegarde ;
+- creer des champs storyboard / voix / visuels par scene ;
+- ajouter un export complet Markdown pour production manuelle ;
+- plus tard, brancher un LLM serveur pour variantes plus fines.

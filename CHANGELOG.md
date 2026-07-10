@@ -48,6 +48,8 @@ Le format suit les principes de [Keep a Changelog](https://keepachangelog.com/fr
 - atelier Content Factory avec draft actif, variantes de hooks/titres, checklist de
   production courte et liaison visible avec le test associé ;
 - Optimizer enrichi avec les drafts prêts et utilisés.
+- persistance des choix Content Factory dans le JSON du draft : titre choisi, hook
+  choisi, checklist, plan de montage et prompt voix.
 
 ### Décidé
 

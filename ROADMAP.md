@@ -99,10 +99,12 @@ Critère de sortie :
 - [x] Variantes de hooks/titres.
 - [x] Checklist de production courte.
 - [x] Liaison visuelle draft utilisé / résultat de test dans l’Optimizer.
-- [ ] Variantes choisies sauvegardées.
-- [ ] Checklist persistante.
-- [ ] Prompts voix.
-- [ ] Plan de montage.
+- [x] Variantes choisies sauvegardées.
+- [x] Checklist persistante.
+- [x] Prompts voix.
+- [x] Plan de montage.
+- [ ] File `assets à produire`.
+- [ ] Export Markdown complet.
 
 ## Plateformes futures
 

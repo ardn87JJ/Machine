@@ -455,11 +455,32 @@ describe("App", () => {
         if ((body as { action?: string }).action === "update-draft") {
           const patch = body as {
             draft_id: string;
-            status: "DRAFT" | "READY" | "USED";
+            status?: "DRAFT" | "READY" | "USED";
+            title?: string;
+            content?: {
+              status: string;
+              concept: string;
+              hooks: string[];
+              title: string;
+              script: string[];
+              visualPrompt: string;
+              description: string;
+              cta: string;
+              factory?: {
+                selectedTitle: string;
+                selectedHook: string;
+                checklist: Array<{ label: string; done: boolean }>;
+                montagePlan: string[];
+                voicePrompt: string;
+                updatedAt: string;
+              };
+            };
           };
           const draft = {
             ...drafts[0],
-            status: patch.status,
+            status: patch.status ?? drafts[0].status,
+            title: patch.title ?? drafts[0].title,
+            content: patch.content ?? drafts[0].content,
             updated_at: "2026-07-08T13:50:00Z",
           };
 
@@ -616,6 +637,13 @@ describe("App", () => {
     expect(screen.getByText("Checklist production courte")).toBeInTheDocument();
     expect(screen.getByText("Liaison test")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Draft actif" })).toBeDisabled();
+    fireEvent.click(screen.getByLabelText("ai music channel: le test qui decide si on attaque"));
+    fireEvent.click(screen.getByLabelText("Monter en vertical 9:16 avec sous-titres lisibles."));
+    fireEvent.click(screen.getByRole("button", { name: "Sauvegarder factory" }));
+
+    expect(await screen.findByText(/Dernière sauvegarde/)).toBeInTheDocument();
+    expect(screen.getByText("Plan montage")).toBeInTheDocument();
+    expect(screen.getByText("Prompt voix")).toBeInTheDocument();
     expect(screen.getByText("Script détaillé")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Copier" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Exporter TXT" })).toBeInTheDocument();
@@ -678,6 +706,20 @@ describe("App", () => {
         fetchMock.mock.calls.some(([, init]) => {
           const payload = JSON.parse(String(init?.body ?? "{}")) as { action?: string; status?: string };
           return payload.action === "update-draft" && payload.status === "USED";
+        }),
+      ).toBe(true);
+      expect(
+        fetchMock.mock.calls.some(([, init]) => {
+          const payload = JSON.parse(String(init?.body ?? "{}")) as {
+            action?: string;
+            title?: string;
+            content?: { factory?: { selectedTitle?: string; montagePlan?: string[]; voicePrompt?: string } };
+          };
+          return payload.action === "update-draft" &&
+            payload.title === "ai music channel: le test qui decide si on attaque" &&
+            payload.content?.factory?.selectedTitle === "ai music channel: le test qui decide si on attaque" &&
+            Array.isArray(payload.content.factory.montagePlan) &&
+            Boolean(payload.content.factory.voicePrompt);
         }),
       ).toBe(true);
     });

@@ -263,15 +263,41 @@ async function createProductionDraft(body: JsonRecord) {
 
 async function updateProductionDraft(body: JsonRecord) {
   const draftId = String(body.draft_id ?? "");
-  const status = String(body.status ?? "") as ProductionDraftSummary["status"];
+  const status = body.status ? String(body.status) as ProductionDraftSummary["status"] : null;
+  const title = body.title ? String(body.title).trim().slice(0, 240) : null;
+  const content = body.content as JsonRecord | undefined;
   const allowedStatuses = new Set(["DRAFT", "READY", "USED"]);
 
   if (!draftId) {
     throw new Error("draft_id est requis pour mettre a jour un draft.");
   }
 
-  if (!allowedStatuses.has(status)) {
+  if (status && !allowedStatuses.has(status)) {
     throw new Error("Statut de draft invalide.");
+  }
+
+  if (content && typeof content !== "object") {
+    throw new Error("content doit etre un objet JSON.");
+  }
+
+  const patch: JsonRecord = {
+    updated_at: new Date().toISOString(),
+  };
+
+  if (status) {
+    patch.status = status;
+  }
+
+  if (title) {
+    patch.title = title;
+  }
+
+  if (content) {
+    patch.content = content;
+  }
+
+  if (!status && !title && !content) {
+    throw new Error("Aucun changement fourni pour le draft.");
   }
 
   const rows = await supabaseFetch<ProductionDraftSummary[]>(
@@ -279,10 +305,7 @@ async function updateProductionDraft(body: JsonRecord) {
     {
       method: "PATCH",
       headers: { Prefer: "return=representation" },
-      body: JSON.stringify({
-        status,
-        updated_at: new Date().toISOString(),
-      }),
+      body: JSON.stringify(patch),
     },
   );
 

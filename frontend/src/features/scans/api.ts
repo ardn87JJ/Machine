@@ -103,6 +103,17 @@ export interface ProductionPackContent {
   visualPrompt: string;
   description: string;
   cta: string;
+  factory?: {
+    selectedTitle: string;
+    selectedHook: string;
+    checklist: Array<{
+      label: string;
+      done: boolean;
+    }>;
+    montagePlan: string[];
+    voicePrompt: string;
+    updatedAt: string;
+  };
 }
 
 export interface ProductionDraftSummary {
@@ -419,6 +430,15 @@ export async function createEdgeProductionDraft(payload: {
 export async function updateEdgeProductionDraftStatus(payload: {
   draft_id: string;
   status: ProductionDraftSummary["status"];
+}) {
+  return updateEdgeProductionDraft(payload);
+}
+
+export async function updateEdgeProductionDraft(payload: {
+  draft_id: string;
+  status?: ProductionDraftSummary["status"];
+  title?: string;
+  content?: ProductionPackContent;
 }) {
   const response = await fetch(SCOUT_FUNCTION_URL, {
     method: "POST",

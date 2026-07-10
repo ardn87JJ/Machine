@@ -1279,7 +1279,8 @@ h3 {
 .factory-grid,
 .factory-checklist,
 .factory-script,
-.factory-learning {
+.factory-learning,
+.factory-actions {
   display: grid;
   gap: 12px;
 }
@@ -1326,12 +1327,14 @@ h3 {
   line-height: 1.5;
 }
 
+.factory-grid label,
 .factory-checklist label {
   display: flex;
   gap: 8px;
   align-items: flex-start;
 }
 
+.factory-grid input,
 .factory-checklist input {
   margin-top: 4px;
   accent-color: #1f6f5f;
@@ -1340,6 +1343,26 @@ h3 {
 .factory-script strong,
 .factory-learning strong {
   color: #edf3fb;
+}
+
+.factory-actions {
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: center;
+}
+
+.factory-actions button {
+  border: 1px solid #1f6f5f;
+  border-radius: 999px;
+  padding: 9px 12px;
+  color: #83f1d8;
+  background: #10211f;
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.factory-actions small {
+  color: #9aa7b6;
 }
 
 .empty-state {

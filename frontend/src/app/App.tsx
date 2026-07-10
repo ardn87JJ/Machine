@@ -1,5 +1,5 @@
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import {
   createScan,
   createEdgeExperiment,
@@ -14,6 +14,7 @@ import {
   runEdgeScout,
   runScoutWorkerOnce,
   updateEdgeExperiment,
+  updateEdgeProductionDraft,
   updateEdgeProductionDraftStatus,
   type ExecutionPlan,
   type ExecutionExperimentSummary,
@@ -1347,6 +1348,51 @@ function buildFactoryVariants(draft: ProductionDraftSummary) {
   };
 }
 
+function buildMontagePlan(draft: ProductionDraftSummary, selectedTitle: string, selectedHook: string) {
+  return [
+    `Scene 1: texte plein ecran "${selectedHook}" avec cut rapide et sous-titre lisible.`,
+    `Scene 2: preuve marche sur ${draft.keyword}, montrer le signal avant 12 secondes.`,
+    `Scene 3: derouler ${selectedTitle} en 2 points, rythme 3 a 5 secondes par plan.`,
+    `Scene 4: finir sur ${draft.content.cta} avec ecran simple et promesse de suite.`,
+  ];
+}
+
+function buildVoicePrompt(draft: ProductionDraftSummary, selectedHook: string) {
+  return [
+    `Voix off verticale 30-45 secondes sur ${draft.keyword}.`,
+    `Ton: direct, curieux, oriente opportunite business.`,
+    `Ouverture exacte: ${selectedHook}`,
+    "Rythme rapide, phrases courtes, aucune introduction generique.",
+    `Conclusion: ${draft.content.cta}`,
+  ].join(" ");
+}
+
+function buildFactoryContent(
+  draft: ProductionDraftSummary,
+  selectedTitle: string,
+  selectedHook: string,
+  doneChecklistItems: string[],
+) {
+  const variants = buildFactoryVariants(draft);
+
+  return {
+    ...draft.content,
+    title: selectedTitle,
+    hooks: [selectedHook, ...draft.content.hooks.filter((hook) => hook !== selectedHook)],
+    factory: {
+      selectedTitle,
+      selectedHook,
+      checklist: variants.checklist.map((label) => ({
+        label,
+        done: doneChecklistItems.includes(label),
+      })),
+      montagePlan: buildMontagePlan(draft, selectedTitle, selectedHook),
+      voicePrompt: buildVoicePrompt(draft, selectedHook),
+      updatedAt: new Date().toISOString(),
+    },
+  };
+}
+
 function findDraftExperiment(
   draft: ProductionDraftSummary,
   experiments: ExecutionExperimentSummary[],
@@ -1496,10 +1542,41 @@ function ProductionDraftsPanel({
 function ContentFactoryWorkbench({
   draft,
   experiment,
+  isSavingFactory,
+  onSaveFactory,
 }: {
   draft: ProductionDraftSummary | undefined;
   experiment: ExecutionExperimentSummary | undefined;
+  isSavingFactory: boolean;
+  onSaveFactory: (
+    draft: ProductionDraftSummary,
+    content: ProductionPackContent,
+    title: string,
+  ) => void;
 }) {
+  const variants = draft ? buildFactoryVariants(draft) : { titles: [], hooks: [], checklist: [] };
+  const [selectedTitle, setSelectedTitle] = useState("");
+  const [selectedHook, setSelectedHook] = useState("");
+  const [doneChecklistItems, setDoneChecklistItems] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!draft) {
+      setSelectedTitle("");
+      setSelectedHook("");
+      setDoneChecklistItems([]);
+      return;
+    }
+
+    const nextVariants = buildFactoryVariants(draft);
+    setSelectedTitle(draft.content.factory?.selectedTitle ?? draft.content.title ?? nextVariants.titles[0] ?? "");
+    setSelectedHook(draft.content.factory?.selectedHook ?? draft.content.hooks[0] ?? nextVariants.hooks[0] ?? "");
+    setDoneChecklistItems(
+      draft.content.factory?.checklist
+        .filter((item) => item.done)
+        .map((item) => item.label) ?? [],
+    );
+  }, [draft?.id, draft?.updated_at, draft]);
+
   if (!draft) {
     return (
       <section className="cockpit-panel content-factory" aria-labelledby="content-factory-title">
@@ -1516,8 +1593,11 @@ function ContentFactoryWorkbench({
     );
   }
 
-  const variants = buildFactoryVariants(draft);
   const detailedScript = buildDetailedScript(draft);
+  const factoryContent = buildFactoryContent(draft, selectedTitle, selectedHook, doneChecklistItems);
+  const montagePlan = factoryContent.factory?.montagePlan ?? [];
+  const voicePrompt = factoryContent.factory?.voicePrompt ?? "";
+  const completedCount = doneChecklistItems.length;
 
   return (
     <section className="cockpit-panel content-factory" aria-labelledby="content-factory-title">
@@ -1527,7 +1607,7 @@ function ContentFactoryWorkbench({
           <h2 id="content-factory-title">Atelier draft</h2>
           <p className="panel-substatus">{draft.keyword} · {draft.status}</p>
         </div>
-        <span className="phase">{experiment?.outcome ?? "NO TEST"}</span>
+        <span className="phase">{completedCount}/{variants.checklist.length} PRET</span>
       </div>
 
       <div className="factory-grid">
@@ -1535,7 +1615,17 @@ function ContentFactoryWorkbench({
           <span>Variantes titres</span>
           <ol>
             {variants.titles.map((title) => (
-              <li key={title}>{title}</li>
+              <li key={title}>
+                <label>
+                  <input
+                    checked={selectedTitle === title}
+                    name="factory-title"
+                    onChange={() => setSelectedTitle(title)}
+                    type="radio"
+                  />
+                  {title}
+                </label>
+              </li>
             ))}
           </ol>
         </article>
@@ -1543,7 +1633,17 @@ function ContentFactoryWorkbench({
           <span>Variantes hooks</span>
           <ol>
             {variants.hooks.map((hook) => (
-              <li key={hook}>{hook}</li>
+              <li key={hook}>
+                <label>
+                  <input
+                    checked={selectedHook === hook}
+                    name="factory-hook"
+                    onChange={() => setSelectedHook(hook)}
+                    type="radio"
+                  />
+                  {hook}
+                </label>
+              </li>
             ))}
           </ol>
         </article>
@@ -1553,10 +1653,45 @@ function ContentFactoryWorkbench({
         <span>Checklist production courte</span>
         {variants.checklist.map((item) => (
           <label key={item}>
-            <input type="checkbox" />
+            <input
+              checked={doneChecklistItems.includes(item)}
+              onChange={(event) =>
+                setDoneChecklistItems((current) =>
+                  event.target.checked
+                    ? [...current, item]
+                    : current.filter((currentItem) => currentItem !== item),
+                )
+              }
+              type="checkbox"
+            />
             {item}
           </label>
         ))}
+      </div>
+
+      <div className="factory-actions">
+        <button
+          disabled={isSavingFactory || !selectedTitle || !selectedHook}
+          onClick={() => onSaveFactory(draft, factoryContent, selectedTitle)}
+          type="button"
+        >
+          {isSavingFactory ? "SAUVEGARDE..." : "Sauvegarder factory"}
+        </button>
+        {draft.content.factory ? <small>Dernière sauvegarde {formatDate(draft.content.factory.updatedAt)}</small> : null}
+      </div>
+
+      <div className="factory-script">
+        <span>Plan montage</span>
+        <ol>
+          {montagePlan.map((step) => (
+            <li key={step}>{step}</li>
+          ))}
+        </ol>
+      </div>
+
+      <div className="factory-learning">
+        <span>Prompt voix</span>
+        <p>{voicePrompt}</p>
       </div>
 
       <div className="factory-script">
@@ -2080,6 +2215,22 @@ export function App() {
     },
   });
 
+  const saveFactoryDraftMutation = useMutation({
+    mutationFn: (payload: {
+      draft: ProductionDraftSummary;
+      content: ProductionPackContent;
+      title: string;
+    }) =>
+      updateEdgeProductionDraft({
+        draft_id: payload.draft.id,
+        title: payload.title,
+        content: payload.content,
+      }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["edge-production-drafts"] });
+    },
+  });
+
   const backendOnline = statusQuery.isSuccess;
   const backendStatusLabel = statusQuery.isPending
     ? "API : vérification..."
@@ -2322,6 +2473,10 @@ export function App() {
           <ContentFactoryWorkbench
             draft={activeFactoryDraft}
             experiment={activeFactoryExperiment}
+            isSavingFactory={saveFactoryDraftMutation.isPending}
+            onSaveFactory={(draft, content, title) =>
+              saveFactoryDraftMutation.mutate({ draft, content, title })
+            }
           />
           <ProductionDraftsPanel
             drafts={productionDrafts}
