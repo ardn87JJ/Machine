@@ -129,9 +129,13 @@ const corsHeaders = {
 const youtubeApiKey = Deno.env.get("YOUTUBE_API_KEY") ?? "";
 const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
 const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-const llmApiKey = Deno.env.get("LLM_API_KEY") ?? "";
-const llmBaseUrl = (Deno.env.get("LLM_BASE_URL") ?? "https://api.openai.com/v1").replace(/\/$/, "");
-const llmModel = Deno.env.get("LLM_MODEL") ?? "gpt-4o-mini";
+const llmApiKey = Deno.env.get("LLM_API_KEY") ?? Deno.env.get("llm_api_key") ?? "";
+const llmBaseUrl = (
+  Deno.env.get("LLM_BASE_URL") ??
+  Deno.env.get("llm_base_url") ??
+  "https://api.openai.com/v1"
+).replace(/\/$/, "");
+const llmModel = Deno.env.get("LLM_MODEL") ?? Deno.env.get("llm_model") ?? "gpt-4o-mini";
 
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") {

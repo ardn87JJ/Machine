@@ -64,6 +64,8 @@ Le format suit les principes de [Keep a Changelog](https://keepachangelog.com/fr
 - branchement LLM serveur optionnel sur `regenerate-asset` via `LLM_API_KEY`,
   `LLM_BASE_URL` et `LLM_MODEL`, avec validation JSON stricte et fallback
   déterministe si le modèle est indisponible.
+- compatibilité avec les secrets Supabase en minuscules `llm_api_key`,
+  `llm_base_url` et `llm_model`.
 
 ### Décidé
 
