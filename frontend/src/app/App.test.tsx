@@ -212,6 +212,8 @@ describe("App", () => {
     expect(screen.getByText("Fiche action")).toBeInTheDocument();
     expect(screen.getByText("Décision TESTER · score 75/100")).toBeInTheDocument();
     expect(screen.getByText("Prochaine action")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "File de tests" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Créer test" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Plan d’attaque" })).toBeInTheDocument();
     expect(
       screen.getAllByText("Lancer 5 épisodes courts autour de mini drama ia sur 7 jours").length,
@@ -220,11 +222,35 @@ describe("App", () => {
   });
 
   it("lance le Scout Edge quand l'API FastAPI n'est pas joignable", async () => {
+    let experiments: Array<{
+      id: string;
+      opportunity_scan_id: string;
+      keyword: string;
+      title: string;
+      decision_label: "ATTAQUER" | "TESTER" | "VEILLE";
+      priority_score: number;
+      status: "READY";
+      next_action: string;
+      success_criteria: string;
+      evidence_video_ids: string[];
+      created_at: string;
+      updated_at: string;
+    }> = [];
+
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
 
       if (url.includes("/functions/v1/run-scout")) {
         if (init?.method === "GET") {
+          if (url.includes("view=experiments")) {
+            return Promise.resolve(
+              new Response(JSON.stringify({ experiments }), {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+              }),
+            );
+          }
+
           return Promise.resolve(
             new Response(
               JSON.stringify({
@@ -298,6 +324,34 @@ describe("App", () => {
         }
 
         const body = JSON.parse(String(init?.body ?? "{}")) as { keyword?: string };
+
+        if ((body as { action?: string }).action === "create-experiment") {
+          const scanId = String((body as { scan_id?: string }).scan_id);
+          const experiment = {
+            id: "experiment-ai-music-channel",
+            opportunity_scan_id: scanId,
+            keyword: "ai music channel",
+            title: "Chaîne musicale IA monétisable",
+            decision_label: "ATTAQUER" as const,
+            priority_score: 91,
+            status: "READY" as const,
+            next_action: "Publier 7 morceaux courts autour de ai music channel avec visuels cohérents",
+            success_criteria: "Un morceau dépasse le benchmark de vues initial en 72h",
+            evidence_video_ids: ["edge-video-1"],
+            created_at: "2026-07-08T13:35:00Z",
+            updated_at: "2026-07-08T13:35:00Z",
+          };
+
+          experiments = [experiment];
+
+          return Promise.resolve(
+            new Response(JSON.stringify({ experiment }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            }),
+          );
+        }
+
         const keyword = body.keyword ?? "ai music channel";
         const scanId = `scan-${keyword.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`;
 
@@ -410,6 +464,10 @@ describe("App", () => {
     expect(
       screen.getAllByText("Publier 7 morceaux courts autour de ai music channel avec visuels cohérents").length,
     ).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: "Créer test" }));
+
+    expect(await screen.findByText("READY")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Test créé" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "ATTAQUER 1" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "TESTER 1" })).toBeInTheDocument();
     expect(
@@ -423,7 +481,8 @@ describe("App", () => {
     await waitFor(() => {
       const postedKeywords = fetchMock.mock.calls
         .filter(([url, init]) => String(url).includes("/functions/v1/run-scout") && init?.method === "POST")
-        .map(([, init]) => JSON.parse(String(init?.body ?? "{}")).keyword);
+        .map(([, init]) => JSON.parse(String(init?.body ?? "{}")).keyword)
+        .filter(Boolean);
 
       expect(postedKeywords).toHaveLength(11);
       expect(postedKeywords.slice(1, 4)).toEqual([

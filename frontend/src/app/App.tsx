@@ -2,6 +2,8 @@ import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/rea
 import { type FormEvent, useState } from "react";
 import {
   createScan,
+  createEdgeExperiment,
+  listEdgeExperiments,
   getScanAnalysis,
   listEdgeScoutLedger,
   listScans,
@@ -10,6 +12,7 @@ import {
   runEdgeScout,
   runScoutWorkerOnce,
   type ExecutionPlan,
+  type ExecutionExperimentSummary,
   type OpportunitySummary,
   type RunEdgeScoutResponse,
   type ScanAnalysis,
@@ -1107,13 +1110,20 @@ function ProducerConsole({
 
 function ExecutionBrief({
   opportunity,
+  activeExperiment,
+  isCreatingExperiment,
+  onCreateExperiment,
 }: {
   opportunity: OpportunityRecord | undefined;
+  activeExperiment: ExecutionExperimentSummary | undefined;
+  isCreatingExperiment: boolean;
+  onCreateExperiment: (opportunity: OpportunityRecord) => void;
 }) {
   const evidenceVideos = opportunity?.videos.slice(0, 3) ?? [];
   const decisionText = opportunity
     ? `Décision ${opportunity.decisionLabel} · score ${opportunity.priorityScore}/100`
     : "Décision en attente · lance un scan";
+  const canCreateExperiment = Boolean(opportunity) && !activeExperiment && !isCreatingExperiment;
 
   return (
     <section className="cockpit-panel action-brief" aria-labelledby="action-brief-title">
@@ -1129,6 +1139,20 @@ function ExecutionBrief({
       <div className="brief-command">
         <span>Prochaine action</span>
         <strong>{opportunity?.executionPlan.first_test ?? "Lancer un scan Scout puis choisir une opportunité."}</strong>
+        <div className="brief-actions">
+          <button
+            disabled={!canCreateExperiment}
+            onClick={() => {
+              if (opportunity) {
+                onCreateExperiment(opportunity);
+              }
+            }}
+            type="button"
+          >
+            {activeExperiment ? "Test créé" : isCreatingExperiment ? "CREATION..." : "Créer test"}
+          </button>
+          {activeExperiment ? <small>Statut {activeExperiment.status} dans la file d’exécution.</small> : null}
+        </div>
       </div>
 
       <div className="brief-grid">
@@ -1163,6 +1187,53 @@ function ExecutionBrief({
   );
 }
 
+function ExperimentQueue({
+  experiments,
+  isLoading,
+  error,
+}: {
+  experiments: ExecutionExperimentSummary[];
+  isLoading: boolean;
+  error: unknown;
+}) {
+  return (
+    <section className="cockpit-panel experiment-queue" aria-labelledby="experiment-queue-title">
+      <div className="panel-heading">
+        <div>
+          <p className="eyebrow">Décision humaine</p>
+          <h2 id="experiment-queue-title">File de tests</h2>
+          <p className="panel-substatus">Opportunités transformées en expériences à exécuter.</p>
+        </div>
+        <span className="phase">{experiments.length} tests</span>
+      </div>
+
+      {error ? <p className="panel-error">{getErrorMessage(error)}</p> : null}
+      {isLoading ? <p className="panel-substatus">Chargement des tests...</p> : null}
+
+      <div className="experiment-list">
+        {experiments.length === 0 && !isLoading ? (
+          <p className="panel-empty">Aucun test créé. Sélectionne une opportunité puis clique sur Créer test.</p>
+        ) : null}
+        {experiments.slice(0, 5).map((experiment) => (
+          <article className="experiment-card" key={experiment.id}>
+            <div>
+              <span className="experiment-status">{experiment.status}</span>
+              <strong>{experiment.keyword}</strong>
+              <small>{experiment.title}</small>
+            </div>
+            <p>{experiment.next_action}</p>
+            <div className="experiment-meta">
+              <span>{experiment.decision_label}</span>
+              <span>score {experiment.priority_score}</span>
+              <span>{formatDate(experiment.created_at)}</span>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function EmptyState() {
   return (
     <div className="empty-state">
@@ -1177,6 +1248,7 @@ function EmptyState() {
 }
 
 export function App() {
+  const queryClient = useQueryClient();
   const [localRuns, setLocalRuns] = useState<LocalRun[]>([]);
   const [selectedOpportunityId, setSelectedOpportunityId] = useState<string | null>(null);
   const [decisionFilter, setDecisionFilter] = useState<DecisionFilter>("ALL");
@@ -1209,6 +1281,26 @@ export function App() {
     enabled: statusQuery.isError,
     retry: false,
     refetchInterval: 30_000,
+  });
+
+  const edgeExperimentsQuery = useQuery({
+    queryKey: ["edge-experiments"],
+    queryFn: listEdgeExperiments,
+    enabled: statusQuery.isError,
+    retry: false,
+    refetchInterval: 30_000,
+  });
+
+  const createExperimentMutation = useMutation({
+    mutationFn: (opportunity: OpportunityRecord) =>
+      createEdgeExperiment({
+        scan_id: opportunity.scanId,
+        decision_label: opportunity.decisionLabel,
+        priority_score: opportunity.priorityScore,
+      }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["edge-experiments"] });
+    },
   });
 
   const backendOnline = statusQuery.isSuccess;
@@ -1333,6 +1425,10 @@ export function App() {
     opportunityRecords[0] ??
     undefined;
   const attackCount = opportunityRecords.filter((opportunity) => opportunity.decisionLabel === "ATTAQUER").length;
+  const edgeExperiments = edgeExperimentsQuery.data?.experiments ?? [];
+  const activeExperiment = edgeExperiments.find(
+    (experiment) => experiment.opportunity_scan_id === selectedOpportunity?.scanId,
+  );
 
   function runLocalScan({ count, keyword }: { count: number; keyword: string }) {
     const batchSize = count === 1 ? 5 : Math.max(5, Math.min(count, 12));
@@ -1410,7 +1506,17 @@ export function App() {
         </div>
 
         <aside className="workspace-column workspace-column--decision">
-          <ExecutionBrief opportunity={selectedOpportunity} />
+          <ExecutionBrief
+            activeExperiment={activeExperiment}
+            isCreatingExperiment={createExperimentMutation.isPending}
+            onCreateExperiment={(opportunity) => createExperimentMutation.mutate(opportunity)}
+            opportunity={selectedOpportunity}
+          />
+          <ExperimentQueue
+            error={edgeExperimentsQuery.error}
+            experiments={edgeExperiments}
+            isLoading={edgeExperimentsQuery.isLoading}
+          />
           <AnalystConsole backendOnline={backendOnline} opportunity={selectedOpportunity} />
           <ProducerConsole opportunity={selectedOpportunity} />
         </aside>

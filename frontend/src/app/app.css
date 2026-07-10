@@ -481,6 +481,28 @@ h3 {
   background: #10211f;
 }
 
+.brief-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.brief-actions button {
+  border: 1px solid #2d3a4d;
+  border-radius: 999px;
+  padding: 9px 12px;
+  color: #83f1d8;
+  background: #0b1018;
+  font-size: 0.8rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.brief-actions small {
+  color: #9aa7b6;
+}
+
 .runtime-card {
   display: grid;
   gap: 6px;
@@ -820,6 +842,72 @@ h3 {
   border-color: #7b5a1b;
   color: #ffd28a;
   background: #1c160a;
+}
+
+.experiment-queue,
+.experiment-list,
+.experiment-card {
+  display: grid;
+  gap: 10px;
+}
+
+.experiment-card {
+  padding: 12px;
+  border: 1px solid #253142;
+  border-radius: 14px;
+  background: #101722;
+}
+
+.experiment-card > div {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.experiment-card strong,
+.experiment-card small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.experiment-card strong {
+  color: #edf3fb;
+}
+
+.experiment-card small,
+.experiment-card p {
+  margin: 0;
+  color: #9aa7b6;
+  line-height: 1.5;
+}
+
+.experiment-status {
+  width: fit-content;
+  padding: 6px 8px;
+  border: 1px solid #1f6f5f;
+  border-radius: 999px;
+  color: #83f1d8;
+  background: #10211f;
+  font-size: 0.7rem;
+  font-weight: 900;
+}
+
+.experiment-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.experiment-meta span {
+  padding: 6px 8px;
+  border: 1px solid #253142;
+  border-radius: 999px;
+  color: #c8d3df;
+  background: #0b1018;
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-transform: uppercase;
 }
 
 .opportunity-layout {

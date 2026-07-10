@@ -77,6 +77,21 @@ export interface OpportunitySummary {
   updated_at: string;
 }
 
+export interface ExecutionExperimentSummary {
+  id: string;
+  opportunity_scan_id: string;
+  keyword: string;
+  title: string;
+  decision_label: "ATTAQUER" | "TESTER" | "VEILLE";
+  priority_score: number;
+  status: "READY" | "RUNNING" | "DONE" | "PAUSED";
+  next_action: string;
+  success_criteria: string;
+  evidence_video_ids: string[];
+  created_at: string;
+  updated_at: string;
+}
+
 interface ListScansResponse {
   scans: ScanSummary[];
 }
@@ -112,6 +127,14 @@ export interface EdgeScoutLedgerResponse {
   opportunities: OpportunitySummary[];
   scans: ScanSummary[];
   videos_by_scan: Record<string, ScanVideoSummary[]>;
+}
+
+interface EdgeExperimentsResponse {
+  experiments: ExecutionExperimentSummary[];
+}
+
+interface CreateEdgeExperimentResponse {
+  experiment: ExecutionExperimentSummary;
 }
 
 const configuredScoutFunctionUrl = import.meta.env.VITE_SCOUT_FUNCTION_URL?.trim();
@@ -199,4 +222,61 @@ export async function listEdgeScoutLedger() {
   }
 
   return response.json() as Promise<EdgeScoutLedgerResponse>;
+}
+
+export async function listEdgeExperiments() {
+  const response = await fetch(`${SCOUT_FUNCTION_URL}?view=experiments&limit=20`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    let message = `La fonction Scout a repondu avec le statut ${response.status}.`;
+
+    try {
+      const payload = (await response.json()) as { message?: string };
+      message = payload.message || message;
+    } catch {
+      // Keep the status-based message when the Edge Function does not return JSON.
+    }
+
+    throw new Error(message);
+  }
+
+  return response.json() as Promise<EdgeExperimentsResponse>;
+}
+
+export async function createEdgeExperiment(payload: {
+  scan_id: string;
+  decision_label: "ATTAQUER" | "TESTER" | "VEILLE";
+  priority_score: number;
+}) {
+  const response = await fetch(SCOUT_FUNCTION_URL, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      action: "create-experiment",
+      ...payload,
+    }),
+  });
+
+  if (!response.ok) {
+    let message = `La fonction Scout a repondu avec le statut ${response.status}.`;
+
+    try {
+      const errorPayload = (await response.json()) as { message?: string };
+      message = errorPayload.message || message;
+    } catch {
+      // Keep the status-based message when the Edge Function does not return JSON.
+    }
+
+    throw new Error(message);
+  }
+
+  return response.json() as Promise<CreateEdgeExperimentResponse>;
 }

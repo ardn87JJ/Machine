@@ -82,6 +82,21 @@ type OpportunitySummary = {
   updated_at: string;
 };
 
+type ExecutionExperimentSummary = {
+  id: string;
+  opportunity_scan_id: string;
+  keyword: string;
+  title: string;
+  decision_label: "ATTAQUER" | "TESTER" | "VEILLE";
+  priority_score: number;
+  status: "READY" | "RUNNING" | "DONE" | "PAUSED";
+  next_action: string;
+  success_criteria: string;
+  evidence_video_ids: string[];
+  created_at: string;
+  updated_at: string;
+};
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -100,6 +115,12 @@ Deno.serve(async (request) => {
   if (request.method === "GET") {
     try {
       assertConfigured();
+      const url = new URL(request.url);
+
+      if (url.searchParams.get("view") === "experiments") {
+        return json(await listExecutionExperiments(request));
+      }
+
       return json(await listScoutLedger(request));
     } catch (error) {
       const message = error instanceof Error ? error.message : "Erreur inconnue.";
@@ -113,6 +134,12 @@ Deno.serve(async (request) => {
 
   try {
     const body = await request.json().catch(() => ({}));
+
+    if (body.action === "create-experiment") {
+      assertConfigured();
+      return json(await createExecutionExperiment(body));
+    }
+
     const keyword = normalizeKeyword(String(body.keyword ?? ""));
 
     if (keyword.length < 2) {
@@ -149,6 +176,57 @@ Deno.serve(async (request) => {
     return json({ error: "run_scout_failed", message }, 500);
   }
 });
+
+async function listExecutionExperiments(request: Request) {
+  const url = new URL(request.url);
+  const limit = Math.max(1, Math.min(50, Number(url.searchParams.get("limit") ?? 20)));
+  const experiments = await supabaseFetch<ExecutionExperimentSummary[]>(
+    `/rest/v1/execution_experiments?select=id,opportunity_scan_id,keyword,title,decision_label,priority_score,status,next_action,success_criteria,evidence_video_ids,created_at,updated_at&order=created_at.desc&limit=${limit}`,
+  );
+
+  return { experiments };
+}
+
+async function createExecutionExperiment(body: JsonRecord) {
+  const scanId = String(body.scan_id ?? "");
+  const decisionLabel = String(body.decision_label ?? "TESTER") as ExecutionExperimentSummary["decision_label"];
+  const priorityScore = Number(body.priority_score ?? 0);
+
+  if (!scanId) {
+    throw new Error("scan_id est requis pour creer un test.");
+  }
+
+  const opportunities = await supabaseFetch<OpportunitySummary[]>(
+    `/rest/v1/opportunities?select=id,scan_id,keyword,title,execution_plan,evidence_video_ids&scan_id=eq.${scanId}&limit=1`,
+  );
+  const opportunity = opportunities[0];
+
+  if (!opportunity) {
+    throw new Error("Opportunite introuvable pour ce scan.");
+  }
+
+  const rows = await supabaseFetch<ExecutionExperimentSummary[]>(
+    "/rest/v1/execution_experiments?on_conflict=opportunity_scan_id",
+    {
+      method: "POST",
+      headers: { Prefer: "return=representation,resolution=merge-duplicates" },
+      body: JSON.stringify({
+        opportunity_scan_id: opportunity.scan_id,
+        keyword: opportunity.keyword,
+        title: opportunity.title,
+        decision_label: decisionLabel,
+        priority_score: priorityScore,
+        status: "READY",
+        next_action: opportunity.execution_plan.first_test,
+        success_criteria: opportunity.execution_plan.criteria_go,
+        evidence_video_ids: opportunity.evidence_video_ids,
+        updated_at: new Date().toISOString(),
+      }),
+    },
+  );
+
+  return { experiment: rows[0] };
+}
 
 async function listScoutLedger(request: Request) {
   const url = new URL(request.url);
