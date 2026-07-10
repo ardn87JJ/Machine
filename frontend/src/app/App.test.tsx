@@ -199,6 +199,8 @@ describe("App", () => {
         selector: ".video-result__title",
       }),
     ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Décision/ }));
+
     expect(screen.getByRole("heading", { name: "Scoring business" })).toBeInTheDocument();
     expect(
       await screen.findByText("business-heuristic-v0.1", { selector: ".model-version" }),
@@ -212,14 +214,18 @@ describe("App", () => {
     expect(screen.getByText("Fiche action")).toBeInTheDocument();
     expect(screen.getByText("Décision TESTER · score 75/100")).toBeInTheDocument();
     expect(screen.getByText("Prochaine action")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "File de tests" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Créer test" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Pack production" })).toBeInTheDocument();
-    expect(screen.getByText("3 hooks")).toBeInTheDocument();
-    expect(screen.getByText("Script 30-45s")).toBeInTheDocument();
     expect(
       screen.getAllByText("Lancer 5 épisodes courts autour de mini drama ia sur 7 jours").length,
     ).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "Créer test" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Optimizer/ }));
+    expect(screen.getByRole("heading", { name: "File de tests" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Factory/ }));
+    expect(screen.getByRole("heading", { name: "Pack production" })).toBeInTheDocument();
+    expect(screen.getByText("3 hooks")).toBeInTheDocument();
+    expect(screen.getByText("Script 30-45s")).toBeInTheDocument();
     expect(screen.getByText("Scans visibles")).toBeInTheDocument();
   });
 
@@ -633,7 +639,7 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "Créer test" }));
 
     expect(await screen.findByText("READY")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Test créé" })).toBeDisabled();
+    expect(screen.getByRole("heading", { name: "File de tests" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Démarrer" }));
 
     expect(await screen.findByText("RUNNING")).toBeInTheDocument();
@@ -645,9 +651,7 @@ describe("App", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Réussi" }));
 
-    expect(await screen.findByText("PASSED")).toBeInTheDocument();
-    expect(screen.getByText("Doubler le test sur ai music channel")).toBeInTheDocument();
-    expect(screen.getAllByText("Bon signal initial, continuer le test.").length).toBeGreaterThan(0);
+    expect(await screen.findByRole("heading", { name: "Pack production" })).toBeInTheDocument();
     expect(screen.getByText("J’ai créé une musique IA addictive sur ai music channel")).toBeInTheDocument();
     expect(screen.getByText("Sauvegarde si tu veux la version longue.")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Sauvegarder draft" }));
@@ -660,6 +664,7 @@ describe("App", () => {
     expect(screen.getByText("Variantes hooks")).toBeInTheDocument();
     expect(screen.getByText("Checklist production courte")).toBeInTheDocument();
     expect(screen.getByText("Liaison test")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Factory/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Draft actif" })).toBeDisabled();
     fireEvent.click(screen.getByLabelText("ai music channel: le test qui decide si on attaque"));
     fireEvent.click(screen.getByLabelText("Monter en vertical 9:16 avec sous-titres lisibles."));
@@ -688,6 +693,8 @@ describe("App", () => {
       expect(screen.getByRole("button", { name: "Marquer READY" })).toBeDisabled();
     });
 
+    fireEvent.click(screen.getByRole("button", { name: /^Scout/ }));
+
     expect(screen.getByRole("button", { name: "ATTAQUER 1" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "TESTER 1" })).toBeInTheDocument();
     expect(
@@ -696,6 +703,10 @@ describe("App", () => {
       }),
     ).toBeInTheDocument();
 
+    fireEvent.click(screen.getByRole("button", { name: /^Scout/ }));
+    fireEvent.change(screen.getByLabelText("Niche / mot-clé de départ"), {
+      target: { value: "ai music channel" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "SCAN 10" }));
 
     await waitFor(() => {

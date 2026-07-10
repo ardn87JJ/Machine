@@ -191,6 +191,7 @@ type OpportunityRecord = Opportunity & {
 
 type DecisionLabel = OpportunityRecord["decisionLabel"];
 type DecisionFilter = DecisionLabel | "ALL";
+type WorkspaceView = "scout" | "decision" | "factory" | "optimizer";
 
 type CompetitorRow = {
   channelId: string;
@@ -2224,6 +2225,7 @@ export function App() {
   const [selectedOpportunityId, setSelectedOpportunityId] = useState<string | null>(null);
   const [selectedDraftId, setSelectedDraftId] = useState<string | null>(null);
   const [decisionFilter, setDecisionFilter] = useState<DecisionFilter>("ALL");
+  const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("scout");
   const verifiedFallbackRun = buildVerifiedFallbackRun();
 
   const statusQuery = useQuery({
@@ -2280,6 +2282,7 @@ export function App() {
       }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["edge-experiments"] });
+      setWorkspaceView("optimizer");
     },
   });
 
@@ -2292,8 +2295,11 @@ export function App() {
         experiment_id: payload.experiment.id,
         ...payload.patch,
       }),
-    onSuccess: async () => {
+    onSuccess: async (data) => {
       await queryClient.invalidateQueries({ queryKey: ["edge-experiments"] });
+      if (data.experiment.outcome === "PASSED") {
+        setWorkspaceView("factory");
+      }
     },
   });
 
@@ -2314,6 +2320,7 @@ export function App() {
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["edge-production-drafts"] });
+      setWorkspaceView("factory");
     },
   });
 
@@ -2492,11 +2499,13 @@ export function App() {
 
     setLocalRuns((current) => [run, ...current].slice(0, 8));
     setSelectedOpportunityId(run.scan.id);
+    setWorkspaceView("decision");
   }
 
   function addEdgeRun(run: LocalRun) {
     setLocalRuns((current) => [run, ...current].slice(0, 8));
     setSelectedOpportunityId(run.scan.id);
+    setWorkspaceView("decision");
   }
 
   return (
@@ -2538,8 +2547,27 @@ export function App() {
         </article>
       </div>
 
-      <section className="workspace-grid" aria-label="Cockpit agents">
-        <div className="workspace-column workspace-column--scout">
+      <nav className="machine-nav" aria-label="Espaces Machine">
+        {([
+          ["scout", "Scout", "Collecte + ledger"],
+          ["decision", "Décision", "Analyse + test"],
+          ["factory", "Factory", "Drafts + assets"],
+          ["optimizer", "Optimizer", "Tests + apprentissages"],
+        ] as Array<[WorkspaceView, string, string]>).map(([view, label, description]) => (
+          <button
+            className={`machine-nav__item ${workspaceView === view ? "is-active" : ""}`}
+            key={view}
+            onClick={() => setWorkspaceView(view)}
+            type="button"
+          >
+            <span>{label}</span>
+            <small>{description}</small>
+          </button>
+        ))}
+      </nav>
+
+      {workspaceView === "scout" ? (
+        <section className="workspace-stage workspace-stage--scout" aria-label="Espace Scout">
           <ScoutConsole
             backendOnline={backendOnline}
             localModeActive={statusQuery.isError}
@@ -2548,9 +2576,6 @@ export function App() {
             scans={scans}
             videosByScan={videosByScan}
           />
-        </div>
-
-        <div className="workspace-column workspace-column--ledger">
           <OpportunityLedger
             allOpportunities={opportunityRecords}
             decisionFilter={decisionFilter}
@@ -2559,26 +2584,31 @@ export function App() {
             opportunities={filteredOpportunityRecords}
             selectedOpportunityId={selectedOpportunity?.scanId ?? null}
           />
-        </div>
+        </section>
+      ) : null}
 
-        <aside className="workspace-column workspace-column--decision">
+      {workspaceView === "decision" ? (
+        <section className="workspace-stage workspace-stage--decision" aria-label="Espace Décision">
+          <OpportunityLedger
+            allOpportunities={opportunityRecords}
+            decisionFilter={decisionFilter}
+            onDecisionFilterChange={setDecisionFilter}
+            onSelectOpportunity={setSelectedOpportunityId}
+            opportunities={filteredOpportunityRecords}
+            selectedOpportunityId={selectedOpportunity?.scanId ?? null}
+          />
           <ExecutionBrief
             activeExperiment={activeExperiment}
             isCreatingExperiment={createExperimentMutation.isPending}
             onCreateExperiment={(opportunity) => createExperimentMutation.mutate(opportunity)}
             opportunity={selectedOpportunity}
           />
-          <ExperimentQueue
-            error={edgeExperimentsQuery.error}
-            experiments={edgeExperiments}
-            isLoading={edgeExperimentsQuery.isLoading}
-            isUpdatingExperiment={updateExperimentMutation.isPending}
-            onUpdateExperiment={(experiment, patch) =>
-              updateExperimentMutation.mutate({ experiment, patch })
-            }
-          />
-          <OptimizerPanel drafts={productionDrafts} experiments={edgeExperiments} />
           <AnalystConsole backendOnline={backendOnline} opportunity={selectedOpportunity} />
+        </section>
+      ) : null}
+
+      {workspaceView === "factory" ? (
+        <section className="workspace-stage workspace-stage--factory" aria-label="Espace Content Factory">
           <ProducerConsole
             activeDraft={activeDraft}
             activeExperiment={activeExperiment}
@@ -2606,8 +2636,23 @@ export function App() {
             }
             selectedDraftId={activeFactoryDraft?.id ?? null}
           />
-        </aside>
-      </section>
+        </section>
+      ) : null}
+
+      {workspaceView === "optimizer" ? (
+        <section className="workspace-stage workspace-stage--optimizer" aria-label="Espace Optimizer">
+          <ExperimentQueue
+            error={edgeExperimentsQuery.error}
+            experiments={edgeExperiments}
+            isLoading={edgeExperimentsQuery.isLoading}
+            isUpdatingExperiment={updateExperimentMutation.isPending}
+            onUpdateExperiment={(experiment, patch) =>
+              updateExperimentMutation.mutate({ experiment, patch })
+            }
+          />
+          <OptimizerPanel drafts={productionDrafts} experiments={edgeExperiments} />
+        </section>
+      ) : null}
     </main>
   );
 }

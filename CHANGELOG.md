@@ -52,6 +52,8 @@ Le format suit les principes de [Keep a Changelog](https://keepachangelog.com/fr
   choisi, checklist, plan de montage et prompt voix.
 - file `assets à produire` générée par scène avec storyboard, texte écran, prompt
   visuel, prompt voix et export Markdown complet.
+- interface PC segmentée par espaces `Scout`, `Décision`, `Factory` et `Optimizer`
+  pour éviter la longue page unique.
 
 ### Décidé
 

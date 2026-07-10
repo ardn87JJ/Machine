@@ -51,6 +51,8 @@ scorables, tests actionnables, drafts de production et apprentissages.
   liaison au test associe.
 - sauvegarder titre/hook choisis, checklist, plan de montage et prompt voix dans
   Supabase via le JSON du draft.
+- utiliser une interface PC segmentee par espaces `Scout`, `Decision`, `Factory`
+  et `Optimizer`.
 
 ## Tranche en cours
 
