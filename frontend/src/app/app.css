@@ -1307,8 +1307,10 @@ h3 {
 .factory-learning,
 .factory-actions,
 .factory-assets,
+.asset-section-heading,
 .asset-list,
-.asset-card {
+.asset-card,
+.asset-actions {
   display: grid;
   gap: 12px;
 }
@@ -1334,7 +1336,8 @@ h3 {
 .factory-checklist span,
 .factory-script span,
 .factory-learning span,
-.factory-assets > span {
+.factory-assets > span,
+.asset-section-heading span {
   color: #83f1d8;
   font-size: 0.75rem;
   font-weight: 900;
@@ -1397,16 +1400,55 @@ h3 {
   color: #9aa7b6;
 }
 
+.asset-section-heading {
+  grid-template-columns: 1fr max-content;
+  align-items: center;
+}
+
+.asset-section-heading small {
+  color: #83f1d8;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.asset-card {
+  border-left: 4px solid #536170;
+}
+
+.asset-card--in_progress {
+  border-left-color: #d99b31;
+}
+
+.asset-card--done {
+  border-left-color: #33d69f;
+}
+
 .asset-card > div {
   display: flex;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
 }
 
-.asset-card small {
+.asset-card label {
+  display: grid;
+  gap: 5px;
   color: #83f1d8;
   font-size: 0.72rem;
   font-weight: 900;
+  text-align: right;
+  text-transform: uppercase;
+}
+
+.asset-card select {
+  min-width: 140px;
+  border: 1px solid #253142;
+  border-radius: 8px;
+  padding: 7px 9px;
+  color: #edf3fb;
+  background: #0c121b;
+  font-size: 0.75rem;
+  font-weight: 800;
 }
 
 .asset-card p,
@@ -1424,6 +1466,21 @@ h3 {
 
 .asset-card dt {
   color: #edf3fb;
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.asset-actions {
+  grid-template-columns: repeat(2, max-content);
+}
+
+.asset-actions button {
+  border: 1px solid #253142;
+  border-radius: 999px;
+  padding: 8px 11px;
+  color: #edf3fb;
+  background: #141e2b;
   font-size: 0.72rem;
   font-weight: 900;
   text-transform: uppercase;

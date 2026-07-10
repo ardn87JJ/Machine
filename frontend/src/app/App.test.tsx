@@ -668,6 +668,7 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: "Draft actif" })).toBeDisabled();
     fireEvent.click(screen.getByLabelText("ai music channel: le test qui decide si on attaque"));
     fireEvent.click(screen.getByLabelText("Monter en vertical 9:16 avec sous-titres lisibles."));
+    fireEvent.change(screen.getByLabelText("Statut Scene 1"), { target: { value: "IN_PROGRESS" } });
     fireEvent.click(screen.getByRole("button", { name: "Sauvegarder factory" }));
 
     expect(await screen.findByText(/Dernière sauvegarde/)).toBeInTheDocument();
@@ -675,7 +676,10 @@ describe("App", () => {
     expect(screen.getByText("Prompt voix")).toBeInTheDocument();
     expect(screen.getByText("Assets à produire")).toBeInTheDocument();
     expect(screen.getByText("Scene 1")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("IN_PROGRESS")).toBeInTheDocument();
     expect(screen.getAllByText("Texte écran").length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("button", { name: "Copier asset" }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("button", { name: "Export asset" }).length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "Copier Markdown" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Export Markdown" })).toBeInTheDocument();
     expect(screen.getByText("Script détaillé")).toBeInTheDocument();
@@ -768,7 +772,7 @@ describe("App", () => {
             Array.isArray(payload.content.factory.montagePlan) &&
             Boolean(payload.content.factory.voicePrompt) &&
             payload.content.factory.assets?.[0]?.scene === "Scene 1" &&
-            payload.content.factory.assets[0].status === "TODO";
+            payload.content.factory.assets[0].status === "IN_PROGRESS";
         }),
       ).toBe(true);
     });

@@ -54,6 +54,9 @@ Le format suit les principes de [Keep a Changelog](https://keepachangelog.com/fr
   visuel, prompt voix et export Markdown complet.
 - interface PC segmentée par espaces `Scout`, `Décision`, `Factory` et `Optimizer`
   pour éviter la longue page unique.
+- pilotage exécutable des assets Content Factory : statut par scène
+  `TODO` / `IN_PROGRESS` / `DONE`, sauvegarde dans le draft et export Markdown
+  individuel par asset.
 
 ### Décidé
 

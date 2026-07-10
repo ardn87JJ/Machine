@@ -19,6 +19,7 @@ import {
   type ExecutionPlan,
   type ExecutionExperimentSummary,
   type OpportunitySummary,
+  type ProductionAsset,
   type ProductionDraftSummary,
   type ProductionPackContent,
   type RunEdgeScoutResponse,
@@ -1368,7 +1369,12 @@ function buildVoicePrompt(draft: ProductionDraftSummary, selectedHook: string) {
   ].join(" ");
 }
 
-function buildAssetQueue(draft: ProductionDraftSummary, selectedTitle: string, selectedHook: string) {
+function buildAssetQueue(
+  draft: ProductionDraftSummary,
+  selectedTitle: string,
+  selectedHook: string,
+  assetStatuses: Partial<Record<string, ProductionAsset["status"]>> = {},
+) {
   const montagePlan = buildMontagePlan(draft, selectedTitle, selectedHook);
   const voicePrompt = buildVoicePrompt(draft, selectedHook);
   const screenTexts = [
@@ -1378,14 +1384,19 @@ function buildAssetQueue(draft: ProductionDraftSummary, selectedTitle: string, s
     draft.content.cta,
   ];
 
-  return montagePlan.map((step, index) => ({
-    scene: `Scene ${index + 1}`,
-    storyboard: step,
-    visualPrompt: `${draft.content.visualPrompt} Scene ${index + 1}, composition claire, texte ecran lisible, pas de surcharge.`,
-    voicePrompt: `${voicePrompt} Segment ${index + 1}: ${step}`,
-    screenText: screenTexts[index] ?? draft.content.cta,
-    status: "TODO" as const,
-  }));
+  return montagePlan.map((step, index) => {
+    const scene = `Scene ${index + 1}`;
+    const previousStatus = draft.content.factory?.assets.find((asset) => asset.scene === scene)?.status;
+
+    return {
+      scene,
+      storyboard: step,
+      visualPrompt: `${draft.content.visualPrompt} Scene ${index + 1}, composition claire, texte ecran lisible, pas de surcharge.`,
+      voicePrompt: `${voicePrompt} Segment ${index + 1}: ${step}`,
+      screenText: screenTexts[index] ?? draft.content.cta,
+      status: assetStatuses[scene] ?? previousStatus ?? "TODO",
+    };
+  });
 }
 
 function buildFactoryContent(
@@ -1393,6 +1404,7 @@ function buildFactoryContent(
   selectedTitle: string,
   selectedHook: string,
   doneChecklistItems: string[],
+  assetStatuses: Partial<Record<string, ProductionAsset["status"]>> = {},
 ) {
   const variants = buildFactoryVariants(draft);
 
@@ -1409,10 +1421,31 @@ function buildFactoryContent(
       })),
       montagePlan: buildMontagePlan(draft, selectedTitle, selectedHook),
       voicePrompt: buildVoicePrompt(draft, selectedHook),
-      assets: buildAssetQueue(draft, selectedTitle, selectedHook),
+      assets: buildAssetQueue(draft, selectedTitle, selectedHook, assetStatuses),
       updatedAt: new Date().toISOString(),
     },
   };
+}
+
+function formatAssetMarkdown(draft: ProductionDraftSummary, asset: ProductionAsset) {
+  return [
+    `# ${draft.keyword} - ${asset.scene}`,
+    "",
+    `Draft: ${draft.title}`,
+    `Statut asset: ${asset.status}`,
+    "",
+    "## Storyboard",
+    asset.storyboard,
+    "",
+    "## Texte ecran",
+    asset.screenText,
+    "",
+    "## Prompt visuel",
+    asset.visualPrompt,
+    "",
+    "## Prompt voix",
+    asset.voicePrompt,
+  ].join("\n");
 }
 
 function formatFactoryMarkdown(draft: ProductionDraftSummary, content: ProductionPackContent) {
@@ -1493,6 +1526,17 @@ function exportDraftAsText(draft: ProductionDraftSummary) {
   const link = document.createElement("a");
   link.href = url;
   link.download = `${draft.keyword.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-production-draft.txt`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportAssetAsMarkdown(draft: ProductionDraftSummary, asset: ProductionAsset) {
+  const blob = new Blob([formatAssetMarkdown(draft, asset)], { type: "text/markdown;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  const slug = `${draft.keyword}-${asset.scene}`.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
+  link.href = url;
+  link.download = `${slug}-asset.md`;
   link.click();
   URL.revokeObjectURL(url);
 }
@@ -1627,12 +1671,14 @@ function ContentFactoryWorkbench({
   const [selectedTitle, setSelectedTitle] = useState("");
   const [selectedHook, setSelectedHook] = useState("");
   const [doneChecklistItems, setDoneChecklistItems] = useState<string[]>([]);
+  const [assetStatuses, setAssetStatuses] = useState<Partial<Record<string, ProductionAsset["status"]>>>({});
 
   useEffect(() => {
     if (!draft) {
       setSelectedTitle("");
       setSelectedHook("");
       setDoneChecklistItems([]);
+      setAssetStatuses({});
       return;
     }
 
@@ -1644,6 +1690,9 @@ function ContentFactoryWorkbench({
         .filter((item) => item.done)
         .map((item) => item.label) ?? [],
     );
+    setAssetStatuses(Object.fromEntries(
+      (draft.content.factory?.assets ?? []).map((asset) => [asset.scene, asset.status]),
+    ));
   }, [draft?.id, draft?.updated_at, draft]);
 
   if (!draft) {
@@ -1663,12 +1712,13 @@ function ContentFactoryWorkbench({
   }
 
   const detailedScript = buildDetailedScript(draft);
-  const factoryContent = buildFactoryContent(draft, selectedTitle, selectedHook, doneChecklistItems);
+  const factoryContent = buildFactoryContent(draft, selectedTitle, selectedHook, doneChecklistItems, assetStatuses);
   const montagePlan = factoryContent.factory?.montagePlan ?? [];
   const voicePrompt = factoryContent.factory?.voicePrompt ?? "";
   const assets = factoryContent.factory?.assets ?? [];
   const markdownExport = formatFactoryMarkdown(draft, factoryContent);
   const completedCount = doneChecklistItems.length;
+  const completedAssetCount = assets.filter((asset) => asset.status === "DONE").length;
 
   return (
     <section className="cockpit-panel content-factory" aria-labelledby="content-factory-title">
@@ -1783,13 +1833,32 @@ function ContentFactoryWorkbench({
       </div>
 
       <div className="factory-assets">
-        <span>Assets à produire</span>
+        <div className="asset-section-heading">
+          <span>Assets à produire</span>
+          <small>{completedAssetCount}/{assets.length} DONE</small>
+        </div>
         <div className="asset-list">
           {assets.map((asset) => (
-            <article className="asset-card" key={asset.scene}>
+            <article className={`asset-card asset-card--${asset.status.toLowerCase()}`} key={asset.scene}>
               <div>
                 <strong>{asset.scene}</strong>
-                <small>{asset.status}</small>
+                <label>
+                  Statut
+                  <select
+                    aria-label={`Statut ${asset.scene}`}
+                    onChange={(event) =>
+                      setAssetStatuses((current) => ({
+                        ...current,
+                        [asset.scene]: event.target.value as ProductionAsset["status"],
+                      }))
+                    }
+                    value={asset.status}
+                  >
+                    <option value="TODO">TODO</option>
+                    <option value="IN_PROGRESS">IN_PROGRESS</option>
+                    <option value="DONE">DONE</option>
+                  </select>
+                </label>
               </div>
               <p>{asset.storyboard}</p>
               <dl>
@@ -1806,6 +1875,14 @@ function ContentFactoryWorkbench({
                   <dd>{asset.voicePrompt}</dd>
                 </div>
               </dl>
+              <div className="asset-actions">
+                <button onClick={() => copyTextToClipboard(formatAssetMarkdown(draft, asset))} type="button">
+                  Copier asset
+                </button>
+                <button onClick={() => exportAssetAsMarkdown(draft, asset)} type="button">
+                  Export asset
+                </button>
+              </div>
             </article>
           ))}
         </div>

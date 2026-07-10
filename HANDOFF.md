@@ -29,7 +29,7 @@ scorables, tests actionnables, drafts de production et apprentissages.
 
 - Depot Git : `ardn87JJ/Machine`
 - Branche : `main`
-- Dernier commit stable au depart de cette tranche : `adba5ec Persist content factory choices`
+- Dernier commit stable au depart de cette tranche : `b77cbaf Segment cockpit workspace`
 - App publique : `https://ardn87jj.github.io/Machine/`
 - Supabase project ref : `uscmdnzbwvsjrocemset`
 - Edge Function active : `run-scout`
@@ -53,20 +53,23 @@ scorables, tests actionnables, drafts de production et apprentissages.
   Supabase via le JSON du draft.
 - utiliser une interface PC segmentee par espaces `Scout`, `Decision`, `Factory`
   et `Optimizer`.
+- piloter les assets par scene avec statuts `TODO`, `IN_PROGRESS`, `DONE`,
+  sauvegarde dans le draft et export Markdown individuel.
 
 ## Tranche en cours
 
-Passer de draft prepare a execution contenu :
+Passer de production manuelle a assets plus directement exploitables :
 
-- ajouter une file `assets a produire` depuis un draft sauvegarde ;
-- creer des champs storyboard / voix / visuels par scene ;
-- ajouter un export complet Markdown pour production manuelle.
+- enrichir les assets avec champs editables par scene ;
+- preparer des prompts plus normalises pour image, voix et montage ;
+- poser la structure necessaire pour brancher un generateur serveur plus tard.
 
 ## Prochaine etape apres cette tranche
 
-Rendre les assets executables :
+Rendre les assets modifiables :
 
-- changer le statut asset par scene (`TODO`, `IN_PROGRESS`, `DONE`) ;
-- sauvegarder ces statuts dans Supabase ;
-- ajouter un export par asset ;
+- rendre storyboard, texte ecran, prompt visuel et prompt voix editables dans
+  l'interface ;
+- sauvegarder les edits dans Supabase ;
+- ajouter une action de regeneration assistee plus tard cote serveur ;
 - plus tard, brancher un LLM serveur pour variantes plus fines.
