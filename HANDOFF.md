@@ -29,7 +29,7 @@ scorables, tests actionnables, drafts de production et apprentissages.
 
 - Depot Git : `ardn87JJ/Machine`
 - Branche : `main`
-- Dernier commit stable au depart de cette tranche : `ecfd90c Make factory assets executable`
+- Dernier commit stable au depart de cette tranche : `86a9347 Make factory assets editable`
 - App publique : `https://ardn87jj.github.io/Machine/`
 - Supabase project ref : `uscmdnzbwvsjrocemset`
 - Edge Function active : `run-scout`
@@ -57,21 +57,23 @@ scorables, tests actionnables, drafts de production et apprentissages.
   sauvegarde dans le draft et export Markdown individuel.
 - modifier les assets par scene : storyboard, texte ecran, prompt visuel et
   prompt voix, puis sauvegarder ces edits dans le draft Supabase.
+- regenerer une scene via l'Edge Function `run-scout`, recevoir un JSON asset
+  structure et remplacer uniquement la scene cible dans l'atelier.
 
 ## Tranche en cours
 
-Preparer la regeneration assistee des assets :
+Preparer un vrai moteur IA serveur pour les assets :
 
-- definir le format de requete serveur pour regenerer une scene ;
-- garder les secrets LLM cote serveur ;
-- permettre a l'interface de remplacer uniquement une scene sans ecraser tout le
-  draft.
+- choisir le fournisseur LLM serveur ;
+- ajouter la cle uniquement en secret Supabase ;
+- remplacer la regeneration deterministe actuelle par une generation semantique
+  tout en gardant le meme contrat JSON.
 
 ## Prochaine etape apres cette tranche
 
-Ajouter une regeneration assistee par scene :
+Brancher un LLM serveur sur `regenerate-asset` :
 
-- bouton `Regenerer` sur chaque asset ;
-- appel a une action serveur/Edge Function avec contexte draft + scene ;
-- retour JSON structure pour remplacer storyboard, texte ecran, prompt visuel et
-  prompt voix de la scene cible.
+- definir le prompt systeme pour produire storyboard, texte ecran, prompt visuel
+  et prompt voix ;
+- appeler le modele depuis l'Edge Function avec les secrets Supabase ;
+- garder une validation JSON stricte avant retour au frontend.

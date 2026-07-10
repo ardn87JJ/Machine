@@ -11,6 +11,7 @@ import {
   listScans,
   listOpportunities,
   listScanVideos,
+  regenerateEdgeProductionAsset,
   runEdgeScout,
   runScoutWorkerOnce,
   updateEdgeExperiment,
@@ -1659,22 +1660,29 @@ function ContentFactoryWorkbench({
   draft,
   experiment,
   isSavingFactory,
+  isRegeneratingAsset,
+  regeneratingAssetScene,
   onSaveFactory,
+  onRegenerateAsset,
 }: {
   draft: ProductionDraftSummary | undefined;
   experiment: ExecutionExperimentSummary | undefined;
   isSavingFactory: boolean;
+  isRegeneratingAsset: boolean;
+  regeneratingAssetScene: string | null;
   onSaveFactory: (
     draft: ProductionDraftSummary,
     content: ProductionPackContent,
     title: string,
   ) => void;
+  onRegenerateAsset: (draft: ProductionDraftSummary, asset: ProductionAsset) => Promise<ProductionAsset>;
 }) {
   const variants = draft ? buildFactoryVariants(draft) : { titles: [], hooks: [], checklist: [] };
   const [selectedTitle, setSelectedTitle] = useState("");
   const [selectedHook, setSelectedHook] = useState("");
   const [doneChecklistItems, setDoneChecklistItems] = useState<string[]>([]);
   const [assetEdits, setAssetEdits] = useState<Partial<Record<string, Omit<ProductionAsset, "scene">>>>({});
+  const [assetRegenerationError, setAssetRegenerationError] = useState("");
 
   useEffect(() => {
     if (!draft) {
@@ -1682,6 +1690,7 @@ function ContentFactoryWorkbench({
       setSelectedHook("");
       setDoneChecklistItems([]);
       setAssetEdits({});
+      setAssetRegenerationError("");
       return;
     }
 
@@ -1696,6 +1705,7 @@ function ContentFactoryWorkbench({
     setAssetEdits(Object.fromEntries(
       (draft.content.factory?.assets ?? []).map(({ scene, ...asset }) => [scene, asset]),
     ));
+    setAssetRegenerationError("");
   }, [draft?.id, draft?.updated_at, draft]);
 
   if (!draft) {
@@ -1746,6 +1756,18 @@ function ContentFactoryWorkbench({
         ...sourceEdit,
         ...current[scene],
         ...patch,
+      },
+    }));
+  };
+  const replaceAsset = (asset: ProductionAsset) => {
+    setAssetEdits((current) => ({
+      ...current,
+      [asset.scene]: {
+        storyboard: asset.storyboard,
+        visualPrompt: asset.visualPrompt,
+        voicePrompt: asset.voicePrompt,
+        screenText: asset.screenText,
+        status: asset.status,
       },
     }));
   };
@@ -1867,6 +1889,7 @@ function ContentFactoryWorkbench({
           <span>Assets à produire</span>
           <small>{completedAssetCount}/{assets.length} DONE</small>
         </div>
+        {assetRegenerationError ? <p className="panel-error">{assetRegenerationError}</p> : null}
         <div className="asset-list">
           {assets.map((asset) => (
             <article className={`asset-card asset-card--${asset.status.toLowerCase()}`} key={asset.scene}>
@@ -1928,6 +1951,21 @@ function ContentFactoryWorkbench({
                 </label>
               </div>
               <div className="asset-actions">
+                <button
+                  disabled={isRegeneratingAsset}
+                  onClick={async () => {
+                    setAssetRegenerationError("");
+                    try {
+                      const regeneratedAsset = await onRegenerateAsset(draft, asset);
+                      replaceAsset(regeneratedAsset);
+                    } catch (error) {
+                      setAssetRegenerationError(getErrorMessage(error));
+                    }
+                  }}
+                  type="button"
+                >
+                  {isRegeneratingAsset && regeneratingAssetScene === asset.scene ? "REGENERATION..." : "Regenerer"}
+                </button>
                 <button onClick={() => copyTextToClipboard(formatAssetMarkdown(draft, asset))} type="button">
                   Copier asset
                 </button>
@@ -2355,6 +2393,7 @@ export function App() {
   const [selectedDraftId, setSelectedDraftId] = useState<string | null>(null);
   const [decisionFilter, setDecisionFilter] = useState<DecisionFilter>("ALL");
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("scout");
+  const [regeneratingAssetScene, setRegeneratingAssetScene] = useState<string | null>(null);
   const verifiedFallbackRun = buildVerifiedFallbackRun();
 
   const statusQuery = useQuery({
@@ -2480,6 +2519,24 @@ export function App() {
       }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["edge-production-drafts"] });
+    },
+  });
+
+  const regenerateAssetMutation = useMutation({
+    mutationFn: (payload: {
+      draft: ProductionDraftSummary;
+      asset: ProductionAsset;
+    }) =>
+      regenerateEdgeProductionAsset({
+        draft_id: payload.draft.id,
+        scene: payload.asset.scene,
+        asset: payload.asset,
+      }),
+    onMutate: (payload) => {
+      setRegeneratingAssetScene(payload.asset.scene);
+    },
+    onSettled: () => {
+      setRegeneratingAssetScene(null);
     },
   });
 
@@ -2749,6 +2806,12 @@ export function App() {
             draft={activeFactoryDraft}
             experiment={activeFactoryExperiment}
             isSavingFactory={saveFactoryDraftMutation.isPending}
+            isRegeneratingAsset={regenerateAssetMutation.isPending}
+            regeneratingAssetScene={regeneratingAssetScene}
+            onRegenerateAsset={async (draft, asset) => {
+              const response = await regenerateAssetMutation.mutateAsync({ draft, asset });
+              return response.asset;
+            }}
             onSaveFactory={(draft, content, title) =>
               saveFactoryDraftMutation.mutate({ draft, content, title })
             }

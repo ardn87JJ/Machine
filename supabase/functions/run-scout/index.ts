@@ -111,6 +111,15 @@ type ProductionDraftSummary = {
   updated_at: string;
 };
 
+type ProductionAsset = {
+  scene: string;
+  storyboard: string;
+  visualPrompt: string;
+  voicePrompt: string;
+  screenText: string;
+  status: "TODO" | "IN_PROGRESS" | "DONE";
+};
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -171,6 +180,11 @@ Deno.serve(async (request) => {
     if (body.action === "update-draft") {
       assertConfigured();
       return json(await updateProductionDraft(body));
+    }
+
+    if (body.action === "regenerate-asset") {
+      assertConfigured();
+      return json(await regenerateProductionAsset(body));
     }
 
     const keyword = normalizeKeyword(String(body.keyword ?? ""));
@@ -314,6 +328,97 @@ async function updateProductionDraft(body: JsonRecord) {
   }
 
   return { draft: rows[0] };
+}
+
+async function regenerateProductionAsset(body: JsonRecord) {
+  const draftId = String(body.draft_id ?? "");
+  const scene = String(body.scene ?? "").trim();
+  const currentAsset = body.asset as Partial<ProductionAsset> | undefined;
+
+  if (!draftId || !scene) {
+    throw new Error("draft_id et scene sont requis pour regenerer un asset.");
+  }
+
+  if (!currentAsset || typeof currentAsset !== "object") {
+    throw new Error("asset courant requis pour regenerer une scene.");
+  }
+
+  const rows = await supabaseFetch<ProductionDraftSummary[]>(
+    `/rest/v1/production_drafts?id=eq.${draftId}&select=id,keyword,title,status,content,created_at,updated_at&limit=1`,
+  );
+  const draft = rows[0];
+
+  if (!draft) {
+    throw new Error("Draft introuvable.");
+  }
+
+  return {
+    asset: buildRegeneratedAsset(draft, scene, currentAsset),
+  };
+}
+
+function buildRegeneratedAsset(
+  draft: ProductionDraftSummary,
+  scene: string,
+  currentAsset: Partial<ProductionAsset>,
+): ProductionAsset {
+  const content = draft.content;
+  const factory = content.factory as JsonRecord | undefined;
+  const selectedHook = String(factory?.selectedHook ?? (Array.isArray(content.hooks) ? content.hooks[0] : "") ?? "");
+  const cta = String(content.cta ?? "Tester la prochaine version.");
+  const keyword = normalizeKeyword(draft.keyword);
+  const title = String(content.title ?? draft.title);
+  const sceneNumber = Math.max(1, Number(scene.replace(/\D+/g, "")) || 1);
+  const status = currentAsset.status && ["TODO", "IN_PROGRESS", "DONE"].includes(currentAsset.status)
+    ? currentAsset.status
+    : "IN_PROGRESS";
+  const screenText = buildRegeneratedScreenText(sceneNumber, selectedHook, keyword, title, cta);
+  const storyboard = [
+    `${scene}: ouvrir sur un plan vertical lisible lie a ${keyword}.`,
+    `Montrer le signal business en moins de 4 secondes, sans introduction generique.`,
+    `Faire avancer l'idee centrale: ${title}.`,
+  ].join(" ");
+
+  return {
+    scene,
+    status,
+    storyboard,
+    screenText,
+    visualPrompt: [
+      `Vertical 9:16, scene ${sceneNumber}, niche ${keyword}.`,
+      "Composition claire, sujet principal visible, contraste fort, zone sous-titres libre.",
+      `Texte ecran integre: ${screenText}.`,
+      "Style exploitable pour Short/Reel, pas d'element illisible, pas de surcharge.",
+    ].join(" "),
+    voicePrompt: [
+      `Segment voix ${sceneNumber} pour ${keyword}.`,
+      `Dire clairement: ${screenText}.`,
+      "Ton direct, phrases courtes, rythme rapide, orientation opportunite business.",
+      `Objectif: pousser le spectateur vers ${cta}`,
+    ].join(" "),
+  };
+}
+
+function buildRegeneratedScreenText(
+  sceneNumber: number,
+  selectedHook: string,
+  keyword: string,
+  title: string,
+  cta: string,
+) {
+  if (sceneNumber === 1) {
+    return selectedHook || `Cette niche ${keyword} cache un signal exploitable.`;
+  }
+
+  if (sceneNumber === 2) {
+    return `Signal marche: ${keyword}`;
+  }
+
+  if (sceneNumber === 3) {
+    return title;
+  }
+
+  return cta;
 }
 
 async function listExecutionExperiments(request: Request) {

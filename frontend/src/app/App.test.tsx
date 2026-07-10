@@ -524,6 +524,30 @@ describe("App", () => {
           );
         }
 
+        if ((body as { action?: string }).action === "regenerate-asset") {
+          const payload = body as {
+            scene: string;
+            asset: {
+              status: "TODO" | "IN_PROGRESS" | "DONE";
+            };
+          };
+          const asset = {
+            scene: payload.scene,
+            storyboard: `Storyboard regenere pour ${payload.scene}`,
+            screenText: "Signal marche regenere",
+            visualPrompt: "Prompt visuel regenere depuis Edge Function",
+            voicePrompt: "Prompt voix regenere depuis Edge Function",
+            status: payload.asset.status,
+          };
+
+          return Promise.resolve(
+            new Response(JSON.stringify({ asset }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            }),
+          );
+        }
+
         const keyword = body.keyword ?? "ai music channel";
         const scanId = `scan-${keyword.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`;
 
@@ -686,10 +710,19 @@ describe("App", () => {
     expect(screen.getByDisplayValue("Hook edite pour test terrain")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Plan serre vertical avec interface musique IA visible")).toBeInTheDocument();
     expect(screen.getAllByText("Texte écran").length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("button", { name: "Regenerer" }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("button", { name: "Copier asset" }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("button", { name: "Export asset" }).length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "Copier Markdown" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Export Markdown" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Regenerer" })[0]);
+
+    expect(await screen.findByDisplayValue("Signal marche regenere")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Prompt visuel regenere depuis Edge Function")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Prompt voix regenere depuis Edge Function")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Sauvegarder factory" }));
+
     expect(screen.getByText("Script détaillé")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Copier" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Exporter TXT" })).toBeInTheDocument();
@@ -762,6 +795,12 @@ describe("App", () => {
       ).toBe(true);
       expect(
         fetchMock.mock.calls.some(([, init]) => {
+          const payload = JSON.parse(String(init?.body ?? "{}")) as { action?: string; scene?: string };
+          return payload.action === "regenerate-asset" && payload.scene === "Scene 1";
+        }),
+      ).toBe(true);
+      expect(
+        fetchMock.mock.calls.some(([, init]) => {
           const payload = JSON.parse(String(init?.body ?? "{}")) as {
             action?: string;
             title?: string;
@@ -786,8 +825,8 @@ describe("App", () => {
             Boolean(payload.content.factory.voicePrompt) &&
             payload.content.factory.assets?.[0]?.scene === "Scene 1" &&
             payload.content.factory.assets[0].status === "IN_PROGRESS" &&
-            payload.content.factory.assets[0].screenText === "Hook edite pour test terrain" &&
-            payload.content.factory.assets[0].visualPrompt === "Plan serre vertical avec interface musique IA visible";
+            payload.content.factory.assets[0].screenText === "Signal marche regenere" &&
+            payload.content.factory.assets[0].visualPrompt === "Prompt visuel regenere depuis Edge Function";
         }),
       ).toBe(true);
     });

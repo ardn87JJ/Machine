@@ -199,6 +199,10 @@ interface UpdateEdgeProductionDraftResponse {
   draft: ProductionDraftSummary;
 }
 
+interface RegenerateEdgeProductionAssetResponse {
+  asset: ProductionAsset;
+}
+
 const configuredScoutFunctionUrl = import.meta.env.VITE_SCOUT_FUNCTION_URL?.trim();
 const configuredSupabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim();
 const defaultSupabaseUrl = "https://uscmdnzbwvsjrocemset.supabase.co";
@@ -476,4 +480,37 @@ export async function updateEdgeProductionDraft(payload: {
   }
 
   return response.json() as Promise<UpdateEdgeProductionDraftResponse>;
+}
+
+export async function regenerateEdgeProductionAsset(payload: {
+  draft_id: string;
+  scene: string;
+  asset: ProductionAsset;
+}) {
+  const response = await fetch(SCOUT_FUNCTION_URL, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      action: "regenerate-asset",
+      ...payload,
+    }),
+  });
+
+  if (!response.ok) {
+    let message = `La fonction Scout a repondu avec le statut ${response.status}.`;
+
+    try {
+      const errorPayload = (await response.json()) as { message?: string };
+      message = errorPayload.message || message;
+    } catch {
+      // Keep the status-based message when the Edge Function does not return JSON.
+    }
+
+    throw new Error(message);
+  }
+
+  return response.json() as Promise<RegenerateEdgeProductionAssetResponse>;
 }

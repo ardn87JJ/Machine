@@ -59,6 +59,8 @@ Le format suit les principes de [Keep a Changelog](https://keepachangelog.com/fr
   individuel par asset.
 - édition manuelle des assets par scène : storyboard, texte écran, prompt visuel
   et prompt voix, avec sauvegarde dans le draft Supabase.
+- régénération assistée par scène via l’Edge Function `run-scout`, avec retour
+  JSON structuré et remplacement local de l’asset ciblé.
 
 ### Décidé
 

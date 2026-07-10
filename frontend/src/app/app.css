@@ -1487,7 +1487,7 @@ h3 {
 }
 
 .asset-actions {
-  grid-template-columns: repeat(2, max-content);
+  grid-template-columns: repeat(3, max-content);
 }
 
 .asset-actions button {
@@ -1561,7 +1561,8 @@ h3 {
     position: static;
   }
 
-  .factory-actions {
+  .factory-actions,
+  .asset-actions {
     grid-template-columns: 1fr;
   }
 
