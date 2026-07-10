@@ -94,6 +94,29 @@ export interface ExecutionExperimentSummary {
   updated_at: string;
 }
 
+export interface ProductionPackContent {
+  status: string;
+  concept: string;
+  hooks: string[];
+  title: string;
+  script: string[];
+  visualPrompt: string;
+  description: string;
+  cta: string;
+}
+
+export interface ProductionDraftSummary {
+  id: string;
+  opportunity_scan_id: string;
+  experiment_id: string | null;
+  keyword: string;
+  title: string;
+  status: "DRAFT" | "READY" | "USED";
+  content: ProductionPackContent;
+  created_at: string;
+  updated_at: string;
+}
+
 interface ListScansResponse {
   scans: ScanSummary[];
 }
@@ -141,6 +164,14 @@ interface CreateEdgeExperimentResponse {
 
 interface UpdateEdgeExperimentResponse {
   experiment: ExecutionExperimentSummary;
+}
+
+interface EdgeProductionDraftsResponse {
+  drafts: ProductionDraftSummary[];
+}
+
+interface CreateEdgeProductionDraftResponse {
+  draft: ProductionDraftSummary;
 }
 
 const configuredScoutFunctionUrl = import.meta.env.VITE_SCOUT_FUNCTION_URL?.trim();
@@ -319,4 +350,64 @@ export async function updateEdgeExperiment(payload: {
   }
 
   return response.json() as Promise<UpdateEdgeExperimentResponse>;
+}
+
+export async function listEdgeProductionDrafts() {
+  const response = await fetch(`${SCOUT_FUNCTION_URL}?view=drafts&limit=20`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    let message = `La fonction Scout a repondu avec le statut ${response.status}.`;
+
+    try {
+      const payload = (await response.json()) as { message?: string };
+      message = payload.message || message;
+    } catch {
+      // Keep the status-based message when the Edge Function does not return JSON.
+    }
+
+    throw new Error(message);
+  }
+
+  return response.json() as Promise<EdgeProductionDraftsResponse>;
+}
+
+export async function createEdgeProductionDraft(payload: {
+  opportunity_scan_id: string;
+  experiment_id: string | null;
+  keyword: string;
+  title: string;
+  status: ProductionDraftSummary["status"];
+  content: ProductionPackContent;
+}) {
+  const response = await fetch(SCOUT_FUNCTION_URL, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      action: "create-draft",
+      ...payload,
+    }),
+  });
+
+  if (!response.ok) {
+    let message = `La fonction Scout a repondu avec le statut ${response.status}.`;
+
+    try {
+      const errorPayload = (await response.json()) as { message?: string };
+      message = errorPayload.message || message;
+    } catch {
+      // Keep the status-based message when the Edge Function does not return JSON.
+    }
+
+    throw new Error(message);
+  }
+
+  return response.json() as Promise<CreateEdgeProductionDraftResponse>;
 }

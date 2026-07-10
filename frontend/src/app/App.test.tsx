@@ -240,6 +240,26 @@ describe("App", () => {
       created_at: string;
       updated_at: string;
     }> = [];
+    let drafts: Array<{
+      id: string;
+      opportunity_scan_id: string;
+      experiment_id: string | null;
+      keyword: string;
+      title: string;
+      status: "DRAFT" | "READY" | "USED";
+      content: {
+        status: string;
+        concept: string;
+        hooks: string[];
+        title: string;
+        script: string[];
+        visualPrompt: string;
+        description: string;
+        cta: string;
+      };
+      created_at: string;
+      updated_at: string;
+    }> = [];
 
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
@@ -249,6 +269,15 @@ describe("App", () => {
           if (url.includes("view=experiments")) {
             return Promise.resolve(
               new Response(JSON.stringify({ experiments }), {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+              }),
+            );
+          }
+
+          if (url.includes("view=drafts")) {
+            return Promise.resolve(
+              new Response(JSON.stringify({ drafts }), {
                 status: 200,
                 headers: { "Content-Type": "application/json" },
               }),
@@ -377,6 +406,46 @@ describe("App", () => {
 
           return Promise.resolve(
             new Response(JSON.stringify({ experiment }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            }),
+          );
+        }
+
+        if ((body as { action?: string }).action === "create-draft") {
+          const payload = body as {
+            opportunity_scan_id: string;
+            experiment_id: string | null;
+            keyword: string;
+            title: string;
+            status: "DRAFT" | "READY" | "USED";
+            content: {
+              status: string;
+              concept: string;
+              hooks: string[];
+              title: string;
+              script: string[];
+              visualPrompt: string;
+              description: string;
+              cta: string;
+            };
+          };
+          const draft = {
+            id: "draft-ai-music-channel",
+            opportunity_scan_id: payload.opportunity_scan_id,
+            experiment_id: payload.experiment_id,
+            keyword: payload.keyword,
+            title: payload.title,
+            status: payload.status,
+            content: payload.content,
+            created_at: "2026-07-08T13:45:00Z",
+            updated_at: "2026-07-08T13:45:00Z",
+          };
+
+          drafts = [draft];
+
+          return Promise.resolve(
+            new Response(JSON.stringify({ draft }), {
               status: 200,
               headers: { "Content-Type": "application/json" },
             }),
@@ -515,6 +584,11 @@ describe("App", () => {
     expect(screen.getAllByText("Bon signal initial, continuer le test.").length).toBeGreaterThan(0);
     expect(screen.getByText("J’ai créé une musique IA addictive sur ai music channel")).toBeInTheDocument();
     expect(screen.getByText("Sauvegarde si tu veux la version longue.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Sauvegarder draft" }));
+
+    expect(await screen.findByRole("button", { name: "Draft sauvegardé" })).toBeDisabled();
+    expect(screen.getByRole("heading", { name: "Drafts production" })).toBeInTheDocument();
+    expect(screen.getAllByText("J’ai créé une musique IA addictive sur ai music channel").length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "ATTAQUER 1" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "TESTER 1" })).toBeInTheDocument();
     expect(
@@ -528,7 +602,9 @@ describe("App", () => {
     await waitFor(() => {
       const postedKeywords = fetchMock.mock.calls
         .filter(([url, init]) => String(url).includes("/functions/v1/run-scout") && init?.method === "POST")
-        .map(([, init]) => JSON.parse(String(init?.body ?? "{}")).keyword)
+        .map(([, init]) => JSON.parse(String(init?.body ?? "{}")))
+        .filter((payload) => !payload.action)
+        .map((payload) => payload.keyword)
         .filter(Boolean);
 
       expect(postedKeywords).toHaveLength(11);
@@ -542,6 +618,12 @@ describe("App", () => {
         fetchMock.mock.calls.some(([, init]) => {
           const payload = JSON.parse(String(init?.body ?? "{}")) as { action?: string; result_note?: string };
           return payload.action === "update-experiment" && payload.result_note === "Bon signal initial, continuer le test.";
+        }),
+      ).toBe(true);
+      expect(
+        fetchMock.mock.calls.some(([, init]) => {
+          const payload = JSON.parse(String(init?.body ?? "{}")) as { action?: string; title?: string };
+          return payload.action === "create-draft" && payload.title === "J’ai créé une musique IA addictive sur ai music channel";
         }),
       ).toBe(true);
     });

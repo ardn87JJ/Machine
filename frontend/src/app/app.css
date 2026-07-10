@@ -1128,6 +1128,29 @@ h3 {
   padding-left: 18px;
 }
 
+.producer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.producer-actions button {
+  border: 1px solid #1f6f5f;
+  border-radius: 999px;
+  padding: 9px 12px;
+  color: #83f1d8;
+  background: #10211f;
+  font-size: 0.8rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.producer-actions small {
+  color: #9aa7b6;
+}
+
 .production-assets {
   gap: 12px;
 }
@@ -1136,6 +1159,63 @@ h3 {
   display: grid;
   gap: 5px;
   min-width: 0;
+}
+
+.production-drafts,
+.draft-list,
+.draft-card {
+  display: grid;
+  gap: 10px;
+}
+
+.draft-card {
+  padding: 12px;
+  border: 1px solid #253142;
+  border-radius: 14px;
+  background: #101722;
+}
+
+.draft-card > div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.draft-card span {
+  width: fit-content;
+  padding: 6px 8px;
+  border: 1px solid #1f6f5f;
+  border-radius: 999px;
+  color: #83f1d8;
+  background: #10211f;
+  font-size: 0.7rem;
+  font-weight: 900;
+}
+
+.draft-card strong,
+.draft-card small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.draft-card strong {
+  color: #edf3fb;
+}
+
+.draft-card small,
+.draft-card p,
+.draft-card li {
+  margin: 0;
+  color: #9aa7b6;
+  line-height: 1.5;
+}
+
+.draft-card ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
 }
 
 .empty-state {

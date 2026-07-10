@@ -3,8 +3,10 @@ import { type FormEvent, useState } from "react";
 import {
   createScan,
   createEdgeExperiment,
+  createEdgeProductionDraft,
   getScanAnalysis,
   listEdgeExperiments,
+  listEdgeProductionDrafts,
   listEdgeScoutLedger,
   listScans,
   listOpportunities,
@@ -15,6 +17,8 @@ import {
   type ExecutionPlan,
   type ExecutionExperimentSummary,
   type OpportunitySummary,
+  type ProductionDraftSummary,
+  type ProductionPackContent,
   type RunEdgeScoutResponse,
   type ScanAnalysis,
   type ScanSummary,
@@ -1076,7 +1080,7 @@ function AnalystConsole({
 function buildProductionPack(
   opportunity: OpportunityRecord | undefined,
   activeExperiment: ExecutionExperimentSummary | undefined,
-) {
+): ProductionPackContent {
   const keyword = opportunity?.keyword ?? "niche à valider";
   const title = opportunity?.title ?? "Format court automatisable";
   const haystack = `${keyword} ${title}`.toLowerCase();
@@ -1180,11 +1184,18 @@ function buildProductionPack(
 function ProducerConsole({
   opportunity,
   activeExperiment,
+  activeDraft,
+  isSavingDraft,
+  onSaveDraft,
 }: {
   opportunity: OpportunityRecord | undefined;
   activeExperiment: ExecutionExperimentSummary | undefined;
+  activeDraft: ProductionDraftSummary | undefined;
+  isSavingDraft: boolean;
+  onSaveDraft: (pack: ProductionPackContent) => void;
 }) {
   const pack = buildProductionPack(opportunity, activeExperiment);
+  const canSaveDraft = Boolean(opportunity) && !activeDraft && !isSavingDraft;
 
   return (
     <section className="cockpit-panel" id="producer">
@@ -1195,6 +1206,17 @@ function ProducerConsole({
           <p className="panel-substatus">Draft court prêt à tester à partir de l’opportunité sélectionnée.</p>
         </div>
         <span className="phase">{pack.status}</span>
+      </div>
+
+      <div className="producer-actions">
+        <button
+          disabled={!canSaveDraft}
+          onClick={() => onSaveDraft(pack)}
+          type="button"
+        >
+          {activeDraft ? "Draft sauvegardé" : isSavingDraft ? "SAUVEGARDE..." : "Sauvegarder draft"}
+        </button>
+        {activeDraft ? <small>Statut {activeDraft.status} · sauvegardé le {formatDate(activeDraft.created_at)}</small> : null}
       </div>
 
       <div className="production-pack">
@@ -1237,6 +1259,53 @@ function ProducerConsole({
             <strong>{pack.cta}</strong>
           </div>
         </article>
+      </div>
+    </section>
+  );
+}
+
+function ProductionDraftsPanel({
+  drafts,
+  isLoading,
+  error,
+}: {
+  drafts: ProductionDraftSummary[];
+  isLoading: boolean;
+  error: unknown;
+}) {
+  return (
+    <section className="cockpit-panel production-drafts" aria-labelledby="production-drafts-title">
+      <div className="panel-heading">
+        <div>
+          <p className="eyebrow">Content Factory</p>
+          <h2 id="production-drafts-title">Drafts production</h2>
+          <p className="panel-substatus">Packs sauvegardés, prêts à transformer en assets ou scripts détaillés.</p>
+        </div>
+        <span className="phase">{drafts.length} drafts</span>
+      </div>
+
+      {error ? <p className="panel-error">{getErrorMessage(error)}</p> : null}
+      {isLoading ? <p className="panel-substatus">Chargement des drafts...</p> : null}
+
+      <div className="draft-list">
+        {drafts.length === 0 && !isLoading ? (
+          <p className="panel-empty">Aucun draft sauvegardé. Génère un pack puis sauvegarde-le.</p>
+        ) : null}
+        {drafts.slice(0, 5).map((draft) => (
+          <article className="draft-card" key={draft.id}>
+            <div>
+              <span>{draft.status}</span>
+              <strong>{draft.title}</strong>
+              <small>{draft.keyword} · {formatDate(draft.created_at)}</small>
+            </div>
+            <p>{draft.content.concept}</p>
+            <ul>
+              {draft.content.hooks.slice(0, 2).map((hook) => (
+                <li key={hook}>{hook}</li>
+              ))}
+            </ul>
+          </article>
+        ))}
       </div>
     </section>
   );
@@ -1634,6 +1703,14 @@ export function App() {
     refetchInterval: 30_000,
   });
 
+  const edgeProductionDraftsQuery = useQuery({
+    queryKey: ["edge-production-drafts"],
+    queryFn: listEdgeProductionDrafts,
+    enabled: statusQuery.isError,
+    retry: false,
+    refetchInterval: 30_000,
+  });
+
   const createExperimentMutation = useMutation({
     mutationFn: (opportunity: OpportunityRecord) =>
       createEdgeExperiment({
@@ -1657,6 +1734,26 @@ export function App() {
       }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["edge-experiments"] });
+    },
+  });
+
+  const createProductionDraftMutation = useMutation({
+    mutationFn: (pack: ProductionPackContent) => {
+      if (!selectedOpportunity) {
+        throw new Error("Aucune opportunité sélectionnée.");
+      }
+
+      return createEdgeProductionDraft({
+        opportunity_scan_id: selectedOpportunity.scanId,
+        experiment_id: activeExperiment?.id ?? null,
+        keyword: selectedOpportunity.keyword,
+        title: pack.title,
+        status: activeExperiment?.outcome === "PASSED" ? "READY" : "DRAFT",
+        content: pack,
+      });
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["edge-production-drafts"] });
     },
   });
 
@@ -1786,6 +1883,10 @@ export function App() {
   const activeExperiment = edgeExperiments.find(
     (experiment) => experiment.opportunity_scan_id === selectedOpportunity?.scanId,
   );
+  const productionDrafts = edgeProductionDraftsQuery.data?.drafts ?? [];
+  const activeDraft = productionDrafts.find(
+    (draft) => draft.opportunity_scan_id === selectedOpportunity?.scanId,
+  );
 
   function runLocalScan({ count, keyword }: { count: number; keyword: string }) {
     const batchSize = count === 1 ? 5 : Math.max(5, Math.min(count, 12));
@@ -1880,7 +1981,18 @@ export function App() {
           />
           <OptimizerPanel experiments={edgeExperiments} />
           <AnalystConsole backendOnline={backendOnline} opportunity={selectedOpportunity} />
-          <ProducerConsole activeExperiment={activeExperiment} opportunity={selectedOpportunity} />
+          <ProducerConsole
+            activeDraft={activeDraft}
+            activeExperiment={activeExperiment}
+            isSavingDraft={createProductionDraftMutation.isPending}
+            onSaveDraft={(pack) => createProductionDraftMutation.mutate(pack)}
+            opportunity={selectedOpportunity}
+          />
+          <ProductionDraftsPanel
+            drafts={productionDrafts}
+            error={edgeProductionDraftsQuery.error}
+            isLoading={edgeProductionDraftsQuery.isLoading}
+          />
         </aside>
       </section>
     </main>

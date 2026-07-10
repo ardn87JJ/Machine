@@ -99,6 +99,18 @@ type ExecutionExperimentSummary = {
   updated_at: string;
 };
 
+type ProductionDraftSummary = {
+  id: string;
+  opportunity_scan_id: string;
+  experiment_id: string | null;
+  keyword: string;
+  title: string;
+  status: "DRAFT" | "READY" | "USED";
+  content: JsonRecord;
+  created_at: string;
+  updated_at: string;
+};
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -123,6 +135,10 @@ Deno.serve(async (request) => {
         return json(await listExecutionExperiments(request));
       }
 
+      if (url.searchParams.get("view") === "drafts") {
+        return json(await listProductionDrafts(request));
+      }
+
       return json(await listScoutLedger(request));
     } catch (error) {
       const message = error instanceof Error ? error.message : "Erreur inconnue.";
@@ -145,6 +161,11 @@ Deno.serve(async (request) => {
     if (body.action === "update-experiment") {
       assertConfigured();
       return json(await updateExecutionExperiment(body));
+    }
+
+    if (body.action === "create-draft") {
+      assertConfigured();
+      return json(await createProductionDraft(body));
     }
 
     const keyword = normalizeKeyword(String(body.keyword ?? ""));
@@ -183,6 +204,57 @@ Deno.serve(async (request) => {
     return json({ error: "run_scout_failed", message }, 500);
   }
 });
+
+async function listProductionDrafts(request: Request) {
+  const url = new URL(request.url);
+  const limit = Math.max(1, Math.min(50, Number(url.searchParams.get("limit") ?? 20)));
+  const drafts = await supabaseFetch<ProductionDraftSummary[]>(
+    `/rest/v1/production_drafts?select=id,opportunity_scan_id,experiment_id,keyword,title,status,content,created_at,updated_at&order=created_at.desc&limit=${limit}`,
+  );
+
+  return { drafts };
+}
+
+async function createProductionDraft(body: JsonRecord) {
+  const scanId = String(body.opportunity_scan_id ?? "");
+  const keyword = normalizeKeyword(String(body.keyword ?? ""));
+  const title = String(body.title ?? "").trim();
+  const experimentId = body.experiment_id ? String(body.experiment_id) : null;
+  const content = body.content as JsonRecord | undefined;
+  const status = String(body.status ?? "DRAFT") as ProductionDraftSummary["status"];
+  const allowedStatuses = new Set(["DRAFT", "READY", "USED"]);
+
+  if (!scanId) {
+    throw new Error("opportunity_scan_id est requis pour sauvegarder un draft.");
+  }
+
+  if (!keyword || !title || !content || typeof content !== "object") {
+    throw new Error("keyword, title et content sont requis pour sauvegarder un draft.");
+  }
+
+  if (!allowedStatuses.has(status)) {
+    throw new Error("Statut de draft invalide.");
+  }
+
+  const rows = await supabaseFetch<ProductionDraftSummary[]>(
+    "/rest/v1/production_drafts?on_conflict=opportunity_scan_id",
+    {
+      method: "POST",
+      headers: { Prefer: "return=representation,resolution=merge-duplicates" },
+      body: JSON.stringify({
+        opportunity_scan_id: scanId,
+        experiment_id: experimentId,
+        keyword,
+        title,
+        status,
+        content,
+        updated_at: new Date().toISOString(),
+      }),
+    },
+  );
+
+  return { draft: rows[0] };
+}
 
 async function listExecutionExperiments(request: Request) {
   const url = new URL(request.url);
