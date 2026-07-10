@@ -103,8 +103,10 @@ Critère de sortie :
 - [x] Checklist persistante.
 - [x] Prompts voix.
 - [x] Plan de montage.
-- [ ] File `assets à produire`.
-- [ ] Export Markdown complet.
+- [x] File `assets à produire`.
+- [x] Export Markdown complet.
+- [ ] Statuts par asset persistants.
+- [ ] Export par asset.
 
 ## Plateformes futures
 

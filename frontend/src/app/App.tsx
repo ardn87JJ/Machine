@@ -1326,18 +1326,18 @@ function buildFactoryVariants(draft: ProductionDraftSummary) {
   const firstHook = draft.content.hooks[0] ?? `J'ai teste ${keyword} pour voir si la niche tient.`;
 
   return {
-    titles: [
+    titles: Array.from(new Set([
       baseTitle,
       `${keyword}: le test qui decide si on attaque`,
       `J'ai analyse ${keyword}: opportunite ou piege ?`,
       `${keyword}: 45 secondes pour valider la niche`,
-    ],
-    hooks: [
+    ])),
+    hooks: Array.from(new Set([
       firstHook,
       `La plupart des createurs ratent ${keyword} pour une raison simple.`,
       `Si ce signal tient, ${keyword} devient une niche a tester maintenant.`,
       `J'ai trouve le point faible des contenus ${keyword}.`,
-    ],
+    ])),
     checklist: [
       "Choisir 1 hook principal et 1 hook de secours.",
       "Monter en vertical 9:16 avec sous-titres lisibles.",
@@ -1367,6 +1367,26 @@ function buildVoicePrompt(draft: ProductionDraftSummary, selectedHook: string) {
   ].join(" ");
 }
 
+function buildAssetQueue(draft: ProductionDraftSummary, selectedTitle: string, selectedHook: string) {
+  const montagePlan = buildMontagePlan(draft, selectedTitle, selectedHook);
+  const voicePrompt = buildVoicePrompt(draft, selectedHook);
+  const screenTexts = [
+    selectedHook,
+    `Preuve marche: ${draft.keyword}`,
+    selectedTitle,
+    draft.content.cta,
+  ];
+
+  return montagePlan.map((step, index) => ({
+    scene: `Scene ${index + 1}`,
+    storyboard: step,
+    visualPrompt: `${draft.content.visualPrompt} Scene ${index + 1}, composition claire, texte ecran lisible, pas de surcharge.`,
+    voicePrompt: `${voicePrompt} Segment ${index + 1}: ${step}`,
+    screenText: screenTexts[index] ?? draft.content.cta,
+    status: "TODO" as const,
+  }));
+}
+
 function buildFactoryContent(
   draft: ProductionDraftSummary,
   selectedTitle: string,
@@ -1388,9 +1408,57 @@ function buildFactoryContent(
       })),
       montagePlan: buildMontagePlan(draft, selectedTitle, selectedHook),
       voicePrompt: buildVoicePrompt(draft, selectedHook),
+      assets: buildAssetQueue(draft, selectedTitle, selectedHook),
       updatedAt: new Date().toISOString(),
     },
   };
+}
+
+function formatFactoryMarkdown(draft: ProductionDraftSummary, content: ProductionPackContent) {
+  const factory = content.factory;
+  const assets = factory?.assets ?? buildAssetQueue(
+    draft,
+    factory?.selectedTitle ?? content.title,
+    factory?.selectedHook ?? content.hooks[0] ?? draft.keyword,
+  );
+
+  return [
+    `# ${content.title}`,
+    "",
+    `Niche: ${draft.keyword}`,
+    `Statut draft: ${draft.status}`,
+    "",
+    "## Concept",
+    content.concept,
+    "",
+    "## Hook choisi",
+    factory?.selectedHook ?? content.hooks[0] ?? "",
+    "",
+    "## Description",
+    content.description,
+    "",
+    "## CTA",
+    content.cta,
+    "",
+    "## Checklist",
+    ...(factory?.checklist ?? []).map((item) => `- [${item.done ? "x" : " "}] ${item.label}`),
+    "",
+    "## Plan de montage",
+    ...(factory?.montagePlan ?? []).map((step, index) => `${index + 1}. ${step}`),
+    "",
+    "## Prompt voix",
+    factory?.voicePrompt ?? "",
+    "",
+    "## Assets a produire",
+    ...assets.flatMap((asset) => [
+      "",
+      `### ${asset.scene} - ${asset.status}`,
+      `Storyboard: ${asset.storyboard}`,
+      `Texte ecran: ${asset.screenText}`,
+      `Prompt visuel: ${asset.visualPrompt}`,
+      `Prompt voix: ${asset.voicePrompt}`,
+    ]),
+  ].join("\n");
 }
 
 function findDraftExperiment(
@@ -1597,6 +1665,8 @@ function ContentFactoryWorkbench({
   const factoryContent = buildFactoryContent(draft, selectedTitle, selectedHook, doneChecklistItems);
   const montagePlan = factoryContent.factory?.montagePlan ?? [];
   const voicePrompt = factoryContent.factory?.voicePrompt ?? "";
+  const assets = factoryContent.factory?.assets ?? [];
+  const markdownExport = formatFactoryMarkdown(draft, factoryContent);
   const completedCount = doneChecklistItems.length;
 
   return (
@@ -1677,6 +1747,23 @@ function ContentFactoryWorkbench({
         >
           {isSavingFactory ? "SAUVEGARDE..." : "Sauvegarder factory"}
         </button>
+        <button onClick={() => copyTextToClipboard(markdownExport)} type="button">
+          Copier Markdown
+        </button>
+        <button
+          onClick={() => {
+            const blob = new Blob([markdownExport], { type: "text/markdown;charset=utf-8" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = `${draft.keyword.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-content-factory.md`;
+            link.click();
+            URL.revokeObjectURL(url);
+          }}
+          type="button"
+        >
+          Export Markdown
+        </button>
         {draft.content.factory ? <small>Dernière sauvegarde {formatDate(draft.content.factory.updatedAt)}</small> : null}
       </div>
 
@@ -1692,6 +1779,35 @@ function ContentFactoryWorkbench({
       <div className="factory-learning">
         <span>Prompt voix</span>
         <p>{voicePrompt}</p>
+      </div>
+
+      <div className="factory-assets">
+        <span>Assets à produire</span>
+        <div className="asset-list">
+          {assets.map((asset) => (
+            <article className="asset-card" key={asset.scene}>
+              <div>
+                <strong>{asset.scene}</strong>
+                <small>{asset.status}</small>
+              </div>
+              <p>{asset.storyboard}</p>
+              <dl>
+                <div>
+                  <dt>Texte écran</dt>
+                  <dd>{asset.screenText}</dd>
+                </div>
+                <div>
+                  <dt>Visuel</dt>
+                  <dd>{asset.visualPrompt}</dd>
+                </div>
+                <div>
+                  <dt>Voix</dt>
+                  <dd>{asset.voicePrompt}</dd>
+                </div>
+              </dl>
+            </article>
+          ))}
+        </div>
       </div>
 
       <div className="factory-script">

@@ -1280,7 +1280,10 @@ h3 {
 .factory-checklist,
 .factory-script,
 .factory-learning,
-.factory-actions {
+.factory-actions,
+.factory-assets,
+.asset-list,
+.asset-card {
   display: grid;
   gap: 12px;
 }
@@ -1292,7 +1295,9 @@ h3 {
 .factory-grid article,
 .factory-checklist,
 .factory-script,
-.factory-learning {
+.factory-learning,
+.factory-assets,
+.asset-card {
   min-width: 0;
   padding: 12px;
   border: 1px solid #253142;
@@ -1303,7 +1308,8 @@ h3 {
 .factory-grid span,
 .factory-checklist span,
 .factory-script span,
-.factory-learning span {
+.factory-learning span,
+.factory-assets > span {
   color: #83f1d8;
   font-size: 0.75rem;
   font-weight: 900;
@@ -1341,12 +1347,13 @@ h3 {
 }
 
 .factory-script strong,
-.factory-learning strong {
+.factory-learning strong,
+.asset-card strong {
   color: #edf3fb;
 }
 
 .factory-actions {
-  grid-template-columns: max-content minmax(0, 1fr);
+  grid-template-columns: repeat(3, max-content) minmax(0, 1fr);
   align-items: center;
 }
 
@@ -1363,6 +1370,38 @@ h3 {
 
 .factory-actions small {
   color: #9aa7b6;
+}
+
+.asset-card > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.asset-card small {
+  color: #83f1d8;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.asset-card p,
+.asset-card dd {
+  margin: 0;
+  color: #9aa7b6;
+  line-height: 1.5;
+}
+
+.asset-card dl {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.asset-card dt {
+  color: #edf3fb;
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
 }
 
 .empty-state {
@@ -1404,6 +1443,10 @@ h3 {
   .ledger-grid,
   .workspace-grid,
   .workspace-column--decision {
+    grid-template-columns: 1fr;
+  }
+
+  .factory-actions {
     grid-template-columns: 1fr;
   }
 

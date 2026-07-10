@@ -50,6 +50,8 @@ Le format suit les principes de [Keep a Changelog](https://keepachangelog.com/fr
 - Optimizer enrichi avec les drafts prêts et utilisés.
 - persistance des choix Content Factory dans le JSON du draft : titre choisi, hook
   choisi, checklist, plan de montage et prompt voix.
+- file `assets à produire` générée par scène avec storyboard, texte écran, prompt
+  visuel, prompt voix et export Markdown complet.
 
 ### Décidé
 

@@ -112,6 +112,14 @@ export interface ProductionPackContent {
     }>;
     montagePlan: string[];
     voicePrompt: string;
+    assets: Array<{
+      scene: string;
+      storyboard: string;
+      visualPrompt: string;
+      voicePrompt: string;
+      screenText: string;
+      status: "TODO" | "IN_PROGRESS" | "DONE";
+    }>;
     updatedAt: string;
   };
 }

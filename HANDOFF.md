@@ -29,7 +29,7 @@ scorables, tests actionnables, drafts de production et apprentissages.
 
 - Depot Git : `ardn87JJ/Machine`
 - Branche : `main`
-- Dernier commit stable au depart de cette tranche : `ac4170a Add content factory workbench`
+- Dernier commit stable au depart de cette tranche : `adba5ec Persist content factory choices`
 - App publique : `https://ardn87jj.github.io/Machine/`
 - Supabase project ref : `uscmdnzbwvsjrocemset`
 - Edge Function active : `run-scout`
@@ -49,21 +49,22 @@ scorables, tests actionnables, drafts de production et apprentissages.
   detaille.
 - selectionner un draft actif, voir variantes titres/hooks, checklist courte et
   liaison au test associe.
+- sauvegarder titre/hook choisis, checklist, plan de montage et prompt voix dans
+  Supabase via le JSON du draft.
 
 ## Tranche en cours
 
-Approfondir la Content Factory :
-
-- sauvegarder les variantes choisies dans Supabase ;
-- ajouter un vrai etat de checklist persistant ;
-- produire un plan de montage structure ;
-- preparer les prompts voix.
-
-## Prochaine etape apres cette tranche
-
-Passer de draft a execution contenu :
+Passer de draft prepare a execution contenu :
 
 - ajouter une file `assets a produire` depuis un draft sauvegarde ;
 - creer des champs storyboard / voix / visuels par scene ;
-- ajouter un export complet Markdown pour production manuelle ;
+- ajouter un export complet Markdown pour production manuelle.
+
+## Prochaine etape apres cette tranche
+
+Rendre les assets executables :
+
+- changer le statut asset par scene (`TODO`, `IN_PROGRESS`, `DONE`) ;
+- sauvegarder ces statuts dans Supabase ;
+- ajouter un export par asset ;
 - plus tard, brancher un LLM serveur pour variantes plus fines.

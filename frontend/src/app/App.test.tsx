@@ -256,6 +256,22 @@ describe("App", () => {
         visualPrompt: string;
         description: string;
         cta: string;
+        factory?: {
+          selectedTitle: string;
+          selectedHook: string;
+          checklist: Array<{ label: string; done: boolean }>;
+          montagePlan: string[];
+          voicePrompt: string;
+          assets: Array<{
+            scene: string;
+            storyboard: string;
+            visualPrompt: string;
+            voicePrompt: string;
+            screenText: string;
+            status: "TODO" | "IN_PROGRESS" | "DONE";
+          }>;
+          updatedAt: string;
+        };
       };
       created_at: string;
       updated_at: string;
@@ -472,6 +488,14 @@ describe("App", () => {
                 checklist: Array<{ label: string; done: boolean }>;
                 montagePlan: string[];
                 voicePrompt: string;
+                assets: Array<{
+                  scene: string;
+                  storyboard: string;
+                  visualPrompt: string;
+                  voicePrompt: string;
+                  screenText: string;
+                  status: "TODO" | "IN_PROGRESS" | "DONE";
+                }>;
                 updatedAt: string;
               };
             };
@@ -644,6 +668,11 @@ describe("App", () => {
     expect(await screen.findByText(/Dernière sauvegarde/)).toBeInTheDocument();
     expect(screen.getByText("Plan montage")).toBeInTheDocument();
     expect(screen.getByText("Prompt voix")).toBeInTheDocument();
+    expect(screen.getByText("Assets à produire")).toBeInTheDocument();
+    expect(screen.getByText("Scene 1")).toBeInTheDocument();
+    expect(screen.getAllByText("Texte écran").length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "Copier Markdown" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Export Markdown" })).toBeInTheDocument();
     expect(screen.getByText("Script détaillé")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Copier" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Exporter TXT" })).toBeInTheDocument();
@@ -713,13 +742,22 @@ describe("App", () => {
           const payload = JSON.parse(String(init?.body ?? "{}")) as {
             action?: string;
             title?: string;
-            content?: { factory?: { selectedTitle?: string; montagePlan?: string[]; voicePrompt?: string } };
+            content?: {
+              factory?: {
+                selectedTitle?: string;
+                montagePlan?: string[];
+                voicePrompt?: string;
+                assets?: Array<{ scene: string; status: string }>;
+              };
+            };
           };
           return payload.action === "update-draft" &&
             payload.title === "ai music channel: le test qui decide si on attaque" &&
             payload.content?.factory?.selectedTitle === "ai music channel: le test qui decide si on attaque" &&
             Array.isArray(payload.content.factory.montagePlan) &&
-            Boolean(payload.content.factory.voicePrompt);
+            Boolean(payload.content.factory.voicePrompt) &&
+            payload.content.factory.assets?.[0]?.scene === "Scene 1" &&
+            payload.content.factory.assets[0].status === "TODO";
         }),
       ).toBe(true);
     });
