@@ -66,6 +66,9 @@ Le format suit les principes de [Keep a Changelog](https://keepachangelog.com/fr
   déterministe si le modèle est indisponible.
 - compatibilité avec les secrets Supabase en minuscules `llm_api_key`,
   `llm_base_url` et `llm_model`.
+- sélecteur de fournisseur LLM dans Content Factory (`Fallback`, `OpenAI`,
+  `OpenRouter`, `Groq`, `Local`) et panneau Budget IA avec estimation par
+  session avant régénération d’assets.
 
 ### Décidé
 

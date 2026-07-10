@@ -687,6 +687,8 @@ describe("App", () => {
     expect(screen.getByText("Variantes titres")).toBeInTheDocument();
     expect(screen.getByText("Variantes hooks")).toBeInTheDocument();
     expect(screen.getByText("Checklist production courte")).toBeInTheDocument();
+    expect(screen.getByText("Budget IA")).toBeInTheDocument();
+    expect(screen.getByLabelText("Fournisseur LLM")).toHaveValue("fallback");
     expect(screen.getByText("Liaison test")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Factory/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Draft actif" })).toBeDisabled();
@@ -795,8 +797,14 @@ describe("App", () => {
       ).toBe(true);
       expect(
         fetchMock.mock.calls.some(([, init]) => {
-          const payload = JSON.parse(String(init?.body ?? "{}")) as { action?: string; scene?: string };
-          return payload.action === "regenerate-asset" && payload.scene === "Scene 1";
+          const payload = JSON.parse(String(init?.body ?? "{}")) as {
+            action?: string;
+            scene?: string;
+            provider?: string;
+          };
+          return payload.action === "regenerate-asset" &&
+            payload.scene === "Scene 1" &&
+            payload.provider === "fallback";
         }),
       ).toBe(true);
       expect(

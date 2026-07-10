@@ -126,6 +126,8 @@ export interface ProductionAsset {
   status: "TODO" | "IN_PROGRESS" | "DONE";
 }
 
+export type LlmProvider = "openai" | "openrouter" | "groq" | "local" | "fallback";
+
 export interface ProductionDraftSummary {
   id: string;
   opportunity_scan_id: string;
@@ -202,6 +204,8 @@ interface UpdateEdgeProductionDraftResponse {
 export interface RegenerateEdgeProductionAssetResponse {
   asset: ProductionAsset;
   source: "llm" | "fallback";
+  provider?: LlmProvider;
+  model?: string;
   warning?: string;
 }
 
@@ -488,6 +492,7 @@ export async function regenerateEdgeProductionAsset(payload: {
   draft_id: string;
   scene: string;
   asset: ProductionAsset;
+  provider?: LlmProvider;
 }) {
   const response = await fetch(SCOUT_FUNCTION_URL, {
     method: "POST",

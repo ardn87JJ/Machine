@@ -19,6 +19,7 @@ import {
   updateEdgeProductionDraftStatus,
   type ExecutionPlan,
   type ExecutionExperimentSummary,
+  type LlmProvider,
   type OpportunitySummary,
   type ProductionAsset,
   type ProductionDraftSummary,
@@ -195,6 +196,44 @@ type OpportunityRecord = Opportunity & {
 type DecisionLabel = OpportunityRecord["decisionLabel"];
 type DecisionFilter = DecisionLabel | "ALL";
 type WorkspaceView = "scout" | "decision" | "factory" | "optimizer";
+
+const llmProviderOptions: Array<{
+  id: LlmProvider;
+  label: string;
+  description: string;
+  costPerRunUsd: number;
+}> = [
+  {
+    id: "openai",
+    label: "OpenAI",
+    description: "Qualité stable, facturation OpenAI API.",
+    costPerRunUsd: 0.006,
+  },
+  {
+    id: "openrouter",
+    label: "OpenRouter",
+    description: "Routeur multi-modèles compatible OpenAI.",
+    costPerRunUsd: 0.004,
+  },
+  {
+    id: "groq",
+    label: "Groq",
+    description: "Modèles rapides compatibles OpenAI.",
+    costPerRunUsd: 0.002,
+  },
+  {
+    id: "local",
+    label: "Local",
+    description: "LLM PC via URL publique/tunnel compatible OpenAI.",
+    costPerRunUsd: 0,
+  },
+  {
+    id: "fallback",
+    label: "Fallback",
+    description: "Aucun coût API, génération déterministe.",
+    costPerRunUsd: 0,
+  },
+];
 
 type CompetitorRow = {
   channelId: string;
@@ -1663,14 +1702,17 @@ function ContentFactoryWorkbench({
   isSavingFactory,
   isRegeneratingAsset,
   regeneratingAssetScene,
+  llmProvider,
   onSaveFactory,
   onRegenerateAsset,
+  onSelectLlmProvider,
 }: {
   draft: ProductionDraftSummary | undefined;
   experiment: ExecutionExperimentSummary | undefined;
   isSavingFactory: boolean;
   isRegeneratingAsset: boolean;
   regeneratingAssetScene: string | null;
+  llmProvider: LlmProvider;
   onSaveFactory: (
     draft: ProductionDraftSummary,
     content: ProductionPackContent,
@@ -1679,7 +1721,9 @@ function ContentFactoryWorkbench({
   onRegenerateAsset: (
     draft: ProductionDraftSummary,
     asset: ProductionAsset,
+    provider: LlmProvider,
   ) => Promise<RegenerateEdgeProductionAssetResponse>;
+  onSelectLlmProvider: (provider: LlmProvider) => void;
 }) {
   const variants = draft ? buildFactoryVariants(draft) : { titles: [], hooks: [], checklist: [] };
   const [selectedTitle, setSelectedTitle] = useState("");
@@ -1688,6 +1732,8 @@ function ContentFactoryWorkbench({
   const [assetEdits, setAssetEdits] = useState<Partial<Record<string, Omit<ProductionAsset, "scene">>>>({});
   const [assetRegenerationError, setAssetRegenerationError] = useState("");
   const [assetRegenerationNotice, setAssetRegenerationNotice] = useState("");
+  const [llmRunCount, setLlmRunCount] = useState(0);
+  const [llmFallbackCount, setLlmFallbackCount] = useState(0);
 
   useEffect(() => {
     if (!draft) {
@@ -1739,6 +1785,8 @@ function ContentFactoryWorkbench({
   const markdownExport = formatFactoryMarkdown(draft, factoryContent);
   const completedCount = doneChecklistItems.length;
   const completedAssetCount = assets.filter((asset) => asset.status === "DONE").length;
+  const selectedProviderConfig = llmProviderOptions.find((option) => option.id === llmProvider) ?? llmProviderOptions[0];
+  const estimatedCostUsd = llmRunCount * selectedProviderConfig.costPerRunUsd;
   const updateAsset = (scene: string, patch: Partial<Omit<ProductionAsset, "scene">>) => {
     const sourceAsset = assets.find((asset) => asset.scene === scene);
     const sourceEdit: Omit<ProductionAsset, "scene"> = sourceAsset
@@ -1877,6 +1925,27 @@ function ContentFactoryWorkbench({
         {draft.content.factory ? <small>Dernière sauvegarde {formatDate(draft.content.factory.updatedAt)}</small> : null}
       </div>
 
+      <div className="llm-budget-panel">
+        <div>
+          <span>Budget IA</span>
+          <strong>{estimatedCostUsd.toFixed(4)} $ estimés</strong>
+          <small>{llmRunCount} appels · {llmFallbackCount} fallback · estimation session</small>
+        </div>
+        <label>
+          Fournisseur
+          <select
+            aria-label="Fournisseur LLM"
+            onChange={(event) => onSelectLlmProvider(event.target.value as LlmProvider)}
+            value={llmProvider}
+          >
+            {llmProviderOptions.map((option) => (
+              <option key={option.id} value={option.id}>{option.label}</option>
+            ))}
+          </select>
+        </label>
+        <p>{selectedProviderConfig.description}</p>
+      </div>
+
       <div className="factory-script">
         <span>Plan montage</span>
         <ol>
@@ -1965,10 +2034,16 @@ function ContentFactoryWorkbench({
                     setAssetRegenerationError("");
                     setAssetRegenerationNotice("");
                     try {
-                      const regenerated = await onRegenerateAsset(draft, asset);
+                      const regenerated = await onRegenerateAsset(draft, asset, llmProvider);
+                      setLlmRunCount((current) => current + 1);
                       replaceAsset(regenerated.asset);
                       if (regenerated.source === "fallback") {
+                        setLlmFallbackCount((current) => current + 1);
                         setAssetRegenerationNotice(regenerated.warning ?? "Fallback serveur utilise.");
+                      } else if (regenerated.provider || regenerated.model) {
+                        setAssetRegenerationNotice(
+                          `Génération ${regenerated.provider ?? llmProvider}${regenerated.model ? ` · ${regenerated.model}` : ""}`,
+                        );
                       }
                     } catch (error) {
                       setAssetRegenerationError(getErrorMessage(error));
@@ -2406,6 +2481,7 @@ export function App() {
   const [decisionFilter, setDecisionFilter] = useState<DecisionFilter>("ALL");
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("scout");
   const [regeneratingAssetScene, setRegeneratingAssetScene] = useState<string | null>(null);
+  const [llmProvider, setLlmProvider] = useState<LlmProvider>("fallback");
   const verifiedFallbackRun = buildVerifiedFallbackRun();
 
   const statusQuery = useQuery({
@@ -2538,11 +2614,13 @@ export function App() {
     mutationFn: (payload: {
       draft: ProductionDraftSummary;
       asset: ProductionAsset;
+      provider: LlmProvider;
     }) =>
       regenerateEdgeProductionAsset({
         draft_id: payload.draft.id,
         scene: payload.asset.scene,
         asset: payload.asset,
+        provider: payload.provider,
       }),
     onMutate: (payload) => {
       setRegeneratingAssetScene(payload.asset.scene);
@@ -2819,9 +2897,11 @@ export function App() {
             experiment={activeFactoryExperiment}
             isSavingFactory={saveFactoryDraftMutation.isPending}
             isRegeneratingAsset={regenerateAssetMutation.isPending}
+            llmProvider={llmProvider}
+            onSelectLlmProvider={setLlmProvider}
             regeneratingAssetScene={regeneratingAssetScene}
-            onRegenerateAsset={async (draft, asset) => {
-              const response = await regenerateAssetMutation.mutateAsync({ draft, asset });
+            onRegenerateAsset={async (draft, asset, provider) => {
+              const response = await regenerateAssetMutation.mutateAsync({ draft, asset, provider });
               return response;
             }}
             onSaveFactory={(draft, content, title) =>

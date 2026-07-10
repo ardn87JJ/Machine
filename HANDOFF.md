@@ -62,23 +62,24 @@ scorables, tests actionnables, drafts de production et apprentissages.
 - appeler un endpoint LLM compatible OpenAI depuis `regenerate-asset` quand
   `LLM_API_KEY` ou `llm_api_key` existe, valider le JSON, puis basculer en
   fallback deterministe si le modele est absent ou invalide.
+- selectionner le fournisseur LLM depuis Content Factory : `fallback`,
+  `openai`, `openrouter`, `groq` ou `local`.
+- suivre un budget IA estime par session dans l'atelier Factory.
 
 ## Tranche en cours
 
-Activer le vrai moteur IA en environnement Supabase :
+Configurer le fournisseur LLM voulu :
 
-- ajouter le secret `LLM_API_KEY` ou `llm_api_key` ;
-- optionnellement definir `LLM_BASE_URL` / `llm_base_url` et `LLM_MODEL` /
-  `llm_model` ;
-- tester `regenerate-asset` avec `source: "llm"`.
+- OpenAI : `OPENAI_API_KEY` ou `llm_api_key`, avec quota/billing actif.
+- OpenRouter : `OPENROUTER_API_KEY` et optionnellement `OPENROUTER_MODEL`.
+- Groq : `GROQ_API_KEY` et optionnellement `GROQ_MODEL`.
+- Local : `LOCAL_LLM_BASE_URL` doit etre une URL joignable depuis Supabase
+  Cloud, pas `localhost` sur ton PC.
 
 ## Prochaine etape apres cette tranche
 
-Configurer les secrets LLM Supabase :
+Tester un fournisseur non OpenAI :
 
-- `LLM_API_KEY` ou `llm_api_key` est requis pour activer le modele ;
-- `LLM_BASE_URL` / `llm_base_url` vaut `https://api.openai.com/v1` par defaut ;
-- `LLM_MODEL` / `llm_model` vaut `gpt-4o-mini` par defaut ;
-- le secret doit etre un secret d'environnement Edge Function lisible par
-  `Deno.env`, pas une cle API Supabase projet ;
-- sans secret, la fonction reste operationnelle en fallback.
+- choisir OpenRouter, Groq ou Local dans l'interface ;
+- ajouter les secrets Edge Function correspondants ;
+- relancer `Regenerer` et verifier `source: "llm"` ou le message fallback.

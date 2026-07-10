@@ -120,6 +120,15 @@ type ProductionAsset = {
   status: "TODO" | "IN_PROGRESS" | "DONE";
 };
 
+type LlmProvider = "openai" | "openrouter" | "groq" | "local" | "fallback";
+
+type LlmConfig = {
+  provider: LlmProvider;
+  apiKey: string;
+  baseUrl: string;
+  model: string;
+};
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -129,7 +138,6 @@ const corsHeaders = {
 const youtubeApiKey = Deno.env.get("YOUTUBE_API_KEY") ?? "";
 const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
 const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-const llmApiKey = Deno.env.get("LLM_API_KEY") ?? Deno.env.get("llm_api_key") ?? "";
 const llmBaseUrl = (
   Deno.env.get("LLM_BASE_URL") ??
   Deno.env.get("llm_base_url") ??
@@ -341,6 +349,7 @@ async function regenerateProductionAsset(body: JsonRecord) {
   const draftId = String(body.draft_id ?? "");
   const scene = String(body.scene ?? "").trim();
   const currentAsset = body.asset as Partial<ProductionAsset> | undefined;
+  const provider = normalizeLlmProvider(String(body.provider ?? Deno.env.get("LLM_PROVIDER") ?? "openai"));
 
   if (!draftId || !scene) {
     throw new Error("draft_id et scene sont requis pour regenerer un asset.");
@@ -360,19 +369,23 @@ async function regenerateProductionAsset(body: JsonRecord) {
   }
 
   const fallbackAsset = buildRegeneratedAsset(draft, scene, currentAsset);
+  const llmConfig = resolveLlmConfig(provider);
 
-  if (!llmApiKey) {
+  if (!llmConfig) {
     return {
       asset: fallbackAsset,
       source: "fallback",
-      warning: "LLM_API_KEY absent: regeneration deterministe utilisee.",
+      provider,
+      warning: buildMissingLlmConfigMessage(provider),
     };
   }
 
   try {
     return {
-      asset: await generateAssetWithLlm(draft, scene, currentAsset, fallbackAsset),
+      asset: await generateAssetWithLlm(draft, scene, currentAsset, fallbackAsset, llmConfig),
       source: "llm",
+      provider: llmConfig.provider,
+      model: llmConfig.model,
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Erreur LLM inconnue.";
@@ -380,9 +393,94 @@ async function regenerateProductionAsset(body: JsonRecord) {
     return {
       asset: fallbackAsset,
       source: "fallback",
+      provider,
+      model: llmConfig.model,
       warning: `LLM indisponible: ${message}`,
     };
   }
+}
+
+function normalizeLlmProvider(value: string): LlmProvider {
+  if (["openai", "openrouter", "groq", "local", "fallback"].includes(value)) {
+    return value as LlmProvider;
+  }
+
+  return "openai";
+}
+
+function resolveLlmConfig(provider: LlmProvider): LlmConfig | null {
+  if (provider === "fallback") {
+    return null;
+  }
+
+  if (provider === "openai") {
+    return resolveOpenAiCompatibleConfig({
+      provider,
+      apiKey: pickEnv(["OPENAI_API_KEY", "openai_api_key", "LLM_API_KEY", "llm_api_key"]),
+      baseUrl: pickEnv(["OPENAI_BASE_URL", "openai_base_url", "LLM_BASE_URL", "llm_base_url"]) || llmBaseUrl,
+      model: pickEnv(["OPENAI_MODEL", "openai_model", "LLM_MODEL", "llm_model"]) || llmModel,
+    });
+  }
+
+  if (provider === "openrouter") {
+    return resolveOpenAiCompatibleConfig({
+      provider,
+      apiKey: pickEnv(["OPENROUTER_API_KEY", "openrouter_api_key"]),
+      baseUrl: pickEnv(["OPENROUTER_BASE_URL", "openrouter_base_url"]) || "https://openrouter.ai/api/v1",
+      model: pickEnv(["OPENROUTER_MODEL", "openrouter_model"]) || "openai/gpt-4o-mini",
+    });
+  }
+
+  if (provider === "groq") {
+    return resolveOpenAiCompatibleConfig({
+      provider,
+      apiKey: pickEnv(["GROQ_API_KEY", "groq_api_key"]),
+      baseUrl: pickEnv(["GROQ_BASE_URL", "groq_base_url"]) || "https://api.groq.com/openai/v1",
+      model: pickEnv(["GROQ_MODEL", "groq_model"]) || "llama-3.1-8b-instant",
+    });
+  }
+
+  return resolveOpenAiCompatibleConfig({
+    provider,
+    apiKey: pickEnv(["LOCAL_LLM_API_KEY", "local_llm_api_key"]) || "local",
+    baseUrl: pickEnv(["LOCAL_LLM_BASE_URL", "local_llm_base_url"]),
+    model: pickEnv(["LOCAL_LLM_MODEL", "local_llm_model"]) || "llama3.1:8b",
+  });
+}
+
+function resolveOpenAiCompatibleConfig(config: LlmConfig): LlmConfig | null {
+  if (!config.baseUrl || !config.model || !config.apiKey) {
+    return null;
+  }
+
+  return {
+    ...config,
+    baseUrl: config.baseUrl.replace(/\/$/, ""),
+  };
+}
+
+function pickEnv(names: string[]) {
+  for (const name of names) {
+    const value = Deno.env.get(name)?.trim();
+
+    if (value) {
+      return value;
+    }
+  }
+
+  return "";
+}
+
+function buildMissingLlmConfigMessage(provider: LlmProvider) {
+  if (provider === "fallback") {
+    return "Mode fallback selectionne: regeneration deterministe utilisee.";
+  }
+
+  if (provider === "local") {
+    return "LOCAL_LLM_BASE_URL/local_llm_base_url absent: Supabase doit pouvoir joindre une URL publique compatible OpenAI.";
+  }
+
+  return `Secrets ${provider} absents: regeneration deterministe utilisee.`;
 }
 
 async function generateAssetWithLlm(
@@ -390,6 +488,7 @@ async function generateAssetWithLlm(
   scene: string,
   currentAsset: Partial<ProductionAsset>,
   fallbackAsset: ProductionAsset,
+  llmConfig: LlmConfig,
 ): Promise<ProductionAsset> {
   const content = draft.content;
   const factory = content.factory as JsonRecord | undefined;
@@ -430,14 +529,14 @@ async function generateAssetWithLlm(
   const timeout = setTimeout(() => controller.abort(), 20_000);
 
   try {
-    const response = await fetch(`${llmBaseUrl}/chat/completions`, {
+    const response = await fetch(`${llmConfig.baseUrl}/chat/completions`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${llmApiKey}`,
+        Authorization: `Bearer ${llmConfig.apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: llmModel,
+        model: llmConfig.model,
         temperature: 0.6,
         response_format: { type: "json_object" },
         messages: [

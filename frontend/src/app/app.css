@@ -1400,6 +1400,56 @@ h3 {
   color: #9aa7b6;
 }
 
+.llm-budget-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid #253142;
+  border-radius: 14px;
+  background: #0e1724;
+}
+
+.llm-budget-panel > div,
+.llm-budget-panel label {
+  display: grid;
+  gap: 5px;
+}
+
+.llm-budget-panel span,
+.llm-budget-panel label {
+  color: #83f1d8;
+  font-size: 0.75rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.llm-budget-panel strong {
+  color: #edf3fb;
+}
+
+.llm-budget-panel small,
+.llm-budget-panel p {
+  margin: 0;
+  color: #9aa7b6;
+  line-height: 1.45;
+}
+
+.llm-budget-panel select {
+  border: 1px solid #253142;
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: #edf3fb;
+  background: #0c121b;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.llm-budget-panel p {
+  grid-column: 1 / -1;
+}
+
 .asset-section-heading {
   grid-template-columns: 1fr max-content;
   align-items: center;
@@ -1548,6 +1598,7 @@ h3 {
   .competitor-row,
   .dashboard-summary,
   .factory-grid,
+  .llm-budget-panel,
   .asset-edit-grid,
   .ledger-grid,
   .workspace-grid,
