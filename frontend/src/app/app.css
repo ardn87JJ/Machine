@@ -973,6 +973,61 @@ h3 {
   text-transform: uppercase;
 }
 
+.optimizer-panel,
+.optimizer-summary,
+.optimizer-action,
+.optimizer-notes {
+  display: grid;
+  gap: 10px;
+}
+
+.optimizer-summary {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.optimizer-summary article,
+.optimizer-action,
+.optimizer-notes blockquote {
+  margin: 0;
+  padding: 12px;
+  border: 1px solid #253142;
+  border-radius: 14px;
+  background: #101722;
+}
+
+.optimizer-summary article {
+  display: grid;
+  gap: 5px;
+}
+
+.optimizer-summary span,
+.optimizer-action span,
+.optimizer-notes > span {
+  color: #8f9baa;
+  font-size: 0.74rem;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.optimizer-summary strong,
+.optimizer-action strong,
+.optimizer-notes strong {
+  color: #edf3fb;
+}
+
+.optimizer-summary strong {
+  font-size: 1.35rem;
+}
+
+.optimizer-summary small,
+.optimizer-action p,
+.optimizer-notes p {
+  margin: 0;
+  color: #9aa7b6;
+  line-height: 1.5;
+}
+
 .opportunity-layout {
   display: grid;
   grid-template-columns: minmax(0, 2fr) minmax(240px, 0.8fr);

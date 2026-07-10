@@ -500,6 +500,8 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "Démarrer" }));
 
     expect(await screen.findByText("RUNNING")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Apprentissages" })).toBeInTheDocument();
+    expect(screen.getByText("Collecter les résultats de ai music channel")).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("Note résultat"), {
       target: { value: "Bon signal initial, continuer le test." },
@@ -507,6 +509,8 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "Réussi" }));
 
     expect(await screen.findByText("PASSED")).toBeInTheDocument();
+    expect(screen.getByText("Doubler le test sur ai music channel")).toBeInTheDocument();
+    expect(screen.getAllByText("Bon signal initial, continuer le test.").length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "ATTAQUER 1" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "TESTER 1" })).toBeInTheDocument();
     expect(

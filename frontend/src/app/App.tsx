@@ -1320,6 +1320,130 @@ function ExperimentQueue({
   );
 }
 
+function buildOptimizerRecommendation(experiments: ExecutionExperimentSummary[]) {
+  const doneExperiments = experiments.filter((experiment) => experiment.status === "DONE");
+  const passedExperiments = doneExperiments.filter((experiment) => experiment.outcome === "PASSED");
+  const failedExperiments = doneExperiments.filter((experiment) => experiment.outcome === "FAILED");
+  const runningExperiments = experiments.filter((experiment) => experiment.status === "RUNNING");
+  const readyExperiments = experiments.filter((experiment) => experiment.status === "READY");
+  const successRate =
+    doneExperiments.length > 0 ? Math.round((passedExperiments.length / doneExperiments.length) * 100) : 0;
+  const latestNote = doneExperiments.find((experiment) => experiment.result_note.trim().length > 0)?.result_note ?? "";
+
+  if (passedExperiments.length > failedExperiments.length && passedExperiments[0]) {
+    return {
+      status: "ACCELERER",
+      action: `Doubler le test sur ${passedExperiments[0].keyword}`,
+      reason: "Les tests terminés donnent plus de réussites que d’échecs. Priorité au volume contrôlé.",
+      successRate,
+      latestNote,
+      doneCount: doneExperiments.length,
+      runningCount: runningExperiments.length,
+      readyCount: readyExperiments.length,
+      passedCount: passedExperiments.length,
+      failedCount: failedExperiments.length,
+    };
+  }
+
+  if (failedExperiments.length > 0 && failedExperiments.length >= passedExperiments.length) {
+    return {
+      status: "AJUSTER",
+      action: `Changer hook ou angle sur ${failedExperiments[0].keyword}`,
+      reason: "Les derniers tests ne valident pas encore le signal. Réduire le risque avant de produire plus.",
+      successRate,
+      latestNote,
+      doneCount: doneExperiments.length,
+      runningCount: runningExperiments.length,
+      readyCount: readyExperiments.length,
+      passedCount: passedExperiments.length,
+      failedCount: failedExperiments.length,
+    };
+  }
+
+  if (runningExperiments[0]) {
+    return {
+      status: "MESURER",
+      action: `Collecter les résultats de ${runningExperiments[0].keyword}`,
+      reason: "Un test est actif. L’Optimizer attend un résultat exploitable avant de recommander un pivot.",
+      successRate,
+      latestNote,
+      doneCount: doneExperiments.length,
+      runningCount: runningExperiments.length,
+      readyCount: readyExperiments.length,
+      passedCount: passedExperiments.length,
+      failedCount: failedExperiments.length,
+    };
+  }
+
+  return {
+    status: "LANCER",
+    action: readyExperiments[0]
+      ? `Démarrer ${readyExperiments[0].keyword}`
+      : "Créer un test depuis une opportunité ATTAQUER",
+    reason: "Pas assez de résultats terminés pour apprendre. Il faut alimenter la boucle d’expérimentation.",
+    successRate,
+    latestNote,
+    doneCount: doneExperiments.length,
+    runningCount: runningExperiments.length,
+    readyCount: readyExperiments.length,
+    passedCount: passedExperiments.length,
+    failedCount: failedExperiments.length,
+  };
+}
+
+function OptimizerPanel({ experiments }: { experiments: ExecutionExperimentSummary[] }) {
+  const recommendation = buildOptimizerRecommendation(experiments);
+  const learningNotes = experiments
+    .filter((experiment) => experiment.result_note.trim().length > 0)
+    .slice(0, 3);
+
+  return (
+    <section className="cockpit-panel optimizer-panel" aria-labelledby="optimizer-title">
+      <div className="panel-heading">
+        <div>
+          <p className="eyebrow">Optimizer</p>
+          <h2 id="optimizer-title">Apprentissages</h2>
+          <p className="panel-substatus">Lecture des tests terminés et recommandation de prochaine action.</p>
+        </div>
+        <span className="phase">{recommendation.status}</span>
+      </div>
+
+      <div className="optimizer-summary">
+        <article>
+          <span>Réussite</span>
+          <strong>{recommendation.successRate}%</strong>
+          <small>{recommendation.passedCount} réussis · {recommendation.failedCount} échecs</small>
+        </article>
+        <article>
+          <span>Actifs</span>
+          <strong>{recommendation.runningCount}</strong>
+          <small>{recommendation.readyCount} prêts · {recommendation.doneCount} terminés</small>
+        </article>
+      </div>
+
+      <div className="optimizer-action">
+        <span>Recommandation</span>
+        <strong>{recommendation.action}</strong>
+        <p>{recommendation.reason}</p>
+      </div>
+
+      <div className="optimizer-notes">
+        <span>Notes apprises</span>
+        {learningNotes.length === 0 ? (
+          <p className="panel-empty">Aucune note résultat exploitable pour l’instant.</p>
+        ) : (
+          learningNotes.map((experiment) => (
+            <blockquote key={experiment.id}>
+              <strong>{experiment.keyword}</strong>
+              <p>{experiment.result_note}</p>
+            </blockquote>
+          ))
+        )}
+      </div>
+    </section>
+  );
+}
+
 function EmptyState() {
   return (
     <div className="empty-state">
@@ -1621,6 +1745,7 @@ export function App() {
               updateExperimentMutation.mutate({ experiment, patch })
             }
           />
+          <OptimizerPanel experiments={edgeExperiments} />
           <AnalystConsole backendOnline={backendOnline} opportunity={selectedOpportunity} />
           <ProducerConsole opportunity={selectedOpportunity} />
         </aside>
