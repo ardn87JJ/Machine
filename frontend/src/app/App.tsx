@@ -1319,6 +1319,42 @@ function formatDraftForExport(draft: ProductionDraftSummary) {
   ].join("\n");
 }
 
+function buildFactoryVariants(draft: ProductionDraftSummary) {
+  const keyword = draft.keyword;
+  const baseTitle = draft.title;
+  const firstHook = draft.content.hooks[0] ?? `J'ai teste ${keyword} pour voir si la niche tient.`;
+
+  return {
+    titles: [
+      baseTitle,
+      `${keyword}: le test qui decide si on attaque`,
+      `J'ai analyse ${keyword}: opportunite ou piege ?`,
+      `${keyword}: 45 secondes pour valider la niche`,
+    ],
+    hooks: [
+      firstHook,
+      `La plupart des createurs ratent ${keyword} pour une raison simple.`,
+      `Si ce signal tient, ${keyword} devient une niche a tester maintenant.`,
+      `J'ai trouve le point faible des contenus ${keyword}.`,
+    ],
+    checklist: [
+      "Choisir 1 hook principal et 1 hook de secours.",
+      "Monter en vertical 9:16 avec sous-titres lisibles.",
+      "Afficher une preuve marche avant 12 secondes.",
+      "Publier un premier test court, puis noter vues, commentaires et retention.",
+      "Marquer le draft USED seulement apres publication ou test reel.",
+    ],
+  };
+}
+
+function findDraftExperiment(
+  draft: ProductionDraftSummary,
+  experiments: ExecutionExperimentSummary[],
+) {
+  return experiments.find((experiment) => experiment.id === draft.experiment_id) ??
+    experiments.find((experiment) => experiment.opportunity_scan_id === draft.opportunity_scan_id);
+}
+
 async function copyTextToClipboard(text: string) {
   if (navigator.clipboard?.writeText) {
     await navigator.clipboard.writeText(text);
@@ -1351,12 +1387,18 @@ function ProductionDraftsPanel({
   isLoading,
   error,
   isUpdatingDraft,
+  selectedDraftId,
+  experiments,
+  onSelectDraft,
   onUpdateDraftStatus,
 }: {
   drafts: ProductionDraftSummary[];
   isLoading: boolean;
   error: unknown;
   isUpdatingDraft: boolean;
+  selectedDraftId: string | null;
+  experiments: ExecutionExperimentSummary[];
+  onSelectDraft: (draftId: string) => void;
   onUpdateDraftStatus: (draft: ProductionDraftSummary, status: ProductionDraftSummary["status"]) => void;
 }) {
   return (
@@ -1379,13 +1421,31 @@ function ProductionDraftsPanel({
         ) : null}
         {drafts.slice(0, 5).map((draft) => (
           <article className={`draft-card draft-card--${draft.status.toLowerCase()}`} key={draft.id}>
+            {(() => {
+              const experiment = findDraftExperiment(draft, experiments);
+              const isSelected = selectedDraftId === draft.id;
+
+              return (
+                <>
             <div>
               <span>{draft.status}</span>
               <strong>{draft.title}</strong>
               <small>{draft.keyword} · {formatDate(draft.created_at)}</small>
             </div>
             <p>{draft.content.concept}</p>
+            {experiment ? (
+              <p className="draft-learning">
+                Test {experiment.status} · {experiment.outcome} · {experiment.result_note || experiment.success_criteria}
+              </p>
+            ) : null}
             <div className="draft-actions">
+              <button
+                disabled={isSelected}
+                onClick={() => onSelectDraft(draft.id)}
+                type="button"
+              >
+                {isSelected ? "Draft actif" : "Activer"}
+              </button>
               <button
                 disabled={isUpdatingDraft || draft.status === "READY"}
                 onClick={() => onUpdateDraftStatus(draft, "READY")}
@@ -1423,9 +1483,101 @@ function ProductionDraftsPanel({
                 <li key={hook}>{hook}</li>
               ))}
             </ul>
+                </>
+              );
+            })()}
           </article>
         ))}
       </div>
+    </section>
+  );
+}
+
+function ContentFactoryWorkbench({
+  draft,
+  experiment,
+}: {
+  draft: ProductionDraftSummary | undefined;
+  experiment: ExecutionExperimentSummary | undefined;
+}) {
+  if (!draft) {
+    return (
+      <section className="cockpit-panel content-factory" aria-labelledby="content-factory-title">
+        <div className="panel-heading">
+          <div>
+            <p className="eyebrow">Content Factory</p>
+            <h2 id="content-factory-title">Atelier draft</h2>
+            <p className="panel-substatus">Sauvegarde ou active un draft pour préparer les variantes.</p>
+          </div>
+          <span className="phase">EN ATTENTE</span>
+        </div>
+        <p className="panel-empty">Aucun draft actif. Le prochain pack sauvegardé pourra être préparé ici.</p>
+      </section>
+    );
+  }
+
+  const variants = buildFactoryVariants(draft);
+  const detailedScript = buildDetailedScript(draft);
+
+  return (
+    <section className="cockpit-panel content-factory" aria-labelledby="content-factory-title">
+      <div className="panel-heading">
+        <div>
+          <p className="eyebrow">Content Factory</p>
+          <h2 id="content-factory-title">Atelier draft</h2>
+          <p className="panel-substatus">{draft.keyword} · {draft.status}</p>
+        </div>
+        <span className="phase">{experiment?.outcome ?? "NO TEST"}</span>
+      </div>
+
+      <div className="factory-grid">
+        <article>
+          <span>Variantes titres</span>
+          <ol>
+            {variants.titles.map((title) => (
+              <li key={title}>{title}</li>
+            ))}
+          </ol>
+        </article>
+        <article>
+          <span>Variantes hooks</span>
+          <ol>
+            {variants.hooks.map((hook) => (
+              <li key={hook}>{hook}</li>
+            ))}
+          </ol>
+        </article>
+      </div>
+
+      <div className="factory-checklist">
+        <span>Checklist production courte</span>
+        {variants.checklist.map((item) => (
+          <label key={item}>
+            <input type="checkbox" />
+            {item}
+          </label>
+        ))}
+      </div>
+
+      <div className="factory-script">
+        <span>Script prêt à tourner</span>
+        <ol>
+          {detailedScript.map((step) => (
+            <li key={step.label}>
+              <strong>{step.label}</strong>
+              <p>{step.text}</p>
+            </li>
+          ))}
+        </ol>
+      </div>
+
+      {experiment ? (
+        <div className="factory-learning">
+          <span>Liaison test</span>
+          <strong>{experiment.status} · {experiment.outcome}</strong>
+          <p>{experiment.result_note || experiment.success_criteria}</p>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -1641,15 +1793,21 @@ function ExperimentQueue({
   );
 }
 
-function buildOptimizerRecommendation(experiments: ExecutionExperimentSummary[]) {
+function buildOptimizerRecommendation(
+  experiments: ExecutionExperimentSummary[],
+  drafts: ProductionDraftSummary[],
+) {
   const doneExperiments = experiments.filter((experiment) => experiment.status === "DONE");
   const passedExperiments = doneExperiments.filter((experiment) => experiment.outcome === "PASSED");
   const failedExperiments = doneExperiments.filter((experiment) => experiment.outcome === "FAILED");
   const runningExperiments = experiments.filter((experiment) => experiment.status === "RUNNING");
   const readyExperiments = experiments.filter((experiment) => experiment.status === "READY");
+  const readyDrafts = drafts.filter((draft) => draft.status === "READY");
+  const usedDrafts = drafts.filter((draft) => draft.status === "USED");
   const successRate =
     doneExperiments.length > 0 ? Math.round((passedExperiments.length / doneExperiments.length) * 100) : 0;
   const latestNote = doneExperiments.find((experiment) => experiment.result_note.trim().length > 0)?.result_note ?? "";
+  const latestUsedDraft = usedDrafts[0];
 
   if (passedExperiments.length > failedExperiments.length && passedExperiments[0]) {
     return {
@@ -1663,6 +1821,9 @@ function buildOptimizerRecommendation(experiments: ExecutionExperimentSummary[])
       readyCount: readyExperiments.length,
       passedCount: passedExperiments.length,
       failedCount: failedExperiments.length,
+      readyDraftCount: readyDrafts.length,
+      usedDraftCount: usedDrafts.length,
+      latestUsedDraft,
     };
   }
 
@@ -1678,6 +1839,9 @@ function buildOptimizerRecommendation(experiments: ExecutionExperimentSummary[])
       readyCount: readyExperiments.length,
       passedCount: passedExperiments.length,
       failedCount: failedExperiments.length,
+      readyDraftCount: readyDrafts.length,
+      usedDraftCount: usedDrafts.length,
+      latestUsedDraft,
     };
   }
 
@@ -1693,6 +1857,9 @@ function buildOptimizerRecommendation(experiments: ExecutionExperimentSummary[])
       readyCount: readyExperiments.length,
       passedCount: passedExperiments.length,
       failedCount: failedExperiments.length,
+      readyDraftCount: readyDrafts.length,
+      usedDraftCount: usedDrafts.length,
+      latestUsedDraft,
     };
   }
 
@@ -1709,11 +1876,20 @@ function buildOptimizerRecommendation(experiments: ExecutionExperimentSummary[])
     readyCount: readyExperiments.length,
     passedCount: passedExperiments.length,
     failedCount: failedExperiments.length,
+    readyDraftCount: readyDrafts.length,
+    usedDraftCount: usedDrafts.length,
+    latestUsedDraft,
   };
 }
 
-function OptimizerPanel({ experiments }: { experiments: ExecutionExperimentSummary[] }) {
-  const recommendation = buildOptimizerRecommendation(experiments);
+function OptimizerPanel({
+  experiments,
+  drafts,
+}: {
+  experiments: ExecutionExperimentSummary[];
+  drafts: ProductionDraftSummary[];
+}) {
+  const recommendation = buildOptimizerRecommendation(experiments, drafts);
   const learningNotes = experiments
     .filter((experiment) => experiment.result_note.trim().length > 0)
     .slice(0, 3);
@@ -1740,6 +1916,11 @@ function OptimizerPanel({ experiments }: { experiments: ExecutionExperimentSumma
           <strong>{recommendation.runningCount}</strong>
           <small>{recommendation.readyCount} prêts · {recommendation.doneCount} terminés</small>
         </article>
+        <article>
+          <span>Drafts</span>
+          <strong>{recommendation.readyDraftCount}</strong>
+          <small>{recommendation.usedDraftCount} utilisés · prêts Content Factory</small>
+        </article>
       </div>
 
       <div className="optimizer-action">
@@ -1761,6 +1942,14 @@ function OptimizerPanel({ experiments }: { experiments: ExecutionExperimentSumma
           ))
         )}
       </div>
+
+      {recommendation.latestUsedDraft ? (
+        <div className="optimizer-action">
+          <span>Dernier draft utilisé</span>
+          <strong>{recommendation.latestUsedDraft.keyword}</strong>
+          <p>{recommendation.latestUsedDraft.title}</p>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -1782,6 +1971,7 @@ export function App() {
   const queryClient = useQueryClient();
   const [localRuns, setLocalRuns] = useState<LocalRun[]>([]);
   const [selectedOpportunityId, setSelectedOpportunityId] = useState<string | null>(null);
+  const [selectedDraftId, setSelectedDraftId] = useState<string | null>(null);
   const [decisionFilter, setDecisionFilter] = useState<DecisionFilter>("ALL");
   const verifiedFallbackRun = buildVerifiedFallbackRun();
 
@@ -2020,6 +2210,14 @@ export function App() {
   const activeDraft = productionDrafts.find(
     (draft) => draft.opportunity_scan_id === selectedOpportunity?.scanId,
   );
+  const activeFactoryDraft =
+    productionDrafts.find((draft) => draft.id === selectedDraftId) ??
+    activeDraft ??
+    productionDrafts[0] ??
+    undefined;
+  const activeFactoryExperiment = activeFactoryDraft
+    ? findDraftExperiment(activeFactoryDraft, edgeExperiments)
+    : undefined;
 
   function runLocalScan({ count, keyword }: { count: number; keyword: string }) {
     const batchSize = count === 1 ? 5 : Math.max(5, Math.min(count, 12));
@@ -2112,7 +2310,7 @@ export function App() {
               updateExperimentMutation.mutate({ experiment, patch })
             }
           />
-          <OptimizerPanel experiments={edgeExperiments} />
+          <OptimizerPanel drafts={productionDrafts} experiments={edgeExperiments} />
           <AnalystConsole backendOnline={backendOnline} opportunity={selectedOpportunity} />
           <ProducerConsole
             activeDraft={activeDraft}
@@ -2121,14 +2319,21 @@ export function App() {
             onSaveDraft={(pack) => createProductionDraftMutation.mutate(pack)}
             opportunity={selectedOpportunity}
           />
+          <ContentFactoryWorkbench
+            draft={activeFactoryDraft}
+            experiment={activeFactoryExperiment}
+          />
           <ProductionDraftsPanel
             drafts={productionDrafts}
             error={edgeProductionDraftsQuery.error}
+            experiments={edgeExperiments}
             isLoading={edgeProductionDraftsQuery.isLoading}
             isUpdatingDraft={updateProductionDraftMutation.isPending}
+            onSelectDraft={setSelectedDraftId}
             onUpdateDraftStatus={(draft, status) =>
               updateProductionDraftMutation.mutate({ draft, status })
             }
+            selectedDraftId={activeFactoryDraft?.id ?? null}
           />
         </aside>
       </section>

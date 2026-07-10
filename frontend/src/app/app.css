@@ -1227,6 +1227,11 @@ h3 {
   padding-left: 18px;
 }
 
+.draft-learning {
+  border-left: 2px solid #1f6f5f;
+  padding-left: 9px;
+}
+
 .draft-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1270,6 +1275,73 @@ h3 {
   margin-top: 4px;
 }
 
+.content-factory,
+.factory-grid,
+.factory-checklist,
+.factory-script,
+.factory-learning {
+  display: grid;
+  gap: 12px;
+}
+
+.factory-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.factory-grid article,
+.factory-checklist,
+.factory-script,
+.factory-learning {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #253142;
+  border-radius: 14px;
+  background: #101722;
+}
+
+.factory-grid span,
+.factory-checklist span,
+.factory-script span,
+.factory-learning span {
+  color: #83f1d8;
+  font-size: 0.75rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.factory-grid ol,
+.factory-script ol {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+
+.factory-grid li,
+.factory-script li,
+.factory-script p,
+.factory-learning p,
+.factory-checklist label {
+  color: #9aa7b6;
+  line-height: 1.5;
+}
+
+.factory-checklist label {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.factory-checklist input {
+  margin-top: 4px;
+  accent-color: #1f6f5f;
+}
+
+.factory-script strong,
+.factory-learning strong {
+  color: #edf3fb;
+}
+
 .empty-state {
   border-color: #2d3a4d;
 }
@@ -1283,6 +1355,11 @@ h3 {
     position: static;
     grid-column: 1 / -1;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .content-factory,
+  .production-drafts {
+    grid-column: 1 / -1;
   }
 }
 
@@ -1300,6 +1377,7 @@ h3 {
   .brief-grid,
   .competitor-row,
   .dashboard-summary,
+  .factory-grid,
   .ledger-grid,
   .workspace-grid,
   .workspace-column--decision {

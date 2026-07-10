@@ -45,6 +45,9 @@ Le format suit les principes de [Keep a Changelog](https://keepachangelog.com/fr
 - actions Producteur pour sauvegarder, marquer `READY` / `USED`, copier et exporter un
   draft de production ;
 - affichage d’un script détaillé à partir d’un draft sauvegardé.
+- atelier Content Factory avec draft actif, variantes de hooks/titres, checklist de
+  production courte et liaison visible avec le test associé ;
+- Optimizer enrichi avec les drafts prêts et utilisés.
 
 ### Décidé
 

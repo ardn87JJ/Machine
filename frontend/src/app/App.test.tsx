@@ -610,6 +610,12 @@ describe("App", () => {
     expect(await screen.findByRole("button", { name: "Draft sauvegardé" })).toBeDisabled();
     expect(screen.getByRole("heading", { name: "Drafts production" })).toBeInTheDocument();
     expect(screen.getAllByText("J’ai créé une musique IA addictive sur ai music channel").length).toBeGreaterThan(0);
+    expect(screen.getByRole("heading", { name: "Atelier draft" })).toBeInTheDocument();
+    expect(screen.getByText("Variantes titres")).toBeInTheDocument();
+    expect(screen.getByText("Variantes hooks")).toBeInTheDocument();
+    expect(screen.getByText("Checklist production courte")).toBeInTheDocument();
+    expect(screen.getByText("Liaison test")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Draft actif" })).toBeDisabled();
     expect(screen.getByText("Script détaillé")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Copier" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Exporter TXT" })).toBeInTheDocument();

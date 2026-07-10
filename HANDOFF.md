@@ -29,7 +29,7 @@ scorables, tests actionnables, drafts de production et apprentissages.
 
 - Depot Git : `ardn87JJ/Machine`
 - Branche : `main`
-- Dernier commit stable avant cette note : `22d2016 Persist production drafts`
+- Dernier commit stable au depart de cette tranche : `768e0a9 Make production drafts actionable`
 - App publique : `https://ardn87jj.github.io/Machine/`
 - Supabase project ref : `uscmdnzbwvsjrocemset`
 - Edge Function active : `run-scout`
@@ -45,16 +45,10 @@ scorables, tests actionnables, drafts de production et apprentissages.
 - afficher une recommandation Optimizer simple ;
 - generer un pack Producteur depuis l'opportunite selectionnee ;
 - sauvegarder un draft Producteur dans Supabase.
+- marquer un draft `READY` ou `USED`, copier/exporter le pack et voir un script
+  detaille.
 
 ## Tranche en cours
-
-Rendre les drafts Producteur actionnables :
-
-- changer le statut `DRAFT`, `READY`, `USED` ;
-- copier/exporter le pack ;
-- afficher un script detaille exploitable depuis le draft sauvegarde.
-
-## Prochaine etape apres cette tranche
 
 Transformer les drafts en vraie file Content Factory :
 
@@ -62,3 +56,12 @@ Transformer les drafts en vraie file Content Factory :
 - generer plusieurs variantes de hooks/titres ;
 - ajouter une checklist de production courte ;
 - relier un draft utilise a un resultat de test pour alimenter l'Optimizer.
+
+## Prochaine etape apres cette tranche
+
+Approfondir la Content Factory :
+
+- sauvegarder les variantes choisies dans Supabase ;
+- ajouter un vrai etat de checklist persistant ;
+- produire un plan de montage structure ;
+- preparer les prompts voix.

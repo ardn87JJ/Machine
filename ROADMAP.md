@@ -95,8 +95,12 @@ Critère de sortie :
 - [x] Drafts sauvegardés dans Supabase.
 - [x] Statuts de draft `DRAFT`, `READY`, `USED`.
 - [x] Copie/export texte d’un draft.
-- [ ] Variantes de hooks/titres.
-- [ ] Checklist de production courte.
+- [x] Sélection d’un draft actif.
+- [x] Variantes de hooks/titres.
+- [x] Checklist de production courte.
+- [x] Liaison visuelle draft utilisé / résultat de test dans l’Optimizer.
+- [ ] Variantes choisies sauvegardées.
+- [ ] Checklist persistante.
 - [ ] Prompts voix.
 - [ ] Plan de montage.
 
