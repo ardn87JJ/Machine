@@ -163,6 +163,10 @@ Deno.serve(async (request) => {
         return json(await listProductionDrafts(request));
       }
 
+      if (url.searchParams.get("view") === "llm-status") {
+        return json(buildLlmStatus());
+      }
+
       return json(await listScoutLedger(request));
     } catch (error) {
       const message = error instanceof Error ? error.message : "Erreur inconnue.";
@@ -446,6 +450,36 @@ function resolveLlmConfig(provider: LlmProvider): LlmConfig | null {
     baseUrl: pickEnv(["LOCAL_LLM_BASE_URL", "local_llm_base_url"]),
     model: pickEnv(["LOCAL_LLM_MODEL", "local_llm_model"]) || "llama3.1:8b",
   });
+}
+
+function buildLlmStatus() {
+  const providers: LlmProvider[] = ["fallback", "openai", "openrouter", "groq", "local"];
+
+  return {
+    providers: providers.map((provider) => {
+      const config = resolveLlmConfig(provider);
+
+      if (provider === "fallback") {
+        return {
+          provider,
+          configured: true,
+          model: "deterministic",
+          base_url_configured: true,
+          message: "Disponible sans coût API.",
+        };
+      }
+
+      return {
+        provider,
+        configured: Boolean(config),
+        model: config?.model ?? "",
+        base_url_configured: Boolean(config?.baseUrl),
+        message: config
+          ? "Configuration présente. Le fournisseur peut encore refuser selon quota, modèle ou billing."
+          : buildMissingLlmConfigMessage(provider),
+      };
+    }),
+  };
 }
 
 function resolveOpenAiCompatibleConfig(config: LlmConfig): LlmConfig | null {

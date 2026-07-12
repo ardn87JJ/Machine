@@ -201,6 +201,18 @@ interface UpdateEdgeProductionDraftResponse {
   draft: ProductionDraftSummary;
 }
 
+export interface EdgeLlmStatusSummary {
+  provider: LlmProvider;
+  configured: boolean;
+  model: string;
+  base_url_configured: boolean;
+  message: string;
+}
+
+interface EdgeLlmStatusResponse {
+  providers: EdgeLlmStatusSummary[];
+}
+
 export interface RegenerateEdgeProductionAssetResponse {
   asset: ProductionAsset;
   source: "llm" | "fallback";
@@ -520,4 +532,28 @@ export async function regenerateEdgeProductionAsset(payload: {
   }
 
   return response.json() as Promise<RegenerateEdgeProductionAssetResponse>;
+}
+
+export async function listEdgeLlmStatus() {
+  const response = await fetch(`${SCOUT_FUNCTION_URL}?view=llm-status`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    let message = `La fonction Scout a repondu avec le statut ${response.status}.`;
+
+    try {
+      const errorPayload = (await response.json()) as { message?: string };
+      message = errorPayload.message || message;
+    } catch {
+      // Keep the status-based message when the Edge Function does not return JSON.
+    }
+
+    throw new Error(message);
+  }
+
+  return response.json() as Promise<EdgeLlmStatusResponse>;
 }

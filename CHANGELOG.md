@@ -71,6 +71,8 @@ Le format suit les principes de [Keep a Changelog](https://keepachangelog.com/fr
   session avant régénération d’assets.
 - correction de l’ouverture Factory avec d’anciens drafts contenant `factory`
   mais pas encore `assets`.
+- diagnostic non sensible des fournisseurs LLM depuis Supabase (`llm-status`) et
+  garde-fou de budget session avant régénération payante.
 
 ### Décidé
 

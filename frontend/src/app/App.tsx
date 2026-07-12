@@ -4,6 +4,7 @@ import {
   createScan,
   createEdgeExperiment,
   createEdgeProductionDraft,
+  listEdgeLlmStatus,
   getScanAnalysis,
   listEdgeExperiments,
   listEdgeProductionDrafts,
@@ -19,6 +20,7 @@ import {
   updateEdgeProductionDraftStatus,
   type ExecutionPlan,
   type ExecutionExperimentSummary,
+  type EdgeLlmStatusSummary,
   type LlmProvider,
   type OpportunitySummary,
   type ProductionAsset,
@@ -1703,6 +1705,7 @@ function ContentFactoryWorkbench({
   isRegeneratingAsset,
   regeneratingAssetScene,
   llmProvider,
+  llmProviderStatuses,
   onSaveFactory,
   onRegenerateAsset,
   onSelectLlmProvider,
@@ -1713,6 +1716,7 @@ function ContentFactoryWorkbench({
   isRegeneratingAsset: boolean;
   regeneratingAssetScene: string | null;
   llmProvider: LlmProvider;
+  llmProviderStatuses: EdgeLlmStatusSummary[];
   onSaveFactory: (
     draft: ProductionDraftSummary,
     content: ProductionPackContent,
@@ -1786,7 +1790,12 @@ function ContentFactoryWorkbench({
   const completedCount = doneChecklistItems.length;
   const completedAssetCount = assets.filter((asset) => asset.status === "DONE").length;
   const selectedProviderConfig = llmProviderOptions.find((option) => option.id === llmProvider) ?? llmProviderOptions[0];
+  const selectedProviderStatus = llmProviderStatuses.find((status) => status.provider === llmProvider);
   const estimatedCostUsd = llmRunCount * selectedProviderConfig.costPerRunUsd;
+  const nextRunCostUsd = selectedProviderConfig.costPerRunUsd;
+  const sessionBudgetLimitUsd = 0.25;
+  const wouldExceedSessionBudget = estimatedCostUsd + nextRunCostUsd > sessionBudgetLimitUsd;
+  const providerExplicitlyUnavailable = selectedProviderStatus?.configured === false;
   const updateAsset = (scene: string, patch: Partial<Omit<ProductionAsset, "scene">>) => {
     const sourceAsset = assets.find((asset) => asset.scene === scene);
     const sourceEdit: Omit<ProductionAsset, "scene"> = sourceAsset
@@ -1944,6 +1953,14 @@ function ContentFactoryWorkbench({
           </select>
         </label>
         <p>{selectedProviderConfig.description}</p>
+        <p>
+          Statut: {selectedProviderStatus?.configured ? "configuré" : selectedProviderStatus ? "non configuré" : "lecture..."}
+          {selectedProviderStatus?.model ? ` · ${selectedProviderStatus.model}` : ""}
+          {selectedProviderStatus?.message ? ` · ${selectedProviderStatus.message}` : ""}
+        </p>
+        {nextRunCostUsd > 0 ? (
+          <p>Garde-fou session: {sessionBudgetLimitUsd.toFixed(2)} $ estimés maximum.</p>
+        ) : null}
       </div>
 
       <div className="factory-script">
@@ -2029,7 +2046,7 @@ function ContentFactoryWorkbench({
               </div>
               <div className="asset-actions">
                 <button
-                  disabled={isRegeneratingAsset}
+                  disabled={isRegeneratingAsset || providerExplicitlyUnavailable || wouldExceedSessionBudget}
                   onClick={async () => {
                     setAssetRegenerationError("");
                     setAssetRegenerationNotice("");
@@ -2529,6 +2546,13 @@ export function App() {
     refetchInterval: 30_000,
   });
 
+  const edgeLlmStatusQuery = useQuery({
+    queryKey: ["edge-llm-status"],
+    queryFn: listEdgeLlmStatus,
+    retry: false,
+    refetchInterval: 60_000,
+  });
+
   const createExperimentMutation = useMutation({
     mutationFn: (opportunity: OpportunityRecord) =>
       createEdgeExperiment({
@@ -2898,6 +2922,7 @@ export function App() {
             isSavingFactory={saveFactoryDraftMutation.isPending}
             isRegeneratingAsset={regenerateAssetMutation.isPending}
             llmProvider={llmProvider}
+            llmProviderStatuses={edgeLlmStatusQuery.data?.providers ?? []}
             onSelectLlmProvider={setLlmProvider}
             regeneratingAssetScene={regeneratingAssetScene}
             onRegenerateAsset={async (draft, asset, provider) => {

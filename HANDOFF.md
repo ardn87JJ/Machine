@@ -65,10 +65,13 @@ scorables, tests actionnables, drafts de production et apprentissages.
 - selectionner le fournisseur LLM depuis Content Factory : `fallback`,
   `openai`, `openrouter`, `groq` ou `local`.
 - suivre un budget IA estime par session dans l'atelier Factory.
+- lire un diagnostic fournisseur non sensible via `view=llm-status` :
+  configure/non configure, modele et message, sans exposer les secrets.
+- bloquer les regenerations payantes quand le garde-fou de session est depasse.
 
 ## Tranche en cours
 
-Configurer le fournisseur LLM voulu :
+Tester un fournisseur non OpenAI :
 
 - OpenAI : `OPENAI_API_KEY` ou `llm_api_key`, avec quota/billing actif.
 - OpenRouter : `OPENROUTER_API_KEY` et optionnellement `OPENROUTER_MODEL`.
@@ -78,8 +81,8 @@ Configurer le fournisseur LLM voulu :
 
 ## Prochaine etape apres cette tranche
 
-Tester un fournisseur non OpenAI :
+Ajouter un vrai historique de coûts :
 
-- choisir OpenRouter, Groq ou Local dans l'interface ;
-- ajouter les secrets Edge Function correspondants ;
-- relancer `Regenerer` et verifier `source: "llm"` ou le message fallback.
+- table Supabase des appels LLM ;
+- cout estime par appel stocke ;
+- budget journalier/mensuel persistant au lieu d'un compteur de session.

@@ -288,6 +288,25 @@ describe("App", () => {
 
       if (url.includes("/functions/v1/run-scout")) {
         if (init?.method === "GET") {
+          if (url.includes("view=llm-status")) {
+            return Promise.resolve(
+              new Response(JSON.stringify({
+                providers: [
+                  {
+                    provider: "fallback",
+                    configured: true,
+                    model: "deterministic",
+                    base_url_configured: true,
+                    message: "Disponible sans coût API.",
+                  },
+                ],
+              }), {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+              }),
+            );
+          }
+
           if (url.includes("view=experiments")) {
             return Promise.resolve(
               new Response(JSON.stringify({ experiments }), {
@@ -699,6 +718,7 @@ describe("App", () => {
     expect(screen.getByText("Checklist production courte")).toBeInTheDocument();
     expect(screen.getByText("Budget IA")).toBeInTheDocument();
     expect(screen.getByLabelText("Fournisseur LLM")).toHaveValue("fallback");
+    expect(screen.getByText(/Statut: configuré/)).toBeInTheDocument();
     expect(screen.getByText("Liaison test")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Factory/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Draft actif" })).toBeDisabled();
