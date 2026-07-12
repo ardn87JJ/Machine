@@ -603,6 +603,25 @@ describe("App", () => {
           );
         }
 
+        if ((body as { action?: string }).action === "update-llm-budget-settings") {
+          return Promise.resolve(
+            new Response(JSON.stringify({
+              budget: {
+                settings: {
+                  dailyLimitUsd: Number((body as { dailyLimitUsd: number }).dailyLimitUsd),
+                  monthlyLimitUsd: Number((body as { monthlyLimitUsd: number }).monthlyLimitUsd),
+                  enforceLimits: Boolean((body as { enforceLimits: boolean }).enforceLimits),
+                },
+                todayCostUsd: 0.006,
+                monthCostUsd: 0.012,
+              },
+            }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            }),
+          );
+        }
+
         const keyword = body.keyword ?? "ai music channel";
         const scanId = `scan-${keyword.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`;
 
@@ -745,8 +764,14 @@ describe("App", () => {
     expect(screen.getByText("Budget IA")).toBeInTheDocument();
     expect(screen.getByText("Historique")).toBeInTheDocument();
     expect(screen.getByText("0.0060 $ aujourd'hui")).toBeInTheDocument();
+    expect(screen.getByLabelText("Limite jour IA")).toHaveValue(0.25);
+    expect(screen.getByLabelText("Limite mois IA")).toHaveValue(5);
+    expect(screen.getByLabelText("Bloquer dépassement budget IA")).toBeChecked();
     expect(screen.getByLabelText("Fournisseur LLM")).toHaveValue("fallback");
     expect(screen.getByText(/Statut: configuré/)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Limite jour IA"), { target: { value: "0.5" } });
+    fireEvent.click(screen.getByRole("button", { name: "Sauvegarder budget IA" }));
+    expect(await screen.findByText("Budget IA serveur sauvegarde.")).toBeInTheDocument();
     expect(screen.getByText("Liaison test")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Factory/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Draft actif" })).toBeDisabled();

@@ -73,16 +73,10 @@ scorables, tests actionnables, drafts de production et apprentissages.
 - afficher le cout IA persistant du jour et le total recent dans Budget IA.
 - appliquer une limite serveur persistante depuis `llm_budget_settings` avant
   chaque regeneration payante.
+- modifier depuis Content Factory les limites budget IA jour/mois et le blocage
+  serveur, sans SQL manuel.
 
 ## Tranche en cours
-
-Rendre la configuration IA modifiable depuis l'interface :
-
-- afficher les limites journaliere et mensuelle renvoyees par Supabase ;
-- permettre de modifier ces limites sans SQL manuel ;
-- exposer le statut `enforce_limits` dans le panneau Budget IA.
-
-## Prochaine etape apres cette tranche
 
 Ajouter la configuration par fournisseur dans Supabase :
 
@@ -90,3 +84,11 @@ Ajouter la configuration par fournisseur dans Supabase :
 - modele par provider ;
 - URLs compatibles OpenAI pour local/OpenRouter/Groq ;
 - estimation de cout par provider.
+
+## Prochaine etape apres cette tranche
+
+Brancher la selection fournisseur sur cette configuration :
+
+- lire les providers depuis Supabase ;
+- afficher les couts par provider dans Factory ;
+- eviter les valeurs hardcodees dans le frontend et l'Edge Function.

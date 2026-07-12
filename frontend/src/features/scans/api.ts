@@ -228,6 +228,12 @@ export interface EdgeLlmUsageEvent {
   created_at: string;
 }
 
+export interface EdgeLlmBudgetSettings {
+  dailyLimitUsd: number;
+  monthlyLimitUsd: number;
+  enforceLimits: boolean;
+}
+
 export interface EdgeLlmUsageResponse {
   summary: {
     total_calls: number;
@@ -236,16 +242,16 @@ export interface EdgeLlmUsageResponse {
     today_estimated_cost_usd: number;
   };
   budget: {
-    settings: {
-      dailyLimitUsd: number;
-      monthlyLimitUsd: number;
-      enforceLimits: boolean;
-    };
+    settings: EdgeLlmBudgetSettings;
     todayCostUsd: number;
     monthCostUsd: number;
   };
   events: EdgeLlmUsageEvent[];
   warning?: string;
+}
+
+export interface UpdateEdgeLlmBudgetSettingsResponse {
+  budget: EdgeLlmUsageResponse["budget"];
 }
 
 export interface RegenerateEdgeProductionAssetResponse {
@@ -615,4 +621,33 @@ export async function listEdgeLlmUsage() {
   }
 
   return response.json() as Promise<EdgeLlmUsageResponse>;
+}
+
+export async function updateEdgeLlmBudgetSettings(settings: EdgeLlmBudgetSettings) {
+  const response = await fetch(SCOUT_FUNCTION_URL, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      action: "update-llm-budget-settings",
+      ...settings,
+    }),
+  });
+
+  if (!response.ok) {
+    let message = `La fonction Scout a repondu avec le statut ${response.status}.`;
+
+    try {
+      const errorPayload = (await response.json()) as { message?: string };
+      message = errorPayload.message || message;
+    } catch {
+      // Keep the status-based message when the Edge Function does not return JSON.
+    }
+
+    throw new Error(message);
+  }
+
+  return response.json() as Promise<UpdateEdgeLlmBudgetSettingsResponse>;
 }

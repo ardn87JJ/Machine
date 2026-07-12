@@ -77,6 +77,8 @@ Le format suit les principes de [Keep a Changelog](https://keepachangelog.com/fr
   lecture d’un résumé de coût persistant dans le panneau Budget IA.
 - table Supabase `llm_budget_settings` et blocage serveur des régénérations
   payantes si le coût estimé dépasse les limites journalières ou mensuelles.
+- édition des limites Budget IA depuis Content Factory : montant journalier,
+  montant mensuel et activation du blocage serveur.
 
 ### Décidé
 

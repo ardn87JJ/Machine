@@ -233,6 +233,11 @@ Deno.serve(async (request) => {
       return json(await regenerateProductionAsset(body));
     }
 
+    if (body.action === "update-llm-budget-settings") {
+      assertConfigured();
+      return json(await updateLlmBudgetSettings(body));
+    }
+
     const keyword = normalizeKeyword(String(body.keyword ?? ""));
 
     if (keyword.length < 2) {
@@ -877,6 +882,57 @@ function getDefaultLlmBudgetSettings(): LlmBudgetSettings {
     monthlyLimitUsd: 5,
     enforceLimits: true,
   };
+}
+
+async function updateLlmBudgetSettings(body: JsonRecord) {
+  const dailyLimitUsd = parseBudgetLimit(body.dailyLimitUsd ?? body.daily_limit_usd, "dailyLimitUsd");
+  const monthlyLimitUsd = parseBudgetLimit(body.monthlyLimitUsd ?? body.monthly_limit_usd, "monthlyLimitUsd");
+  const enforceLimits = body.enforceLimits ?? body.enforce_limits;
+
+  if (monthlyLimitUsd < dailyLimitUsd) {
+    throw new Error("La limite mensuelle doit etre superieure ou egale a la limite journaliere.");
+  }
+
+  const rows = await supabaseFetch<JsonRecord[]>(
+    "/rest/v1/llm_budget_settings?on_conflict=id",
+    {
+      method: "POST",
+      headers: { Prefer: "resolution=merge-duplicates,return=representation" },
+      body: JSON.stringify({
+        id: "default",
+        daily_limit_usd: dailyLimitUsd,
+        monthly_limit_usd: monthlyLimitUsd,
+        enforce_limits: enforceLimits !== false,
+        updated_at: new Date().toISOString(),
+      }),
+    },
+  );
+  const row = rows[0];
+
+  if (!row) {
+    throw new Error("Impossible de sauvegarder les limites budget IA.");
+  }
+
+  return {
+    budget: {
+      ...(await getLlmBudgetSnapshot()),
+      settings: {
+        dailyLimitUsd: toPositiveNumber(row.daily_limit_usd, dailyLimitUsd),
+        monthlyLimitUsd: toPositiveNumber(row.monthly_limit_usd, monthlyLimitUsd),
+        enforceLimits: row.enforce_limits !== false,
+      },
+    },
+  };
+}
+
+function parseBudgetLimit(value: unknown, fieldName: string) {
+  const numberValue = Number(value);
+
+  if (!Number.isFinite(numberValue) || numberValue < 0) {
+    throw new Error(`${fieldName} doit etre un nombre positif ou zero.`);
+  }
+
+  return Math.round(numberValue * 1_000_000) / 1_000_000;
 }
 
 async function listLlmUsageSince(isoDate: string) {

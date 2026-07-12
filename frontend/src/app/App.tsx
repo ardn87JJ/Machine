@@ -17,10 +17,12 @@ import {
   runEdgeScout,
   runScoutWorkerOnce,
   updateEdgeExperiment,
+  updateEdgeLlmBudgetSettings,
   updateEdgeProductionDraft,
   updateEdgeProductionDraftStatus,
   type ExecutionPlan,
   type ExecutionExperimentSummary,
+  type EdgeLlmBudgetSettings,
   type EdgeLlmStatusSummary,
   type EdgeLlmUsageResponse,
   type LlmProvider,
@@ -1704,18 +1706,21 @@ function ContentFactoryWorkbench({
   draft,
   experiment,
   isSavingFactory,
+  isSavingLlmBudget,
   isRegeneratingAsset,
   regeneratingAssetScene,
   llmProvider,
   llmProviderStatuses,
   llmUsage,
   onSaveFactory,
+  onUpdateLlmBudget,
   onRegenerateAsset,
   onSelectLlmProvider,
 }: {
   draft: ProductionDraftSummary | undefined;
   experiment: ExecutionExperimentSummary | undefined;
   isSavingFactory: boolean;
+  isSavingLlmBudget: boolean;
   isRegeneratingAsset: boolean;
   regeneratingAssetScene: string | null;
   llmProvider: LlmProvider;
@@ -1726,6 +1731,7 @@ function ContentFactoryWorkbench({
     content: ProductionPackContent,
     title: string,
   ) => void;
+  onUpdateLlmBudget: (settings: EdgeLlmBudgetSettings) => Promise<void>;
   onRegenerateAsset: (
     draft: ProductionDraftSummary,
     asset: ProductionAsset,
@@ -1742,6 +1748,11 @@ function ContentFactoryWorkbench({
   const [assetRegenerationNotice, setAssetRegenerationNotice] = useState("");
   const [llmRunCount, setLlmRunCount] = useState(0);
   const [llmFallbackCount, setLlmFallbackCount] = useState(0);
+  const [budgetDailyLimitInput, setBudgetDailyLimitInput] = useState("0.25");
+  const [budgetMonthlyLimitInput, setBudgetMonthlyLimitInput] = useState("5");
+  const [budgetEnforceLimits, setBudgetEnforceLimits] = useState(true);
+  const [budgetSettingsError, setBudgetSettingsError] = useState("");
+  const [budgetSettingsNotice, setBudgetSettingsNotice] = useState("");
 
   useEffect(() => {
     if (!draft) {
@@ -1768,6 +1779,22 @@ function ContentFactoryWorkbench({
     setAssetRegenerationError("");
     setAssetRegenerationNotice("");
   }, [draft?.id, draft?.updated_at, draft]);
+
+  useEffect(() => {
+    const settings = llmUsage?.budget.settings;
+
+    if (!settings) {
+      return;
+    }
+
+    setBudgetDailyLimitInput(String(settings.dailyLimitUsd));
+    setBudgetMonthlyLimitInput(String(settings.monthlyLimitUsd));
+    setBudgetEnforceLimits(settings.enforceLimits);
+  }, [
+    llmUsage?.budget.settings.dailyLimitUsd,
+    llmUsage?.budget.settings.monthlyLimitUsd,
+    llmUsage?.budget.settings.enforceLimits,
+  ]);
 
   if (!draft) {
     return (
@@ -1798,9 +1825,49 @@ function ContentFactoryWorkbench({
   const estimatedCostUsd = llmRunCount * selectedProviderConfig.costPerRunUsd;
   const nextRunCostUsd = selectedProviderConfig.costPerRunUsd;
   const dailyBudgetLimitUsd = llmUsage?.budget.settings.dailyLimitUsd ?? 0.25;
+  const monthlyBudgetLimitUsd = llmUsage?.budget.settings.monthlyLimitUsd ?? 5;
+  const enforceBudgetLimits = llmUsage?.budget.settings.enforceLimits ?? true;
   const todayPersistedCostUsd = llmUsage?.budget.todayCostUsd ?? llmUsage?.summary.today_estimated_cost_usd ?? 0;
-  const wouldExceedSessionBudget = todayPersistedCostUsd + estimatedCostUsd + nextRunCostUsd > dailyBudgetLimitUsd;
+  const monthPersistedCostUsd = llmUsage?.budget.monthCostUsd ?? llmUsage?.summary.total_estimated_cost_usd ?? 0;
+  const wouldExceedSessionBudget =
+    enforceBudgetLimits &&
+    (todayPersistedCostUsd + estimatedCostUsd + nextRunCostUsd > dailyBudgetLimitUsd ||
+      monthPersistedCostUsd + estimatedCostUsd + nextRunCostUsd > monthlyBudgetLimitUsd);
   const providerExplicitlyUnavailable = selectedProviderStatus?.configured === false;
+  const saveBudgetSettings = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setBudgetSettingsError("");
+    setBudgetSettingsNotice("");
+
+    const dailyLimitUsd = Number(budgetDailyLimitInput);
+    const monthlyLimitUsd = Number(budgetMonthlyLimitInput);
+
+    if (!Number.isFinite(dailyLimitUsd) || dailyLimitUsd < 0) {
+      setBudgetSettingsError("La limite jour doit etre un nombre positif ou zero.");
+      return;
+    }
+
+    if (!Number.isFinite(monthlyLimitUsd) || monthlyLimitUsd < 0) {
+      setBudgetSettingsError("La limite mois doit etre un nombre positif ou zero.");
+      return;
+    }
+
+    if (monthlyLimitUsd < dailyLimitUsd) {
+      setBudgetSettingsError("La limite mois doit etre superieure ou egale a la limite jour.");
+      return;
+    }
+
+    try {
+      await onUpdateLlmBudget({
+        dailyLimitUsd,
+        monthlyLimitUsd,
+        enforceLimits: budgetEnforceLimits,
+      });
+      setBudgetSettingsNotice("Budget IA serveur sauvegarde.");
+    } catch (error) {
+      setBudgetSettingsError(error instanceof Error ? error.message : "Sauvegarde budget IA impossible.");
+    }
+  };
   const updateAsset = (scene: string, patch: Partial<Omit<ProductionAsset, "scene">>) => {
     const sourceAsset = assets.find((asset) => asset.scene === scene);
     const sourceEdit: Omit<ProductionAsset, "scene"> = sourceAsset
@@ -1970,8 +2037,45 @@ function ContentFactoryWorkbench({
           {selectedProviderStatus?.model ? ` · ${selectedProviderStatus.model}` : ""}
           {selectedProviderStatus?.message ? ` · ${selectedProviderStatus.message}` : ""}
         </p>
+        <form className="llm-budget-settings" onSubmit={saveBudgetSettings}>
+          <label>
+            Limite jour IA
+            <input
+              min="0"
+              onChange={(event) => setBudgetDailyLimitInput(event.target.value)}
+              step="0.01"
+              type="number"
+              value={budgetDailyLimitInput}
+            />
+          </label>
+          <label>
+            Limite mois IA
+            <input
+              min="0"
+              onChange={(event) => setBudgetMonthlyLimitInput(event.target.value)}
+              step="0.01"
+              type="number"
+              value={budgetMonthlyLimitInput}
+            />
+          </label>
+          <label className="llm-budget-toggle">
+            <input
+              checked={budgetEnforceLimits}
+              onChange={(event) => setBudgetEnforceLimits(event.target.checked)}
+              type="checkbox"
+            />
+            Bloquer dépassement budget IA
+          </label>
+          <button disabled={isSavingLlmBudget} type="submit">
+            {isSavingLlmBudget ? "Sauvegarde..." : "Sauvegarder budget IA"}
+          </button>
+        </form>
+        {budgetSettingsError ? <p className="inline-error">{budgetSettingsError}</p> : null}
+        {budgetSettingsNotice ? <p className="inline-success">{budgetSettingsNotice}</p> : null}
         {nextRunCostUsd > 0 ? (
-          <p>Limite serveur jour: {dailyBudgetLimitUsd.toFixed(2)} $ estimés maximum.</p>
+          <p>
+            Limite serveur: {dailyBudgetLimitUsd.toFixed(2)} $ jour · {monthlyBudgetLimitUsd.toFixed(2)} $ mois · blocage {enforceBudgetLimits ? "actif" : "inactif"}.
+          </p>
         ) : null}
         {llmUsage?.warning ? <p>{llmUsage.warning}</p> : null}
       </div>
@@ -2675,6 +2779,13 @@ export function App() {
     },
   });
 
+  const updateLlmBudgetMutation = useMutation({
+    mutationFn: updateEdgeLlmBudgetSettings,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["edge-llm-usage"] });
+    },
+  });
+
   const backendOnline = statusQuery.isSuccess;
   const backendStatusLabel = statusQuery.isPending
     ? "API : vérification..."
@@ -2941,11 +3052,15 @@ export function App() {
             draft={activeFactoryDraft}
             experiment={activeFactoryExperiment}
             isSavingFactory={saveFactoryDraftMutation.isPending}
+            isSavingLlmBudget={updateLlmBudgetMutation.isPending}
             isRegeneratingAsset={regenerateAssetMutation.isPending}
             llmProvider={llmProvider}
             llmProviderStatuses={edgeLlmStatusQuery.data?.providers ?? []}
             llmUsage={edgeLlmUsageQuery.data}
             onSelectLlmProvider={setLlmProvider}
+            onUpdateLlmBudget={async (settings) => {
+              await updateLlmBudgetMutation.mutateAsync(settings);
+            }}
             regeneratingAssetScene={regeneratingAssetScene}
             onRegenerateAsset={async (draft, asset, provider) => {
               const response = await regenerateAssetMutation.mutateAsync({ draft, asset, provider });
