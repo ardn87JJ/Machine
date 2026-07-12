@@ -307,6 +307,23 @@ describe("App", () => {
             );
           }
 
+          if (url.includes("view=llm-usage")) {
+            return Promise.resolve(
+              new Response(JSON.stringify({
+                summary: {
+                  total_calls: 2,
+                  today_calls: 1,
+                  total_estimated_cost_usd: 0.012,
+                  today_estimated_cost_usd: 0.006,
+                },
+                events: [],
+              }), {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+              }),
+            );
+          }
+
           if (url.includes("view=experiments")) {
             return Promise.resolve(
               new Response(JSON.stringify({ experiments }), {
@@ -717,6 +734,8 @@ describe("App", () => {
     expect(screen.getByText("Variantes hooks")).toBeInTheDocument();
     expect(screen.getByText("Checklist production courte")).toBeInTheDocument();
     expect(screen.getByText("Budget IA")).toBeInTheDocument();
+    expect(screen.getByText("Historique")).toBeInTheDocument();
+    expect(screen.getByText("0.0060 $ aujourd'hui")).toBeInTheDocument();
     expect(screen.getByLabelText("Fournisseur LLM")).toHaveValue("fallback");
     expect(screen.getByText(/Statut: configuré/)).toBeInTheDocument();
     expect(screen.getByText("Liaison test")).toBeInTheDocument();

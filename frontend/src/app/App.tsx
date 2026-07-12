@@ -8,6 +8,7 @@ import {
   getScanAnalysis,
   listEdgeExperiments,
   listEdgeProductionDrafts,
+  listEdgeLlmUsage,
   listEdgeScoutLedger,
   listScans,
   listOpportunities,
@@ -21,6 +22,7 @@ import {
   type ExecutionPlan,
   type ExecutionExperimentSummary,
   type EdgeLlmStatusSummary,
+  type EdgeLlmUsageResponse,
   type LlmProvider,
   type OpportunitySummary,
   type ProductionAsset,
@@ -1706,6 +1708,7 @@ function ContentFactoryWorkbench({
   regeneratingAssetScene,
   llmProvider,
   llmProviderStatuses,
+  llmUsage,
   onSaveFactory,
   onRegenerateAsset,
   onSelectLlmProvider,
@@ -1717,6 +1720,7 @@ function ContentFactoryWorkbench({
   regeneratingAssetScene: string | null;
   llmProvider: LlmProvider;
   llmProviderStatuses: EdgeLlmStatusSummary[];
+  llmUsage: EdgeLlmUsageResponse | undefined;
   onSaveFactory: (
     draft: ProductionDraftSummary,
     content: ProductionPackContent,
@@ -1940,6 +1944,13 @@ function ContentFactoryWorkbench({
           <strong>{estimatedCostUsd.toFixed(4)} $ estimés</strong>
           <small>{llmRunCount} appels · {llmFallbackCount} fallback · estimation session</small>
         </div>
+        <div>
+          <span>Historique</span>
+          <strong>{(llmUsage?.summary.today_estimated_cost_usd ?? 0).toFixed(4)} $ aujourd'hui</strong>
+          <small>
+            {llmUsage?.summary.today_calls ?? 0} appels jour · {(llmUsage?.summary.total_estimated_cost_usd ?? 0).toFixed(4)} $ total
+          </small>
+        </div>
         <label>
           Fournisseur
           <select
@@ -1961,6 +1972,7 @@ function ContentFactoryWorkbench({
         {nextRunCostUsd > 0 ? (
           <p>Garde-fou session: {sessionBudgetLimitUsd.toFixed(2)} $ estimés maximum.</p>
         ) : null}
+        {llmUsage?.warning ? <p>{llmUsage.warning}</p> : null}
       </div>
 
       <div className="factory-script">
@@ -2553,6 +2565,13 @@ export function App() {
     refetchInterval: 60_000,
   });
 
+  const edgeLlmUsageQuery = useQuery({
+    queryKey: ["edge-llm-usage"],
+    queryFn: listEdgeLlmUsage,
+    retry: false,
+    refetchInterval: 60_000,
+  });
+
   const createExperimentMutation = useMutation({
     mutationFn: (opportunity: OpportunityRecord) =>
       createEdgeExperiment({
@@ -2651,6 +2670,7 @@ export function App() {
     },
     onSettled: () => {
       setRegeneratingAssetScene(null);
+      void queryClient.invalidateQueries({ queryKey: ["edge-llm-usage"] });
     },
   });
 
@@ -2923,6 +2943,7 @@ export function App() {
             isRegeneratingAsset={regenerateAssetMutation.isPending}
             llmProvider={llmProvider}
             llmProviderStatuses={edgeLlmStatusQuery.data?.providers ?? []}
+            llmUsage={edgeLlmUsageQuery.data}
             onSelectLlmProvider={setLlmProvider}
             regeneratingAssetScene={regeneratingAssetScene}
             onRegenerateAsset={async (draft, asset, provider) => {

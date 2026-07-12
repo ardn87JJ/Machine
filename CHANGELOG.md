@@ -73,6 +73,8 @@ Le format suit les principes de [Keep a Changelog](https://keepachangelog.com/fr
   mais pas encore `assets`.
 - diagnostic non sensible des fournisseurs LLM depuis Supabase (`llm-status`) et
   garde-fou de budget session avant régénération payante.
+- table Supabase `llm_usage_events`, écriture serveur des régénérations LLM et
+  lecture d’un résumé de coût persistant dans le panneau Budget IA.
 
 ### Décidé
 

@@ -129,6 +129,17 @@ type LlmConfig = {
   model: string;
 };
 
+type LlmUsageEstimate = {
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number;
+};
+
+type LlmGenerationResult = {
+  asset: ProductionAsset;
+  usage: LlmUsageEstimate;
+};
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -165,6 +176,10 @@ Deno.serve(async (request) => {
 
       if (url.searchParams.get("view") === "llm-status") {
         return json(buildLlmStatus());
+      }
+
+      if (url.searchParams.get("view") === "llm-usage") {
+        return json(await listLlmUsage(request));
       }
 
       return json(await listScoutLedger(request));
@@ -222,7 +237,7 @@ Deno.serve(async (request) => {
     const analysis = buildScanAnalysis(keyword, videos);
     await updateScan(scan.id, "completed", null, null);
     await upsertOpportunity(scan.id, keyword, analysis).catch((error) => {
-      if (!isMissingOpportunitiesTable(error)) {
+      if (!isMissingTable(error)) {
         throw error;
       }
     });
@@ -376,6 +391,18 @@ async function regenerateProductionAsset(body: JsonRecord) {
   const llmConfig = resolveLlmConfig(provider);
 
   if (!llmConfig) {
+    const usage = estimateLlmUsage(provider, "", draft, currentAsset, fallbackAsset, "fallback");
+    await insertLlmUsageEvent({
+      draftId,
+      scene,
+      provider,
+      model: "",
+      source: "fallback",
+      status: "fallback",
+      usage,
+      warning: buildMissingLlmConfigMessage(provider),
+    });
+
     return {
       asset: fallbackAsset,
       source: "fallback",
@@ -385,14 +412,37 @@ async function regenerateProductionAsset(body: JsonRecord) {
   }
 
   try {
+    const generated = await generateAssetWithLlm(draft, scene, currentAsset, fallbackAsset, llmConfig);
+    await insertLlmUsageEvent({
+      draftId,
+      scene,
+      provider: llmConfig.provider,
+      model: llmConfig.model,
+      source: "llm",
+      status: "success",
+      usage: generated.usage,
+      warning: null,
+    });
+
     return {
-      asset: await generateAssetWithLlm(draft, scene, currentAsset, fallbackAsset, llmConfig),
+      asset: generated.asset,
       source: "llm",
       provider: llmConfig.provider,
       model: llmConfig.model,
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Erreur LLM inconnue.";
+    const usage = estimateLlmUsage(provider, llmConfig.model, draft, currentAsset, fallbackAsset, "fallback");
+    await insertLlmUsageEvent({
+      draftId,
+      scene,
+      provider,
+      model: llmConfig.model,
+      source: "fallback",
+      status: "fallback",
+      usage,
+      warning: message,
+    });
 
     return {
       asset: fallbackAsset,
@@ -523,7 +573,7 @@ async function generateAssetWithLlm(
   currentAsset: Partial<ProductionAsset>,
   fallbackAsset: ProductionAsset,
   llmConfig: LlmConfig,
-): Promise<ProductionAsset> {
+): Promise<LlmGenerationResult> {
   const content = draft.content;
   const factory = content.factory as JsonRecord | undefined;
   const payload = {
@@ -599,15 +649,160 @@ async function generateAssetWithLlm(
     const json = await response.json() as JsonRecord;
     const choices = json.choices as Array<{ message?: { content?: string } }> | undefined;
     const contentText = choices?.[0]?.message?.content;
+    const usage = json.usage as JsonRecord | undefined;
 
     if (!contentText) {
       throw new Error("reponse vide");
     }
 
-    return sanitizeLlmAsset(scene, currentAsset, parseJsonObject(contentText));
+    const asset = sanitizeLlmAsset(scene, currentAsset, parseJsonObject(contentText));
+
+    return {
+      asset,
+      usage: estimateLlmUsage(
+        llmConfig.provider,
+        llmConfig.model,
+        draft,
+        currentAsset,
+        asset,
+        "llm",
+        usage,
+      ),
+    };
   } finally {
     clearTimeout(timeout);
   }
+}
+
+async function insertLlmUsageEvent(event: {
+  draftId: string;
+  scene: string;
+  provider: LlmProvider;
+  model: string;
+  source: "llm" | "fallback";
+  status: "success" | "fallback" | "error";
+  usage: LlmUsageEstimate;
+  warning: string | null;
+}) {
+  await supabaseFetch("/rest/v1/llm_usage_events", {
+    method: "POST",
+    body: JSON.stringify({
+      draft_id: event.draftId,
+      scene: event.scene,
+      provider: event.provider,
+      model: event.model,
+      source: event.source,
+      status: event.status,
+      estimated_input_tokens: event.usage.inputTokens,
+      estimated_output_tokens: event.usage.outputTokens,
+      estimated_cost_usd: event.usage.costUsd,
+      warning: event.warning,
+    }),
+  }).catch((error) => {
+    if (!isMissingTable(error)) {
+      throw error;
+    }
+  });
+}
+
+async function listLlmUsage(request: Request) {
+  const url = new URL(request.url);
+  const limit = Math.max(1, Math.min(100, Number(url.searchParams.get("limit") ?? 25)));
+
+  try {
+    const events = await supabaseFetch<JsonRecord[]>(
+      `/rest/v1/llm_usage_events?select=id,draft_id,scene,provider,model,source,status,estimated_input_tokens,estimated_output_tokens,estimated_cost_usd,warning,created_at&order=created_at.desc&limit=${limit}`,
+    );
+    const todayPrefix = new Date().toISOString().slice(0, 10);
+    const todayEvents = events.filter((event) => String(event.created_at ?? "").startsWith(todayPrefix));
+    const totalCostUsd = sumUsageCost(events);
+    const todayCostUsd = sumUsageCost(todayEvents);
+
+    return {
+      summary: {
+        total_calls: events.length,
+        today_calls: todayEvents.length,
+        total_estimated_cost_usd: totalCostUsd,
+        today_estimated_cost_usd: todayCostUsd,
+      },
+      events,
+    };
+  } catch (error) {
+    if (isMissingTable(error)) {
+      return {
+        summary: {
+          total_calls: 0,
+          today_calls: 0,
+          total_estimated_cost_usd: 0,
+          today_estimated_cost_usd: 0,
+        },
+        events: [],
+        warning: "Table llm_usage_events absente. Appliquer la migration pour activer l'historique.",
+      };
+    }
+
+    throw error;
+  }
+}
+
+function sumUsageCost(events: JsonRecord[]) {
+  return Number(events.reduce((total, event) => {
+    const value = Number(event.estimated_cost_usd ?? 0);
+    return total + (Number.isFinite(value) ? value : 0);
+  }, 0).toFixed(6));
+}
+
+function estimateLlmUsage(
+  provider: LlmProvider,
+  model: string,
+  draft: ProductionDraftSummary,
+  currentAsset: Partial<ProductionAsset>,
+  asset: ProductionAsset,
+  source: "llm" | "fallback",
+  usage?: JsonRecord,
+): LlmUsageEstimate {
+  if (source === "fallback" || provider === "fallback" || provider === "local") {
+    return { inputTokens: 0, outputTokens: 0, costUsd: 0 };
+  }
+
+  const inputTokens = toPositiveInteger(usage?.prompt_tokens) ||
+    estimateTokens(JSON.stringify({ draft: draft.content, currentAsset }));
+  const outputTokens = toPositiveInteger(usage?.completion_tokens) || estimateTokens(JSON.stringify(asset));
+  const pricing = getProviderPricing(provider, model);
+  const costUsd = ((inputTokens * pricing.inputPerMillion) + (outputTokens * pricing.outputPerMillion)) / 1_000_000;
+
+  return {
+    inputTokens,
+    outputTokens,
+    costUsd: Number(costUsd.toFixed(6)),
+  };
+}
+
+function estimateTokens(value: string) {
+  return Math.max(1, Math.ceil(value.length / 4));
+}
+
+function toPositiveInteger(value: unknown) {
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) && numberValue > 0 ? Math.round(numberValue) : 0;
+}
+
+function getProviderPricing(provider: LlmProvider, model: string) {
+  if (provider === "openai") {
+    return model.includes("mini")
+      ? { inputPerMillion: 0.75, outputPerMillion: 4.5 }
+      : { inputPerMillion: 0.2, outputPerMillion: 1.25 };
+  }
+
+  if (provider === "groq") {
+    return { inputPerMillion: 0.1, outputPerMillion: 0.3 };
+  }
+
+  if (provider === "openrouter") {
+    return { inputPerMillion: 0.5, outputPerMillion: 1.5 };
+  }
+
+  return { inputPerMillion: 0, outputPerMillion: 0 };
 }
 
 function parseJsonObject(value: string): JsonRecord {
@@ -1308,7 +1503,7 @@ async function supabaseFetch<T = unknown>(path: string, init: RequestInit = {}) 
   return payload as T;
 }
 
-function isMissingOpportunitiesTable(error: unknown) {
+function isMissingTable(error: unknown) {
   const payload = (error as { payload?: { code?: string } }).payload;
   return payload?.code === "PGRST205";
 }

@@ -1402,7 +1402,7 @@ h3 {
 
 .llm-budget-panel {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 220px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 220px;
   gap: 12px;
   align-items: center;
   padding: 12px;

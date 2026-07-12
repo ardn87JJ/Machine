@@ -68,10 +68,13 @@ scorables, tests actionnables, drafts de production et apprentissages.
 - lire un diagnostic fournisseur non sensible via `view=llm-status` :
   configure/non configure, modele et message, sans exposer les secrets.
 - bloquer les regenerations payantes quand le garde-fou de session est depasse.
+- stocker chaque regeneration dans `llm_usage_events` avec provider, modele,
+  source, tokens estimes, cout estime et warning.
+- afficher le cout IA persistant du jour et le total recent dans Budget IA.
 
 ## Tranche en cours
 
-Tester un fournisseur non OpenAI :
+Tester un fournisseur non OpenAI ou local :
 
 - OpenAI : `OPENAI_API_KEY` ou `llm_api_key`, avec quota/billing actif.
 - OpenRouter : `OPENROUTER_API_KEY` et optionnellement `OPENROUTER_MODEL`.
@@ -81,8 +84,8 @@ Tester un fournisseur non OpenAI :
 
 ## Prochaine etape apres cette tranche
 
-Ajouter un vrai historique de coûts :
+Ajouter des limites persistantes :
 
-- table Supabase des appels LLM ;
-- cout estime par appel stocke ;
-- budget journalier/mensuel persistant au lieu d'un compteur de session.
+- seuil journalier configure cote serveur ;
+- blocage serveur si le budget estime du jour est depasse ;
+- configuration par fournisseur dans Supabase plutot qu'en dur dans le code.

@@ -213,6 +213,32 @@ interface EdgeLlmStatusResponse {
   providers: EdgeLlmStatusSummary[];
 }
 
+export interface EdgeLlmUsageEvent {
+  id: string;
+  draft_id: string | null;
+  scene: string;
+  provider: LlmProvider;
+  model: string;
+  source: "llm" | "fallback";
+  status: "success" | "fallback" | "error";
+  estimated_input_tokens: number;
+  estimated_output_tokens: number;
+  estimated_cost_usd: number;
+  warning: string | null;
+  created_at: string;
+}
+
+export interface EdgeLlmUsageResponse {
+  summary: {
+    total_calls: number;
+    today_calls: number;
+    total_estimated_cost_usd: number;
+    today_estimated_cost_usd: number;
+  };
+  events: EdgeLlmUsageEvent[];
+  warning?: string;
+}
+
 export interface RegenerateEdgeProductionAssetResponse {
   asset: ProductionAsset;
   source: "llm" | "fallback";
@@ -556,4 +582,28 @@ export async function listEdgeLlmStatus() {
   }
 
   return response.json() as Promise<EdgeLlmStatusResponse>;
+}
+
+export async function listEdgeLlmUsage() {
+  const response = await fetch(`${SCOUT_FUNCTION_URL}?view=llm-usage&limit=25`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    let message = `La fonction Scout a repondu avec le statut ${response.status}.`;
+
+    try {
+      const errorPayload = (await response.json()) as { message?: string };
+      message = errorPayload.message || message;
+    } catch {
+      // Keep the status-based message when the Edge Function does not return JSON.
+    }
+
+    throw new Error(message);
+  }
+
+  return response.json() as Promise<EdgeLlmUsageResponse>;
 }
