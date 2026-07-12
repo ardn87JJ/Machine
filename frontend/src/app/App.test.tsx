@@ -316,6 +316,15 @@ describe("App", () => {
                   total_estimated_cost_usd: 0.012,
                   today_estimated_cost_usd: 0.006,
                 },
+                budget: {
+                  settings: {
+                    dailyLimitUsd: 0.25,
+                    monthlyLimitUsd: 5,
+                    enforceLimits: true,
+                  },
+                  todayCostUsd: 0.006,
+                  monthCostUsd: 0.012,
+                },
                 events: [],
               }), {
                 status: 200,

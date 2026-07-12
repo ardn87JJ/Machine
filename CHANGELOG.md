@@ -75,6 +75,8 @@ Le format suit les principes de [Keep a Changelog](https://keepachangelog.com/fr
   garde-fou de budget session avant régénération payante.
 - table Supabase `llm_usage_events`, écriture serveur des régénérations LLM et
   lecture d’un résumé de coût persistant dans le panneau Budget IA.
+- table Supabase `llm_budget_settings` et blocage serveur des régénérations
+  payantes si le coût estimé dépasse les limites journalières ou mensuelles.
 
 ### Décidé
 

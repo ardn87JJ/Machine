@@ -235,6 +235,15 @@ export interface EdgeLlmUsageResponse {
     total_estimated_cost_usd: number;
     today_estimated_cost_usd: number;
   };
+  budget: {
+    settings: {
+      dailyLimitUsd: number;
+      monthlyLimitUsd: number;
+      enforceLimits: boolean;
+    };
+    todayCostUsd: number;
+    monthCostUsd: number;
+  };
   events: EdgeLlmUsageEvent[];
   warning?: string;
 }

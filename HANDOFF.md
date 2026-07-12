@@ -71,21 +71,22 @@ scorables, tests actionnables, drafts de production et apprentissages.
 - stocker chaque regeneration dans `llm_usage_events` avec provider, modele,
   source, tokens estimes, cout estime et warning.
 - afficher le cout IA persistant du jour et le total recent dans Budget IA.
+- appliquer une limite serveur persistante depuis `llm_budget_settings` avant
+  chaque regeneration payante.
 
 ## Tranche en cours
 
-Tester un fournisseur non OpenAI ou local :
+Rendre la configuration IA modifiable depuis l'interface :
 
-- OpenAI : `OPENAI_API_KEY` ou `llm_api_key`, avec quota/billing actif.
-- OpenRouter : `OPENROUTER_API_KEY` et optionnellement `OPENROUTER_MODEL`.
-- Groq : `GROQ_API_KEY` et optionnellement `GROQ_MODEL`.
-- Local : `LOCAL_LLM_BASE_URL` doit etre une URL joignable depuis Supabase
-  Cloud, pas `localhost` sur ton PC.
+- afficher les limites journaliere et mensuelle renvoyees par Supabase ;
+- permettre de modifier ces limites sans SQL manuel ;
+- exposer le statut `enforce_limits` dans le panneau Budget IA.
 
 ## Prochaine etape apres cette tranche
 
-Ajouter des limites persistantes :
+Ajouter la configuration par fournisseur dans Supabase :
 
-- seuil journalier configure cote serveur ;
-- blocage serveur si le budget estime du jour est depasse ;
-- configuration par fournisseur dans Supabase plutot qu'en dur dans le code.
+- provider actif par defaut ;
+- modele par provider ;
+- URLs compatibles OpenAI pour local/OpenRouter/Groq ;
+- estimation de cout par provider.

@@ -135,6 +135,18 @@ type LlmUsageEstimate = {
   costUsd: number;
 };
 
+type LlmBudgetSettings = {
+  dailyLimitUsd: number;
+  monthlyLimitUsd: number;
+  enforceLimits: boolean;
+};
+
+type LlmBudgetSnapshot = {
+  settings: LlmBudgetSettings;
+  todayCostUsd: number;
+  monthCostUsd: number;
+};
+
 type LlmGenerationResult = {
   asset: ProductionAsset;
   usage: LlmUsageEstimate;
@@ -408,6 +420,29 @@ async function regenerateProductionAsset(body: JsonRecord) {
       source: "fallback",
       provider,
       warning: buildMissingLlmConfigMessage(provider),
+    };
+  }
+
+  const budgetGuard = await evaluateLlmBudgetGuard(llmConfig, draft, currentAsset, fallbackAsset);
+
+  if (budgetGuard.blocked) {
+    await insertLlmUsageEvent({
+      draftId,
+      scene,
+      provider,
+      model: llmConfig.model,
+      source: "fallback",
+      status: "fallback",
+      usage: budgetGuard.usage,
+      warning: budgetGuard.message,
+    });
+
+    return {
+      asset: fallbackAsset,
+      source: "fallback",
+      provider,
+      model: llmConfig.model,
+      warning: budgetGuard.message,
     };
   }
 
@@ -713,6 +748,7 @@ async function listLlmUsage(request: Request) {
     const events = await supabaseFetch<JsonRecord[]>(
       `/rest/v1/llm_usage_events?select=id,draft_id,scene,provider,model,source,status,estimated_input_tokens,estimated_output_tokens,estimated_cost_usd,warning,created_at&order=created_at.desc&limit=${limit}`,
     );
+    const budget = await getLlmBudgetSnapshot();
     const todayPrefix = new Date().toISOString().slice(0, 10);
     const todayEvents = events.filter((event) => String(event.created_at ?? "").startsWith(todayPrefix));
     const totalCostUsd = sumUsageCost(events);
@@ -725,10 +761,13 @@ async function listLlmUsage(request: Request) {
         total_estimated_cost_usd: totalCostUsd,
         today_estimated_cost_usd: todayCostUsd,
       },
+      budget,
       events,
     };
   } catch (error) {
     if (isMissingTable(error)) {
+      const settings = getDefaultLlmBudgetSettings();
+
       return {
         summary: {
           total_calls: 0,
@@ -736,9 +775,118 @@ async function listLlmUsage(request: Request) {
           total_estimated_cost_usd: 0,
           today_estimated_cost_usd: 0,
         },
+        budget: {
+          settings,
+          todayCostUsd: 0,
+          monthCostUsd: 0,
+        },
         events: [],
         warning: "Table llm_usage_events absente. Appliquer la migration pour activer l'historique.",
       };
+    }
+
+    throw error;
+  }
+}
+
+async function evaluateLlmBudgetGuard(
+  llmConfig: LlmConfig,
+  draft: ProductionDraftSummary,
+  currentAsset: Partial<ProductionAsset>,
+  fallbackAsset: ProductionAsset,
+) {
+  const usage = estimateLlmUsage(llmConfig.provider, llmConfig.model, draft, currentAsset, fallbackAsset, "llm");
+
+  if (llmConfig.provider === "local" || usage.costUsd <= 0) {
+    return { blocked: false, usage, message: "" };
+  }
+
+  const budget = await getLlmBudgetSnapshot();
+
+  if (!budget.settings.enforceLimits) {
+    return { blocked: false, usage, message: "" };
+  }
+
+  const projectedDailyCost = budget.todayCostUsd + usage.costUsd;
+  const projectedMonthlyCost = budget.monthCostUsd + usage.costUsd;
+
+  if (projectedDailyCost > budget.settings.dailyLimitUsd) {
+    return {
+      blocked: true,
+      usage,
+      message: `Budget journalier LLM depasse: ${projectedDailyCost.toFixed(4)} $ > ${budget.settings.dailyLimitUsd.toFixed(4)} $.`,
+    };
+  }
+
+  if (projectedMonthlyCost > budget.settings.monthlyLimitUsd) {
+    return {
+      blocked: true,
+      usage,
+      message: `Budget mensuel LLM depasse: ${projectedMonthlyCost.toFixed(4)} $ > ${budget.settings.monthlyLimitUsd.toFixed(4)} $.`,
+    };
+  }
+
+  return { blocked: false, usage, message: "" };
+}
+
+async function getLlmBudgetSnapshot(): Promise<LlmBudgetSnapshot> {
+  const settings = await getLlmBudgetSettings();
+  const now = new Date();
+  const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())).toISOString();
+  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
+  const [todayEvents, monthEvents] = await Promise.all([
+    listLlmUsageSince(todayStart),
+    listLlmUsageSince(monthStart),
+  ]);
+
+  return {
+    settings,
+    todayCostUsd: sumUsageCost(todayEvents),
+    monthCostUsd: sumUsageCost(monthEvents),
+  };
+}
+
+async function getLlmBudgetSettings(): Promise<LlmBudgetSettings> {
+  try {
+    const rows = await supabaseFetch<JsonRecord[]>(
+      "/rest/v1/llm_budget_settings?id=eq.default&select=daily_limit_usd,monthly_limit_usd,enforce_limits&limit=1",
+    );
+    const row = rows[0];
+
+    if (!row) {
+      return getDefaultLlmBudgetSettings();
+    }
+
+    return {
+      dailyLimitUsd: toPositiveNumber(row.daily_limit_usd, 0.25),
+      monthlyLimitUsd: toPositiveNumber(row.monthly_limit_usd, 5),
+      enforceLimits: row.enforce_limits !== false,
+    };
+  } catch (error) {
+    if (isMissingTable(error)) {
+      return getDefaultLlmBudgetSettings();
+    }
+
+    throw error;
+  }
+}
+
+function getDefaultLlmBudgetSettings(): LlmBudgetSettings {
+  return {
+    dailyLimitUsd: 0.25,
+    monthlyLimitUsd: 5,
+    enforceLimits: true,
+  };
+}
+
+async function listLlmUsageSince(isoDate: string) {
+  try {
+    return await supabaseFetch<JsonRecord[]>(
+      `/rest/v1/llm_usage_events?select=estimated_cost_usd&created_at=gte.${encodeURIComponent(isoDate)}&limit=1000`,
+    );
+  } catch (error) {
+    if (isMissingTable(error)) {
+      return [];
     }
 
     throw error;
@@ -785,6 +933,11 @@ function estimateTokens(value: string) {
 function toPositiveInteger(value: unknown) {
   const numberValue = Number(value);
   return Number.isFinite(numberValue) && numberValue > 0 ? Math.round(numberValue) : 0;
+}
+
+function toPositiveNumber(value: unknown, fallback: number) {
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) && numberValue >= 0 ? numberValue : fallback;
 }
 
 function getProviderPricing(provider: LlmProvider, model: string) {

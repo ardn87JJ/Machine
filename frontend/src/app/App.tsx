@@ -1797,8 +1797,9 @@ function ContentFactoryWorkbench({
   const selectedProviderStatus = llmProviderStatuses.find((status) => status.provider === llmProvider);
   const estimatedCostUsd = llmRunCount * selectedProviderConfig.costPerRunUsd;
   const nextRunCostUsd = selectedProviderConfig.costPerRunUsd;
-  const sessionBudgetLimitUsd = 0.25;
-  const wouldExceedSessionBudget = estimatedCostUsd + nextRunCostUsd > sessionBudgetLimitUsd;
+  const dailyBudgetLimitUsd = llmUsage?.budget.settings.dailyLimitUsd ?? 0.25;
+  const todayPersistedCostUsd = llmUsage?.budget.todayCostUsd ?? llmUsage?.summary.today_estimated_cost_usd ?? 0;
+  const wouldExceedSessionBudget = todayPersistedCostUsd + estimatedCostUsd + nextRunCostUsd > dailyBudgetLimitUsd;
   const providerExplicitlyUnavailable = selectedProviderStatus?.configured === false;
   const updateAsset = (scene: string, patch: Partial<Omit<ProductionAsset, "scene">>) => {
     const sourceAsset = assets.find((asset) => asset.scene === scene);
@@ -1970,7 +1971,7 @@ function ContentFactoryWorkbench({
           {selectedProviderStatus?.message ? ` · ${selectedProviderStatus.message}` : ""}
         </p>
         {nextRunCostUsd > 0 ? (
-          <p>Garde-fou session: {sessionBudgetLimitUsd.toFixed(2)} $ estimés maximum.</p>
+          <p>Limite serveur jour: {dailyBudgetLimitUsd.toFixed(2)} $ estimés maximum.</p>
         ) : null}
         {llmUsage?.warning ? <p>{llmUsage.warning}</p> : null}
       </div>
