@@ -300,6 +300,7 @@ describe("App", () => {
                     default_provider: true,
                     configured: true,
                     model: "deterministic",
+                    base_url: "",
                     base_url_configured: true,
                     estimated_cost_per_run_usd: 0,
                     input_per_million_usd: 0,
@@ -630,6 +631,34 @@ describe("App", () => {
           );
         }
 
+        if ((body as { action?: string }).action === "update-llm-provider-settings") {
+          return Promise.resolve(
+            new Response(JSON.stringify({
+              providers: [
+                {
+                  provider: (body as { provider: string }).provider,
+                  label: "Fallback",
+                  description: "Aucun coût API, génération déterministe.",
+                  enabled: true,
+                  default_provider: Boolean((body as { defaultProvider: boolean }).defaultProvider),
+                  configured: true,
+                  model: String((body as { model: string }).model),
+                  base_url: String((body as { baseUrl: string }).baseUrl),
+                  base_url_configured: true,
+                  estimated_cost_per_run_usd: Number((body as { estimatedCostPerRunUsd: number }).estimatedCostPerRunUsd),
+                  input_per_million_usd: Number((body as { inputPerMillionUsd: number }).inputPerMillionUsd),
+                  output_per_million_usd: Number((body as { outputPerMillionUsd: number }).outputPerMillionUsd),
+                  sort_order: 50,
+                  message: "Disponible sans coût API.",
+                },
+              ],
+            }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            }),
+          );
+        }
+
         const keyword = body.keyword ?? "ai music channel";
         const scanId = `scan-${keyword.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`;
 
@@ -777,6 +806,12 @@ describe("App", () => {
     expect(screen.getByLabelText("Bloquer dépassement budget IA")).toBeChecked();
     expect(screen.getByLabelText("Fournisseur LLM")).toHaveValue("fallback");
     expect(screen.getByText(/Statut: configuré/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Modèle fournisseur IA")).toHaveValue("deterministic");
+    expect(screen.getByLabelText("Provider actif")).toBeChecked();
+    expect(screen.getByLabelText("Provider par défaut")).toBeChecked();
+    fireEvent.change(screen.getByLabelText("Coût par run fournisseur IA"), { target: { value: "0" } });
+    fireEvent.click(screen.getByRole("button", { name: "Sauvegarder provider" }));
+    expect(await screen.findByText("Fournisseur IA sauvegardé.")).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Limite jour IA"), { target: { value: "0.5" } });
     fireEvent.click(screen.getByRole("button", { name: "Sauvegarder budget IA" }));
     expect(await screen.findByText("Budget IA serveur sauvegarde.")).toBeInTheDocument();

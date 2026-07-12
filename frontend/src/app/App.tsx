@@ -18,6 +18,7 @@ import {
   runScoutWorkerOnce,
   updateEdgeExperiment,
   updateEdgeLlmBudgetSettings,
+  updateEdgeLlmProviderSettings,
   updateEdgeProductionDraft,
   updateEdgeProductionDraftStatus,
   type ExecutionPlan,
@@ -35,6 +36,7 @@ import {
   type ScanAnalysis,
   type ScanSummary,
   type ScanVideoSummary,
+  type UpdateEdgeLlmProviderSettingsPayload,
 } from "../features/scans/api";
 import { getSystemStatus } from "../features/system/api";
 import { ApiError } from "../lib/api";
@@ -1752,6 +1754,7 @@ function ContentFactoryWorkbench({
   experiment,
   isSavingFactory,
   isSavingLlmBudget,
+  isSavingLlmProvider,
   isRegeneratingAsset,
   regeneratingAssetScene,
   llmProvider,
@@ -1759,6 +1762,7 @@ function ContentFactoryWorkbench({
   llmUsage,
   onSaveFactory,
   onUpdateLlmBudget,
+  onUpdateLlmProvider,
   onRegenerateAsset,
   onSelectLlmProvider,
 }: {
@@ -1766,6 +1770,7 @@ function ContentFactoryWorkbench({
   experiment: ExecutionExperimentSummary | undefined;
   isSavingFactory: boolean;
   isSavingLlmBudget: boolean;
+  isSavingLlmProvider: boolean;
   isRegeneratingAsset: boolean;
   regeneratingAssetScene: string | null;
   llmProvider: LlmProvider;
@@ -1777,6 +1782,7 @@ function ContentFactoryWorkbench({
     title: string,
   ) => void;
   onUpdateLlmBudget: (settings: EdgeLlmBudgetSettings) => Promise<void>;
+  onUpdateLlmProvider: (settings: UpdateEdgeLlmProviderSettingsPayload) => Promise<void>;
   onRegenerateAsset: (
     draft: ProductionDraftSummary,
     asset: ProductionAsset,
@@ -1798,6 +1804,15 @@ function ContentFactoryWorkbench({
   const [budgetEnforceLimits, setBudgetEnforceLimits] = useState(true);
   const [budgetSettingsError, setBudgetSettingsError] = useState("");
   const [budgetSettingsNotice, setBudgetSettingsNotice] = useState("");
+  const [providerModelInput, setProviderModelInput] = useState("");
+  const [providerBaseUrlInput, setProviderBaseUrlInput] = useState("");
+  const [providerCostInput, setProviderCostInput] = useState("0");
+  const [providerInputPriceInput, setProviderInputPriceInput] = useState("0");
+  const [providerOutputPriceInput, setProviderOutputPriceInput] = useState("0");
+  const [providerEnabled, setProviderEnabled] = useState(true);
+  const [providerDefault, setProviderDefault] = useState(false);
+  const [providerSettingsError, setProviderSettingsError] = useState("");
+  const [providerSettingsNotice, setProviderSettingsNotice] = useState("");
 
   useEffect(() => {
     if (!draft) {
@@ -1840,6 +1855,24 @@ function ContentFactoryWorkbench({
     llmUsage?.budget.settings.monthlyLimitUsd,
     llmUsage?.budget.settings.enforceLimits,
   ]);
+
+  useEffect(() => {
+    const selectedStatus = llmProviderStatuses.find((status) => status.provider === llmProvider);
+
+    if (!selectedStatus) {
+      return;
+    }
+
+    setProviderModelInput(selectedStatus.model);
+    setProviderBaseUrlInput(selectedStatus.base_url);
+    setProviderCostInput(String(selectedStatus.estimated_cost_per_run_usd));
+    setProviderInputPriceInput(String(selectedStatus.input_per_million_usd));
+    setProviderOutputPriceInput(String(selectedStatus.output_per_million_usd));
+    setProviderEnabled(selectedStatus.enabled);
+    setProviderDefault(selectedStatus.default_provider);
+    setProviderSettingsError("");
+    setProviderSettingsNotice("");
+  }, [llmProvider, llmProviderStatuses]);
 
   if (!draft) {
     return (
@@ -1914,6 +1947,56 @@ function ContentFactoryWorkbench({
       setBudgetSettingsNotice("Budget IA serveur sauvegarde.");
     } catch (error) {
       setBudgetSettingsError(error instanceof Error ? error.message : "Sauvegarde budget IA impossible.");
+    }
+  };
+  const saveProviderSettings = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setProviderSettingsError("");
+    setProviderSettingsNotice("");
+
+    const estimatedCostPerRunUsd = Number(providerCostInput);
+    const inputPerMillionUsd = Number(providerInputPriceInput);
+    const outputPerMillionUsd = Number(providerOutputPriceInput);
+    const enabled = llmProvider === "fallback" ? true : providerEnabled;
+
+    if (llmProvider !== "fallback" && !providerModelInput.trim()) {
+      setProviderSettingsError("Le modèle est requis pour ce fournisseur.");
+      return;
+    }
+
+    if (providerDefault && !enabled) {
+      setProviderSettingsError("Un fournisseur par défaut doit être actif.");
+      return;
+    }
+
+    if (
+      !Number.isFinite(estimatedCostPerRunUsd) ||
+      !Number.isFinite(inputPerMillionUsd) ||
+      !Number.isFinite(outputPerMillionUsd) ||
+      estimatedCostPerRunUsd < 0 ||
+      inputPerMillionUsd < 0 ||
+      outputPerMillionUsd < 0
+    ) {
+      setProviderSettingsError("Les coûts provider doivent être des nombres positifs ou zéro.");
+      return;
+    }
+
+    try {
+      await onUpdateLlmProvider({
+        provider: llmProvider,
+        label: selectedProviderStatus?.label ?? selectedProviderConfig.label,
+        description: selectedProviderStatus?.description ?? selectedProviderConfig.description,
+        enabled,
+        defaultProvider: providerDefault,
+        baseUrl: providerBaseUrlInput,
+        model: providerModelInput,
+        estimatedCostPerRunUsd,
+        inputPerMillionUsd,
+        outputPerMillionUsd,
+      });
+      setProviderSettingsNotice("Fournisseur IA sauvegardé.");
+    } catch (error) {
+      setProviderSettingsError(error instanceof Error ? error.message : "Sauvegarde provider IA impossible.");
     }
   };
   const updateAsset = (scene: string, patch: Partial<Omit<ProductionAsset, "scene">>) => {
@@ -2088,6 +2171,80 @@ function ContentFactoryWorkbench({
           {selectedProviderConfig.costPerRunUsd > 0 ? ` · ~${selectedProviderConfig.costPerRunUsd.toFixed(4)} $/run` : ""}
           {selectedProviderStatus?.message ? ` · ${selectedProviderStatus.message}` : ""}
         </p>
+        <form className="llm-provider-settings" onSubmit={saveProviderSettings}>
+          <label>
+            Modèle
+            <input
+              aria-label="Modèle fournisseur IA"
+              onChange={(event) => setProviderModelInput(event.target.value)}
+              value={providerModelInput}
+            />
+          </label>
+          <label>
+            URL compatible OpenAI
+            <input
+              aria-label="URL fournisseur IA"
+              onChange={(event) => setProviderBaseUrlInput(event.target.value)}
+              placeholder="https://..."
+              value={providerBaseUrlInput}
+            />
+          </label>
+          <label>
+            Coût/run
+            <input
+              aria-label="Coût par run fournisseur IA"
+              min="0"
+              onChange={(event) => setProviderCostInput(event.target.value)}
+              step="0.001"
+              type="number"
+              value={providerCostInput}
+            />
+          </label>
+          <label>
+            Input $/M
+            <input
+              aria-label="Prix input fournisseur IA"
+              min="0"
+              onChange={(event) => setProviderInputPriceInput(event.target.value)}
+              step="0.01"
+              type="number"
+              value={providerInputPriceInput}
+            />
+          </label>
+          <label>
+            Output $/M
+            <input
+              aria-label="Prix output fournisseur IA"
+              min="0"
+              onChange={(event) => setProviderOutputPriceInput(event.target.value)}
+              step="0.01"
+              type="number"
+              value={providerOutputPriceInput}
+            />
+          </label>
+          <label className="llm-budget-toggle">
+            <input
+              checked={providerEnabled}
+              disabled={llmProvider === "fallback"}
+              onChange={(event) => setProviderEnabled(event.target.checked)}
+              type="checkbox"
+            />
+            Provider actif
+          </label>
+          <label className="llm-budget-toggle">
+            <input
+              checked={providerDefault}
+              onChange={(event) => setProviderDefault(event.target.checked)}
+              type="checkbox"
+            />
+            Provider par défaut
+          </label>
+          <button disabled={isSavingLlmProvider} type="submit">
+            {isSavingLlmProvider ? "Sauvegarde..." : "Sauvegarder provider"}
+          </button>
+        </form>
+        {providerSettingsError ? <p className="inline-error">{providerSettingsError}</p> : null}
+        {providerSettingsNotice ? <p className="inline-success">{providerSettingsNotice}</p> : null}
         <form className="llm-budget-settings" onSubmit={saveBudgetSettings}>
           <label>
             Limite jour IA
@@ -2847,6 +3004,13 @@ export function App() {
     },
   });
 
+  const updateLlmProviderMutation = useMutation({
+    mutationFn: updateEdgeLlmProviderSettings,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["edge-llm-status"] });
+    },
+  });
+
   const backendOnline = statusQuery.isSuccess;
   const backendStatusLabel = statusQuery.isPending
     ? "API : vérification..."
@@ -3114,6 +3278,7 @@ export function App() {
             experiment={activeFactoryExperiment}
             isSavingFactory={saveFactoryDraftMutation.isPending}
             isSavingLlmBudget={updateLlmBudgetMutation.isPending}
+            isSavingLlmProvider={updateLlmProviderMutation.isPending}
             isRegeneratingAsset={regenerateAssetMutation.isPending}
             llmProvider={llmProvider}
             llmProviderStatuses={edgeLlmStatusQuery.data?.providers ?? []}
@@ -3121,6 +3286,9 @@ export function App() {
             onSelectLlmProvider={setLlmProvider}
             onUpdateLlmBudget={async (settings) => {
               await updateLlmBudgetMutation.mutateAsync(settings);
+            }}
+            onUpdateLlmProvider={async (settings) => {
+              await updateLlmProviderMutation.mutateAsync(settings);
             }}
             regeneratingAssetScene={regeneratingAssetScene}
             onRegenerateAsset={async (draft, asset, provider) => {

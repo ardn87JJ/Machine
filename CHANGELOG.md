@@ -85,6 +85,8 @@ Le format suit les principes de [Keep a Changelog](https://keepachangelog.com/fr
 - `llm-status`, le sélecteur Factory et les estimations de coût lisent les
   fournisseurs depuis Supabase au lieu d’utiliser uniquement des valeurs
   hardcodées.
+- édition des fournisseurs IA depuis Content Factory : modèle, URL compatible
+  OpenAI, activation, provider par défaut, coût estimé et prix input/output.
 
 ### Décidé
 

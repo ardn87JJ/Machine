@@ -79,19 +79,21 @@ scorables, tests actionnables, drafts de production et apprentissages.
   modèle, URL compatible OpenAI, coût estimé et prix par million de tokens.
 - alimenter `llm-status`, le sélecteur Factory et le calcul budget serveur avec
   cette configuration Supabase non secrète.
+- modifier depuis Content Factory le modèle, l'URL, l'activation, le provider
+  par défaut et les coûts non secrets d'un fournisseur IA.
 
 ## Tranche en cours
-
-Rendre la configuration providers modifiable depuis l'interface :
-
-- modifier le modèle et l'URL provider sans SQL manuel ;
-- changer le provider par défaut ;
-- activer/désactiver un provider depuis Factory ou Settings.
-
-## Prochaine etape apres cette tranche
 
 Brancher le LLM local de façon exploitable :
 
 - documenter le tunnel public requis pour Supabase Cloud ;
 - ajouter un test de connexion provider ;
 - afficher une erreur claire si l'URL locale n'est pas joignable.
+
+## Prochaine etape apres cette tranche
+
+Ajouter un test de connexion provider :
+
+- bouton `Tester provider` dans Factory ;
+- ping `/v1/models` ou mini completion compatible OpenAI ;
+- affichage latence, statut, message d'erreur exploitable.

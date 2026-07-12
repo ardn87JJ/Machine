@@ -257,6 +257,11 @@ Deno.serve(async (request) => {
       return json(await updateLlmBudgetSettings(body));
     }
 
+    if (body.action === "update-llm-provider-settings") {
+      assertConfigured();
+      return json(await updateLlmProviderSettings(body));
+    }
+
     const keyword = normalizeKeyword(String(body.keyword ?? ""));
 
     if (keyword.length < 2) {
@@ -589,6 +594,7 @@ async function buildLlmStatus() {
           default_provider: setting.defaultProvider,
           configured: true,
           model: "deterministic",
+          base_url: setting.baseUrl,
           base_url_configured: true,
           estimated_cost_per_run_usd: setting.estimatedCostPerRunUsd,
           input_per_million_usd: setting.pricing.inputPerMillion,
@@ -606,6 +612,7 @@ async function buildLlmStatus() {
         default_provider: setting.defaultProvider,
         configured: setting.enabled && Boolean(config),
         model: config?.model ?? setting.model,
+        base_url: setting.baseUrl,
         base_url_configured: Boolean(config?.baseUrl || setting.baseUrl),
         estimated_cost_per_run_usd: setting.estimatedCostPerRunUsd,
         input_per_million_usd: setting.pricing.inputPerMillion,
@@ -652,6 +659,80 @@ async function getLlmProviderSettings(): Promise<LlmProviderSetting[]> {
   }
 }
 
+async function updateLlmProviderSettings(body: JsonRecord) {
+  const provider = normalizeLlmProvider(String(body.provider ?? ""));
+  const currentSettings = await getLlmProviderSettings();
+  const fallback = findLlmProviderSetting(currentSettings, provider);
+  const enabled = provider === "fallback" ? true : body.enabled !== false;
+  const defaultProvider = body.defaultProvider === true || body.default_provider === true;
+
+  if (!enabled && defaultProvider) {
+    throw new Error("Un fournisseur par defaut doit etre actif.");
+  }
+
+  const label = sanitizeShortText(body.label, fallback.label, 80);
+  const description = sanitizeShortText(body.description, fallback.description, 240);
+  const baseUrl = sanitizeUrlText(body.baseUrl ?? body.base_url, fallback.baseUrl);
+  const model = sanitizeShortText(body.model, fallback.model, 120);
+  const estimatedCostPerRunUsd = parseProviderNumber(
+    body.estimatedCostPerRunUsd ?? body.estimated_cost_per_run_usd,
+    "estimatedCostPerRunUsd",
+    fallback.estimatedCostPerRunUsd,
+  );
+  const inputPerMillionUsd = parseProviderNumber(
+    body.inputPerMillionUsd ?? body.input_per_million_usd,
+    "inputPerMillionUsd",
+    fallback.pricing.inputPerMillion,
+  );
+  const outputPerMillionUsd = parseProviderNumber(
+    body.outputPerMillionUsd ?? body.output_per_million_usd,
+    "outputPerMillionUsd",
+    fallback.pricing.outputPerMillion,
+  );
+
+  if (provider !== "fallback" && !model) {
+    throw new Error("Le modele provider est requis.");
+  }
+
+  if (defaultProvider) {
+    await supabaseFetch("/rest/v1/llm_provider_settings?default_provider=eq.true", {
+      method: "PATCH",
+      body: JSON.stringify({
+        default_provider: false,
+        updated_at: new Date().toISOString(),
+      }),
+    });
+  }
+
+  const rows = await supabaseFetch<JsonRecord[]>(
+    "/rest/v1/llm_provider_settings?on_conflict=provider",
+    {
+      method: "POST",
+      headers: { Prefer: "resolution=merge-duplicates,return=representation" },
+      body: JSON.stringify({
+        provider,
+        label,
+        description,
+        enabled,
+        default_provider: defaultProvider,
+        base_url: baseUrl,
+        model,
+        estimated_cost_per_run_usd: estimatedCostPerRunUsd,
+        input_per_million_usd: inputPerMillionUsd,
+        output_per_million_usd: outputPerMillionUsd,
+        sort_order: fallback.sortOrder,
+        updated_at: new Date().toISOString(),
+      }),
+    },
+  );
+
+  if (!rows[0]) {
+    throw new Error("Impossible de sauvegarder le fournisseur IA.");
+  }
+
+  return await buildLlmStatus();
+}
+
 function normalizeLlmProviderSetting(row: JsonRecord): LlmProviderSetting {
   const provider = normalizeLlmProvider(String(row.provider ?? "fallback"));
   const fallback = findLlmProviderSetting(getDefaultLlmProviderSettings(), provider);
@@ -671,6 +752,26 @@ function normalizeLlmProviderSetting(row: JsonRecord): LlmProviderSetting {
     },
     sortOrder: toPositiveInteger(row.sort_order) || fallback.sortOrder,
   };
+}
+
+function sanitizeShortText(value: unknown, fallback: string, maxLength: number) {
+  const text = typeof value === "string" ? value.trim() : "";
+  return (text || fallback).slice(0, maxLength);
+}
+
+function sanitizeUrlText(value: unknown, fallback: string) {
+  const text = typeof value === "string" ? value.trim() : "";
+  return (text || fallback).replace(/\/$/, "").slice(0, 240);
+}
+
+function parseProviderNumber(value: unknown, fieldName: string, fallback: number) {
+  const numberValue = value === undefined || value === null || value === "" ? fallback : Number(value);
+
+  if (!Number.isFinite(numberValue) || numberValue < 0) {
+    throw new Error(`${fieldName} doit etre un nombre positif ou zero.`);
+  }
+
+  return Math.round(numberValue * 1_000_000) / 1_000_000;
 }
 
 function getDefaultLlmProvider(settings: LlmProviderSetting[]) {

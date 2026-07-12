@@ -209,6 +209,7 @@ export interface EdgeLlmStatusSummary {
   default_provider: boolean;
   configured: boolean;
   model: string;
+  base_url: string;
   base_url_configured: boolean;
   estimated_cost_per_run_usd: number;
   input_per_million_usd: number;
@@ -219,6 +220,19 @@ export interface EdgeLlmStatusSummary {
 
 interface EdgeLlmStatusResponse {
   providers: EdgeLlmStatusSummary[];
+}
+
+export interface UpdateEdgeLlmProviderSettingsPayload {
+  provider: LlmProvider;
+  label: string;
+  description: string;
+  enabled: boolean;
+  defaultProvider: boolean;
+  baseUrl: string;
+  model: string;
+  estimatedCostPerRunUsd: number;
+  inputPerMillionUsd: number;
+  outputPerMillionUsd: number;
 }
 
 export interface EdgeLlmUsageEvent {
@@ -658,4 +672,33 @@ export async function updateEdgeLlmBudgetSettings(settings: EdgeLlmBudgetSetting
   }
 
   return response.json() as Promise<UpdateEdgeLlmBudgetSettingsResponse>;
+}
+
+export async function updateEdgeLlmProviderSettings(settings: UpdateEdgeLlmProviderSettingsPayload) {
+  const response = await fetch(SCOUT_FUNCTION_URL, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      action: "update-llm-provider-settings",
+      ...settings,
+    }),
+  });
+
+  if (!response.ok) {
+    let message = `La fonction Scout a repondu avec le statut ${response.status}.`;
+
+    try {
+      const errorPayload = (await response.json()) as { message?: string };
+      message = errorPayload.message || message;
+    } catch {
+      // Keep the status-based message when the Edge Function does not return JSON.
+    }
+
+    throw new Error(message);
+  }
+
+  return response.json() as Promise<EdgeLlmStatusResponse>;
 }
