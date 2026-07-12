@@ -235,6 +235,16 @@ export interface UpdateEdgeLlmProviderSettingsPayload {
   outputPerMillionUsd: number;
 }
 
+export interface TestEdgeLlmProviderResponse {
+  provider: LlmProvider;
+  ok: boolean;
+  configured: boolean;
+  latency_ms: number;
+  model: string;
+  base_url_configured: boolean;
+  message: string;
+}
+
 export interface EdgeLlmUsageEvent {
   id: string;
   draft_id: string | null;
@@ -701,4 +711,33 @@ export async function updateEdgeLlmProviderSettings(settings: UpdateEdgeLlmProvi
   }
 
   return response.json() as Promise<EdgeLlmStatusResponse>;
+}
+
+export async function testEdgeLlmProvider(provider: LlmProvider) {
+  const response = await fetch(SCOUT_FUNCTION_URL, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      action: "test-llm-provider",
+      provider,
+    }),
+  });
+
+  if (!response.ok) {
+    let message = `La fonction Scout a repondu avec le statut ${response.status}.`;
+
+    try {
+      const errorPayload = (await response.json()) as { message?: string };
+      message = errorPayload.message || message;
+    } catch {
+      // Keep the status-based message when the Edge Function does not return JSON.
+    }
+
+    throw new Error(message);
+  }
+
+  return response.json() as Promise<TestEdgeLlmProviderResponse>;
 }

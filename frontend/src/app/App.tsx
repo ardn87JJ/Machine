@@ -16,6 +16,7 @@ import {
   regenerateEdgeProductionAsset,
   runEdgeScout,
   runScoutWorkerOnce,
+  testEdgeLlmProvider,
   updateEdgeExperiment,
   updateEdgeLlmBudgetSettings,
   updateEdgeLlmProviderSettings,
@@ -36,6 +37,7 @@ import {
   type ScanAnalysis,
   type ScanSummary,
   type ScanVideoSummary,
+  type TestEdgeLlmProviderResponse,
   type UpdateEdgeLlmProviderSettingsPayload,
 } from "../features/scans/api";
 import { getSystemStatus } from "../features/system/api";
@@ -1755,12 +1757,14 @@ function ContentFactoryWorkbench({
   isSavingFactory,
   isSavingLlmBudget,
   isSavingLlmProvider,
+  isTestingLlmProvider,
   isRegeneratingAsset,
   regeneratingAssetScene,
   llmProvider,
   llmProviderStatuses,
   llmUsage,
   onSaveFactory,
+  onTestLlmProvider,
   onUpdateLlmBudget,
   onUpdateLlmProvider,
   onRegenerateAsset,
@@ -1771,6 +1775,7 @@ function ContentFactoryWorkbench({
   isSavingFactory: boolean;
   isSavingLlmBudget: boolean;
   isSavingLlmProvider: boolean;
+  isTestingLlmProvider: boolean;
   isRegeneratingAsset: boolean;
   regeneratingAssetScene: string | null;
   llmProvider: LlmProvider;
@@ -1781,6 +1786,7 @@ function ContentFactoryWorkbench({
     content: ProductionPackContent,
     title: string,
   ) => void;
+  onTestLlmProvider: (provider: LlmProvider) => Promise<TestEdgeLlmProviderResponse>;
   onUpdateLlmBudget: (settings: EdgeLlmBudgetSettings) => Promise<void>;
   onUpdateLlmProvider: (settings: UpdateEdgeLlmProviderSettingsPayload) => Promise<void>;
   onRegenerateAsset: (
@@ -1813,6 +1819,8 @@ function ContentFactoryWorkbench({
   const [providerDefault, setProviderDefault] = useState(false);
   const [providerSettingsError, setProviderSettingsError] = useState("");
   const [providerSettingsNotice, setProviderSettingsNotice] = useState("");
+  const [providerTestResult, setProviderTestResult] = useState<TestEdgeLlmProviderResponse | null>(null);
+  const [providerTestError, setProviderTestError] = useState("");
 
   useEffect(() => {
     if (!draft) {
@@ -1872,6 +1880,8 @@ function ContentFactoryWorkbench({
     setProviderDefault(selectedStatus.default_provider);
     setProviderSettingsError("");
     setProviderSettingsNotice("");
+    setProviderTestResult(null);
+    setProviderTestError("");
   }, [llmProvider, llmProviderStatuses]);
 
   if (!draft) {
@@ -1997,6 +2007,16 @@ function ContentFactoryWorkbench({
       setProviderSettingsNotice("Fournisseur IA sauvegardé.");
     } catch (error) {
       setProviderSettingsError(error instanceof Error ? error.message : "Sauvegarde provider IA impossible.");
+    }
+  };
+  const testProviderConnection = async () => {
+    setProviderTestError("");
+    setProviderTestResult(null);
+
+    try {
+      setProviderTestResult(await onTestLlmProvider(llmProvider));
+    } catch (error) {
+      setProviderTestError(error instanceof Error ? error.message : "Test provider IA impossible.");
     }
   };
   const updateAsset = (scene: string, patch: Partial<Omit<ProductionAsset, "scene">>) => {
@@ -2242,9 +2262,18 @@ function ContentFactoryWorkbench({
           <button disabled={isSavingLlmProvider} type="submit">
             {isSavingLlmProvider ? "Sauvegarde..." : "Sauvegarder provider"}
           </button>
+          <button disabled={isTestingLlmProvider} onClick={testProviderConnection} type="button">
+            {isTestingLlmProvider ? "Test..." : "Tester provider"}
+          </button>
         </form>
         {providerSettingsError ? <p className="inline-error">{providerSettingsError}</p> : null}
         {providerSettingsNotice ? <p className="inline-success">{providerSettingsNotice}</p> : null}
+        {providerTestError ? <p className="inline-error">{providerTestError}</p> : null}
+        {providerTestResult ? (
+          <p className={providerTestResult.ok ? "inline-success" : "inline-error"}>
+            Test provider: {providerTestResult.ok ? "OK" : "ECHEC"} · {providerTestResult.latency_ms} ms · {providerTestResult.message}
+          </p>
+        ) : null}
         <form className="llm-budget-settings" onSubmit={saveBudgetSettings}>
           <label>
             Limite jour IA
@@ -3011,6 +3040,10 @@ export function App() {
     },
   });
 
+  const testLlmProviderMutation = useMutation({
+    mutationFn: testEdgeLlmProvider,
+  });
+
   const backendOnline = statusQuery.isSuccess;
   const backendStatusLabel = statusQuery.isPending
     ? "API : vérification..."
@@ -3279,11 +3312,13 @@ export function App() {
             isSavingFactory={saveFactoryDraftMutation.isPending}
             isSavingLlmBudget={updateLlmBudgetMutation.isPending}
             isSavingLlmProvider={updateLlmProviderMutation.isPending}
+            isTestingLlmProvider={testLlmProviderMutation.isPending}
             isRegeneratingAsset={regenerateAssetMutation.isPending}
             llmProvider={llmProvider}
             llmProviderStatuses={edgeLlmStatusQuery.data?.providers ?? []}
             llmUsage={edgeLlmUsageQuery.data}
             onSelectLlmProvider={setLlmProvider}
+            onTestLlmProvider={(provider) => testLlmProviderMutation.mutateAsync(provider)}
             onUpdateLlmBudget={async (settings) => {
               await updateLlmBudgetMutation.mutateAsync(settings);
             }}

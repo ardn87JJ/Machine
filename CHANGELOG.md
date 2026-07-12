@@ -87,6 +87,8 @@ Le format suit les principes de [Keep a Changelog](https://keepachangelog.com/fr
   hardcodées.
 - édition des fournisseurs IA depuis Content Factory : modèle, URL compatible
   OpenAI, activation, provider par défaut, coût estimé et prix input/output.
+- bouton `Tester provider` dans Content Factory, avec diagnostic serveur :
+  statut, latence, modèle et message d’erreur lisible.
 
 ### Décidé
 

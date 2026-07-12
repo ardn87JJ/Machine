@@ -262,6 +262,11 @@ Deno.serve(async (request) => {
       return json(await updateLlmProviderSettings(body));
     }
 
+    if (body.action === "test-llm-provider") {
+      assertConfigured();
+      return json(await testLlmProvider(body));
+    }
+
     const keyword = normalizeKeyword(String(body.keyword ?? ""));
 
     if (keyword.length < 2) {
@@ -731,6 +736,111 @@ async function updateLlmProviderSettings(body: JsonRecord) {
   }
 
   return await buildLlmStatus();
+}
+
+async function testLlmProvider(body: JsonRecord) {
+  const providerSettings = await getLlmProviderSettings();
+  const provider = normalizeLlmProvider(String(body.provider ?? getDefaultLlmProvider(providerSettings)));
+  const setting = findLlmProviderSetting(providerSettings, provider);
+  const startedAt = Date.now();
+
+  if (provider === "fallback") {
+    return {
+      provider,
+      ok: true,
+      configured: true,
+      latency_ms: Date.now() - startedAt,
+      model: "deterministic",
+      base_url_configured: true,
+      message: "Fallback deterministe disponible sans appel externe.",
+    };
+  }
+
+  if (!setting.enabled) {
+    return {
+      provider,
+      ok: false,
+      configured: false,
+      latency_ms: Date.now() - startedAt,
+      model: setting.model,
+      base_url_configured: Boolean(setting.baseUrl),
+      message: "Fournisseur desactive dans Supabase.",
+    };
+  }
+
+  const config = resolveLlmConfig(provider, providerSettings);
+
+  if (!config) {
+    return {
+      provider,
+      ok: false,
+      configured: false,
+      latency_ms: Date.now() - startedAt,
+      model: setting.model,
+      base_url_configured: Boolean(setting.baseUrl),
+      message: buildMissingLlmConfigMessage(provider),
+    };
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8_000);
+
+  try {
+    const response = await fetch(`${config.baseUrl}/models`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${config.apiKey}`,
+        Accept: "application/json",
+      },
+      signal: controller.signal,
+    });
+    const bodyText = await response.text().catch(() => "");
+
+    if (!response.ok) {
+      return {
+        provider,
+        ok: false,
+        configured: true,
+        latency_ms: Date.now() - startedAt,
+        model: config.model,
+        base_url_configured: true,
+        message: `HTTP ${response.status}${formatLlmErrorDetail(bodyText)}`,
+      };
+    }
+
+    const payload = tryParseJson(bodyText) as JsonRecord | null;
+    const modelCount = Array.isArray(payload?.data) ? payload.data.length : null;
+
+    return {
+      provider,
+      ok: true,
+      configured: true,
+      latency_ms: Date.now() - startedAt,
+      model: config.model,
+      base_url_configured: true,
+      message: modelCount === null
+        ? "Connexion provider OK."
+        : `Connexion provider OK, ${modelCount} modeles visibles.`,
+    };
+  } catch (error) {
+    const message = error instanceof Error && error.name === "AbortError"
+      ? "Timeout provider apres 8 secondes."
+      : error instanceof Error
+      ? error.message
+      : "Erreur provider inconnue.";
+
+    return {
+      provider,
+      ok: false,
+      configured: true,
+      latency_ms: Date.now() - startedAt,
+      model: config.model,
+      base_url_configured: true,
+      message,
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 function normalizeLlmProviderSetting(row: JsonRecord): LlmProviderSetting {

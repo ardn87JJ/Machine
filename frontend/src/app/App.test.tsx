@@ -659,6 +659,23 @@ describe("App", () => {
           );
         }
 
+        if ((body as { action?: string }).action === "test-llm-provider") {
+          return Promise.resolve(
+            new Response(JSON.stringify({
+              provider: (body as { provider: string }).provider,
+              ok: true,
+              configured: true,
+              latency_ms: 42,
+              model: "deterministic",
+              base_url_configured: true,
+              message: "Fallback deterministe disponible sans appel externe.",
+            }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            }),
+          );
+        }
+
         const keyword = body.keyword ?? "ai music channel";
         const scanId = `scan-${keyword.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`;
 
@@ -812,6 +829,8 @@ describe("App", () => {
     fireEvent.change(screen.getByLabelText("Coût par run fournisseur IA"), { target: { value: "0" } });
     fireEvent.click(screen.getByRole("button", { name: "Sauvegarder provider" }));
     expect(await screen.findByText("Fournisseur IA sauvegardé.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Tester provider" }));
+    expect(await screen.findByText(/Test provider: OK · 42 ms/)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Limite jour IA"), { target: { value: "0.5" } });
     fireEvent.click(screen.getByRole("button", { name: "Sauvegarder budget IA" }));
     expect(await screen.findByText("Budget IA serveur sauvegarde.")).toBeInTheDocument();
