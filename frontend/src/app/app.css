@@ -1509,6 +1509,41 @@ h3 {
   color: #83f1d8 !important;
 }
 
+.local-llm-panel {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  gap: 10px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid #284454;
+  border-radius: 10px;
+  background: #0a1a22;
+}
+
+.local-llm-panel code {
+  color: #edf3fb;
+  font-weight: 900;
+}
+
+.local-llm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.local-llm-actions button {
+  border: 1px solid #2d5262;
+  border-radius: 999px;
+  padding: 8px 10px;
+  color: #83f1d8;
+  background: #102836;
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
 .llm-budget-panel p {
   grid-column: 1 / -1;
 }
@@ -1664,6 +1699,7 @@ h3 {
   .llm-budget-panel,
   .llm-provider-settings,
   .llm-budget-settings,
+  .local-llm-panel,
   .asset-edit-grid,
   .ledger-grid,
   .workspace-grid,

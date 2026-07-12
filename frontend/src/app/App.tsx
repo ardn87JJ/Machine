@@ -271,6 +271,10 @@ const fallbackLlmProviderOptions: LlmProviderOption[] = [
   },
 ];
 
+const ollamaSetupCommand = "ollama serve\nollama pull llama3.1:8b";
+const ollamaTunnelCommand = "cloudflared tunnel --url http://localhost:11434";
+const lmStudioSetupNote = "LM Studio > Local Server > Start Server > expose une URL publique/tunnel vers le port 1234 puis ajoute /v1.";
+
 function buildLlmProviderOptions(statuses: EdgeLlmStatusSummary[]): LlmProviderOption[] {
   if (statuses.length === 0) {
     return fallbackLlmProviderOptions;
@@ -2273,6 +2277,50 @@ function ContentFactoryWorkbench({
           <p className={providerTestResult.ok ? "inline-success" : "inline-error"}>
             Test provider: {providerTestResult.ok ? "OK" : "ECHEC"} · {providerTestResult.latency_ms} ms · {providerTestResult.message}
           </p>
+        ) : null}
+        {llmProvider === "local" ? (
+          <div className="local-llm-panel">
+            <div>
+              <span>LLM local</span>
+              <strong>Supabase Cloud ne peut pas appeler localhost</strong>
+              <p>
+                Lance ton modèle sur le PC, expose-le avec un tunnel public, puis colle l’URL publique terminée par <code>/v1</code> dans le champ URL.
+              </p>
+            </div>
+            <div className="local-llm-actions">
+              <button
+                onClick={() => {
+                  setProviderModelInput("llama3.1:8b");
+                  setProviderBaseUrlInput("https://TON-TUNNEL.trycloudflare.com/v1");
+                  setProviderCostInput("0");
+                  setProviderInputPriceInput("0");
+                  setProviderOutputPriceInput("0");
+                }}
+                type="button"
+              >
+                Preset Ollama
+              </button>
+              <button onClick={() => copyTextToClipboard(ollamaSetupCommand)} type="button">
+                Copier Ollama
+              </button>
+              <button onClick={() => copyTextToClipboard(ollamaTunnelCommand)} type="button">
+                Copier tunnel
+              </button>
+              <button
+                onClick={() => {
+                  setProviderModelInput("local-model");
+                  setProviderBaseUrlInput("https://TON-TUNNEL.example.com/v1");
+                  setProviderCostInput("0");
+                  setProviderInputPriceInput("0");
+                  setProviderOutputPriceInput("0");
+                }}
+                type="button"
+              >
+                Preset LM Studio
+              </button>
+            </div>
+            <p>{lmStudioSetupNote}</p>
+          </div>
         ) : null}
         <form className="llm-budget-settings" onSubmit={saveBudgetSettings}>
           <label>

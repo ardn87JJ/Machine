@@ -84,18 +84,23 @@ scorables, tests actionnables, drafts de production et apprentissages.
 - tester un fournisseur IA depuis Content Factory via l'Edge Function :
   fallback instantané ou appel léger `/models` compatible OpenAI avec latence
   et erreur lisible.
+- guider le branchement local depuis Factory : preset Ollama, preset LM Studio,
+  commande de tunnel et format d'URL publique `/v1`.
 
 ## Tranche en cours
 
-Brancher le LLM local de façon exploitable :
+Brancher le LLM local sur la machine utilisateur :
 
-- documenter le tunnel public requis pour Supabase Cloud ;
-- afficher une erreur claire si l'URL locale n'est pas joignable.
+- choisir Ollama ou LM Studio ;
+- installer/lancer le serveur local ;
+- créer le tunnel public ;
+- coller l'URL publique `/v1`, sauvegarder Local et tester.
 
 ## Prochaine etape apres cette tranche
 
-Brancher un LLM local réel :
+Faire le branchement opérationnel avec l'utilisateur :
 
-- choisir Ollama ou LM Studio ;
-- exposer ton PC via une URL publique/tunnel joignable par Supabase ;
-- renseigner `LOCAL_LLM_BASE_URL` ou l'URL provider local dans Supabase.
+- lui faire choisir Ollama ou LM Studio ;
+- lancer les commandes côté PC ;
+- vérifier le bouton `Tester provider` sur Local ;
+- lancer une régénération d'asset via provider Local.

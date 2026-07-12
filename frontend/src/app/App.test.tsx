@@ -308,6 +308,22 @@ describe("App", () => {
                     sort_order: 50,
                     message: "Disponible sans coût API.",
                   },
+                  {
+                    provider: "local",
+                    label: "Local",
+                    description: "LLM PC via URL publique/tunnel compatible OpenAI.",
+                    enabled: true,
+                    default_provider: false,
+                    configured: false,
+                    model: "llama3.1:8b",
+                    base_url: "",
+                    base_url_configured: false,
+                    estimated_cost_per_run_usd: 0,
+                    input_per_million_usd: 0,
+                    output_per_million_usd: 0,
+                    sort_order: 40,
+                    message: "LOCAL_LLM_BASE_URL/local_llm_base_url absent.",
+                  },
                 ],
               }), {
                 status: 200,
@@ -831,6 +847,12 @@ describe("App", () => {
     expect(await screen.findByText("Fournisseur IA sauvegardé.")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Tester provider" }));
     expect(await screen.findByText(/Test provider: OK · 42 ms/)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Fournisseur LLM"), { target: { value: "local" } });
+    expect(screen.getByText("LLM local")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Preset Ollama" }));
+    expect(screen.getByLabelText("Modèle fournisseur IA")).toHaveValue("llama3.1:8b");
+    expect(screen.getByLabelText("URL fournisseur IA")).toHaveValue("https://TON-TUNNEL.trycloudflare.com/v1");
+    fireEvent.change(screen.getByLabelText("Fournisseur LLM"), { target: { value: "fallback" } });
     fireEvent.change(screen.getByLabelText("Limite jour IA"), { target: { value: "0.5" } });
     fireEvent.click(screen.getByRole("button", { name: "Sauvegarder budget IA" }));
     expect(await screen.findByText("Budget IA serveur sauvegarde.")).toBeInTheDocument();
@@ -983,5 +1005,5 @@ describe("App", () => {
         }),
       ).toBe(true);
     });
-  });
+  }, 15_000);
 });

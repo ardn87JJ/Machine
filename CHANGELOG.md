@@ -89,6 +89,8 @@ Le format suit les principes de [Keep a Changelog](https://keepachangelog.com/fr
   OpenAI, activation, provider par défaut, coût estimé et prix input/output.
 - bouton `Tester provider` dans Content Factory, avec diagnostic serveur :
   statut, latence, modèle et message d’erreur lisible.
+- panneau d’aide LLM local dans Content Factory avec presets Ollama/LM Studio,
+  commandes à copier et rappel de l’URL publique `/v1` requise par Supabase.
 
 ### Décidé
 
