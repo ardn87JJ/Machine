@@ -1427,7 +1427,7 @@ function buildAssetQueue(
 
   return montagePlan.map((step, index) => {
     const scene = `Scene ${index + 1}`;
-    const previousAsset = draft.content.factory?.assets.find((asset) => asset.scene === scene);
+    const previousAsset = draft.content.factory?.assets?.find((asset) => asset.scene === scene);
     const editedAsset = assetEdits[scene];
 
     return {

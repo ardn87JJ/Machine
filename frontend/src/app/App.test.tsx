@@ -268,7 +268,7 @@ describe("App", () => {
           checklist: Array<{ label: string; done: boolean }>;
           montagePlan: string[];
           voicePrompt: string;
-          assets: Array<{
+          assets?: Array<{
             scene: string;
             storyboard: string;
             visualPrompt: string;
@@ -459,7 +459,17 @@ describe("App", () => {
             keyword: payload.keyword,
             title: payload.title,
             status: payload.status,
-            content: payload.content,
+            content: {
+              ...payload.content,
+              factory: {
+                selectedTitle: payload.title,
+                selectedHook: payload.content.hooks[0],
+                checklist: [],
+                montagePlan: [],
+                voicePrompt: "Legacy voice prompt without assets.",
+                updatedAt: "2026-07-08T13:45:00Z",
+              },
+            },
             created_at: "2026-07-08T13:45:00Z",
             updated_at: "2026-07-08T13:45:00Z",
           };

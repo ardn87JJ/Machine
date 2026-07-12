@@ -69,6 +69,8 @@ Le format suit les principes de [Keep a Changelog](https://keepachangelog.com/fr
 - sélecteur de fournisseur LLM dans Content Factory (`Fallback`, `OpenAI`,
   `OpenRouter`, `Groq`, `Local`) et panneau Budget IA avec estimation par
   session avant régénération d’assets.
+- correction de l’ouverture Factory avec d’anciens drafts contenant `factory`
+  mais pas encore `assets`.
 
 ### Décidé
 
