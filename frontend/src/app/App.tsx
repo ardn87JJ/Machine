@@ -203,43 +203,88 @@ type DecisionLabel = OpportunityRecord["decisionLabel"];
 type DecisionFilter = DecisionLabel | "ALL";
 type WorkspaceView = "scout" | "decision" | "factory" | "optimizer";
 
-const llmProviderOptions: Array<{
+type LlmProviderOption = {
   id: LlmProvider;
   label: string;
   description: string;
   costPerRunUsd: number;
-}> = [
+  enabled: boolean;
+  configured: boolean;
+  model: string;
+  defaultProvider: boolean;
+};
+
+const fallbackLlmProviderOptions: LlmProviderOption[] = [
   {
     id: "openai",
     label: "OpenAI",
     description: "Qualité stable, facturation OpenAI API.",
     costPerRunUsd: 0.006,
+    enabled: true,
+    configured: false,
+    model: "gpt-4o-mini",
+    defaultProvider: false,
   },
   {
     id: "openrouter",
     label: "OpenRouter",
     description: "Routeur multi-modèles compatible OpenAI.",
     costPerRunUsd: 0.004,
+    enabled: true,
+    configured: false,
+    model: "openai/gpt-4o-mini",
+    defaultProvider: false,
   },
   {
     id: "groq",
     label: "Groq",
     description: "Modèles rapides compatibles OpenAI.",
     costPerRunUsd: 0.002,
+    enabled: true,
+    configured: false,
+    model: "llama-3.1-8b-instant",
+    defaultProvider: false,
   },
   {
     id: "local",
     label: "Local",
     description: "LLM PC via URL publique/tunnel compatible OpenAI.",
     costPerRunUsd: 0,
+    enabled: true,
+    configured: false,
+    model: "llama3.1:8b",
+    defaultProvider: false,
   },
   {
     id: "fallback",
     label: "Fallback",
     description: "Aucun coût API, génération déterministe.",
     costPerRunUsd: 0,
+    enabled: true,
+    configured: true,
+    model: "deterministic",
+    defaultProvider: true,
   },
 ];
+
+function buildLlmProviderOptions(statuses: EdgeLlmStatusSummary[]): LlmProviderOption[] {
+  if (statuses.length === 0) {
+    return fallbackLlmProviderOptions;
+  }
+
+  return [...statuses]
+    .sort((left, right) => left.sort_order - right.sort_order)
+    .map((status) => ({
+      id: status.provider,
+      label: status.label || status.provider,
+      description: status.description || status.message,
+      costPerRunUsd: status.estimated_cost_per_run_usd,
+      enabled: status.enabled,
+      configured: status.configured,
+      model: status.model,
+      defaultProvider: status.default_provider,
+    }));
+}
 
 type CompetitorRow = {
   channelId: string;
@@ -1820,7 +1865,10 @@ function ContentFactoryWorkbench({
   const markdownExport = formatFactoryMarkdown(draft, factoryContent);
   const completedCount = doneChecklistItems.length;
   const completedAssetCount = assets.filter((asset) => asset.status === "DONE").length;
-  const selectedProviderConfig = llmProviderOptions.find((option) => option.id === llmProvider) ?? llmProviderOptions[0];
+  const llmProviderOptions = buildLlmProviderOptions(llmProviderStatuses);
+  const selectedProviderConfig = llmProviderOptions.find((option) => option.id === llmProvider) ??
+    llmProviderOptions.find((option) => option.defaultProvider) ??
+    llmProviderOptions[0];
   const selectedProviderStatus = llmProviderStatuses.find((status) => status.provider === llmProvider);
   const estimatedCostUsd = llmRunCount * selectedProviderConfig.costPerRunUsd;
   const nextRunCostUsd = selectedProviderConfig.costPerRunUsd;
@@ -1833,7 +1881,7 @@ function ContentFactoryWorkbench({
     enforceBudgetLimits &&
     (todayPersistedCostUsd + estimatedCostUsd + nextRunCostUsd > dailyBudgetLimitUsd ||
       monthPersistedCostUsd + estimatedCostUsd + nextRunCostUsd > monthlyBudgetLimitUsd);
-  const providerExplicitlyUnavailable = selectedProviderStatus?.configured === false;
+  const providerExplicitlyUnavailable = !selectedProviderConfig.enabled || selectedProviderStatus?.configured === false;
   const saveBudgetSettings = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setBudgetSettingsError("");
@@ -2027,14 +2075,17 @@ function ContentFactoryWorkbench({
             value={llmProvider}
           >
             {llmProviderOptions.map((option) => (
-              <option key={option.id} value={option.id}>{option.label}</option>
+              <option disabled={!option.enabled} key={option.id} value={option.id}>
+                {option.label}{option.enabled ? "" : " (désactivé)"}
+              </option>
             ))}
           </select>
         </label>
         <p>{selectedProviderConfig.description}</p>
         <p>
           Statut: {selectedProviderStatus?.configured ? "configuré" : selectedProviderStatus ? "non configuré" : "lecture..."}
-          {selectedProviderStatus?.model ? ` · ${selectedProviderStatus.model}` : ""}
+          {selectedProviderConfig.model ? ` · ${selectedProviderConfig.model}` : ""}
+          {selectedProviderConfig.costPerRunUsd > 0 ? ` · ~${selectedProviderConfig.costPerRunUsd.toFixed(4)} $/run` : ""}
           {selectedProviderStatus?.message ? ` · ${selectedProviderStatus.message}` : ""}
         </p>
         <form className="llm-budget-settings" onSubmit={saveBudgetSettings}>
@@ -2676,6 +2727,16 @@ export function App() {
     retry: false,
     refetchInterval: 60_000,
   });
+
+  useEffect(() => {
+    const statuses = edgeLlmStatusQuery.data?.providers ?? [];
+    const currentProvider = statuses.find((status) => status.provider === llmProvider);
+    const defaultProvider = statuses.find((status) => status.default_provider && status.enabled);
+
+    if ((!currentProvider || !currentProvider.enabled) && defaultProvider) {
+      setLlmProvider(defaultProvider.provider);
+    }
+  }, [edgeLlmStatusQuery.data?.providers, llmProvider]);
 
   const createExperimentMutation = useMutation({
     mutationFn: (opportunity: OpportunityRecord) =>

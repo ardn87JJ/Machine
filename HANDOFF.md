@@ -75,20 +75,23 @@ scorables, tests actionnables, drafts de production et apprentissages.
   chaque regeneration payante.
 - modifier depuis Content Factory les limites budget IA jour/mois et le blocage
   serveur, sans SQL manuel.
+- lire les fournisseurs IA depuis `llm_provider_settings` : label, description,
+  modèle, URL compatible OpenAI, coût estimé et prix par million de tokens.
+- alimenter `llm-status`, le sélecteur Factory et le calcul budget serveur avec
+  cette configuration Supabase non secrète.
 
 ## Tranche en cours
 
-Ajouter la configuration par fournisseur dans Supabase :
+Rendre la configuration providers modifiable depuis l'interface :
 
-- provider actif par defaut ;
-- modele par provider ;
-- URLs compatibles OpenAI pour local/OpenRouter/Groq ;
-- estimation de cout par provider.
+- modifier le modèle et l'URL provider sans SQL manuel ;
+- changer le provider par défaut ;
+- activer/désactiver un provider depuis Factory ou Settings.
 
 ## Prochaine etape apres cette tranche
 
-Brancher la selection fournisseur sur cette configuration :
+Brancher le LLM local de façon exploitable :
 
-- lire les providers depuis Supabase ;
-- afficher les couts par provider dans Factory ;
-- eviter les valeurs hardcodees dans le frontend et l'Edge Function.
+- documenter le tunnel public requis pour Supabase Cloud ;
+- ajouter un test de connexion provider ;
+- afficher une erreur claire si l'URL locale n'est pas joignable.

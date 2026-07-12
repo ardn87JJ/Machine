@@ -203,9 +203,17 @@ interface UpdateEdgeProductionDraftResponse {
 
 export interface EdgeLlmStatusSummary {
   provider: LlmProvider;
+  label: string;
+  description: string;
+  enabled: boolean;
+  default_provider: boolean;
   configured: boolean;
   model: string;
   base_url_configured: boolean;
+  estimated_cost_per_run_usd: number;
+  input_per_million_usd: number;
+  output_per_million_usd: number;
+  sort_order: number;
   message: string;
 }
 

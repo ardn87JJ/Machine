@@ -79,6 +79,12 @@ Le format suit les principes de [Keep a Changelog](https://keepachangelog.com/fr
   payantes si le coût estimé dépasse les limites journalières ou mensuelles.
 - édition des limites Budget IA depuis Content Factory : montant journalier,
   montant mensuel et activation du blocage serveur.
+- table Supabase `llm_provider_settings` pour configurer les fournisseurs IA
+  non secrets : label, modèle, URL compatible OpenAI, coût estimé et prix par
+  million de tokens.
+- `llm-status`, le sélecteur Factory et les estimations de coût lisent les
+  fournisseurs depuis Supabase au lieu d’utiliser uniquement des valeurs
+  hardcodées.
 
 ### Décidé
 

@@ -294,9 +294,17 @@ describe("App", () => {
                 providers: [
                   {
                     provider: "fallback",
+                    label: "Fallback",
+                    description: "Aucun coût API, génération déterministe.",
+                    enabled: true,
+                    default_provider: true,
                     configured: true,
                     model: "deterministic",
                     base_url_configured: true,
+                    estimated_cost_per_run_usd: 0,
+                    input_per_million_usd: 0,
+                    output_per_million_usd: 0,
+                    sort_order: 50,
                     message: "Disponible sans coût API.",
                   },
                 ],

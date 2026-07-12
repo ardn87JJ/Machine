@@ -127,6 +127,25 @@ type LlmConfig = {
   apiKey: string;
   baseUrl: string;
   model: string;
+  pricing: LlmProviderPricing;
+};
+
+type LlmProviderPricing = {
+  inputPerMillion: number;
+  outputPerMillion: number;
+};
+
+type LlmProviderSetting = {
+  provider: LlmProvider;
+  label: string;
+  description: string;
+  enabled: boolean;
+  defaultProvider: boolean;
+  baseUrl: string;
+  model: string;
+  estimatedCostPerRunUsd: number;
+  pricing: LlmProviderPricing;
+  sortOrder: number;
 };
 
 type LlmUsageEstimate = {
@@ -187,7 +206,7 @@ Deno.serve(async (request) => {
       }
 
       if (url.searchParams.get("view") === "llm-status") {
-        return json(buildLlmStatus());
+        return json(await buildLlmStatus());
       }
 
       if (url.searchParams.get("view") === "llm-usage") {
@@ -385,7 +404,8 @@ async function regenerateProductionAsset(body: JsonRecord) {
   const draftId = String(body.draft_id ?? "");
   const scene = String(body.scene ?? "").trim();
   const currentAsset = body.asset as Partial<ProductionAsset> | undefined;
-  const provider = normalizeLlmProvider(String(body.provider ?? Deno.env.get("LLM_PROVIDER") ?? "openai"));
+  const providerSettings = await getLlmProviderSettings();
+  const provider = normalizeLlmProvider(String(body.provider ?? Deno.env.get("LLM_PROVIDER") ?? getDefaultLlmProvider(providerSettings)));
 
   if (!draftId || !scene) {
     throw new Error("draft_id et scene sont requis pour regenerer un asset.");
@@ -405,7 +425,7 @@ async function regenerateProductionAsset(body: JsonRecord) {
   }
 
   const fallbackAsset = buildRegeneratedAsset(draft, scene, currentAsset);
-  const llmConfig = resolveLlmConfig(provider);
+  const llmConfig = resolveLlmConfig(provider, providerSettings);
 
   if (!llmConfig) {
     const usage = estimateLlmUsage(provider, "", draft, currentAsset, fallbackAsset, "fallback");
@@ -472,7 +492,7 @@ async function regenerateProductionAsset(body: JsonRecord) {
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Erreur LLM inconnue.";
-    const usage = estimateLlmUsage(provider, llmConfig.model, draft, currentAsset, fallbackAsset, "fallback");
+    const usage = estimateLlmUsage(provider, llmConfig.model, draft, currentAsset, fallbackAsset, "fallback", undefined, llmConfig.pricing);
     await insertLlmUsageEvent({
       draftId,
       scene,
@@ -502,7 +522,13 @@ function normalizeLlmProvider(value: string): LlmProvider {
   return "openai";
 }
 
-function resolveLlmConfig(provider: LlmProvider): LlmConfig | null {
+function resolveLlmConfig(provider: LlmProvider, settings: LlmProviderSetting[]): LlmConfig | null {
+  const setting = findLlmProviderSetting(settings, provider);
+
+  if (!setting.enabled) {
+    return null;
+  }
+
   if (provider === "fallback") {
     return null;
   }
@@ -511,8 +537,9 @@ function resolveLlmConfig(provider: LlmProvider): LlmConfig | null {
     return resolveOpenAiCompatibleConfig({
       provider,
       apiKey: pickEnv(["OPENAI_API_KEY", "openai_api_key", "LLM_API_KEY", "llm_api_key"]),
-      baseUrl: pickEnv(["OPENAI_BASE_URL", "openai_base_url", "LLM_BASE_URL", "llm_base_url"]) || llmBaseUrl,
-      model: pickEnv(["OPENAI_MODEL", "openai_model", "LLM_MODEL", "llm_model"]) || llmModel,
+      baseUrl: pickEnv(["OPENAI_BASE_URL", "openai_base_url", "LLM_BASE_URL", "llm_base_url"]) || setting.baseUrl || llmBaseUrl,
+      model: pickEnv(["OPENAI_MODEL", "openai_model", "LLM_MODEL", "llm_model"]) || setting.model || llmModel,
+      pricing: setting.pricing,
     });
   }
 
@@ -520,8 +547,9 @@ function resolveLlmConfig(provider: LlmProvider): LlmConfig | null {
     return resolveOpenAiCompatibleConfig({
       provider,
       apiKey: pickEnv(["OPENROUTER_API_KEY", "openrouter_api_key"]),
-      baseUrl: pickEnv(["OPENROUTER_BASE_URL", "openrouter_base_url"]) || "https://openrouter.ai/api/v1",
-      model: pickEnv(["OPENROUTER_MODEL", "openrouter_model"]) || "openai/gpt-4o-mini",
+      baseUrl: pickEnv(["OPENROUTER_BASE_URL", "openrouter_base_url"]) || setting.baseUrl,
+      model: pickEnv(["OPENROUTER_MODEL", "openrouter_model"]) || setting.model,
+      pricing: setting.pricing,
     });
   }
 
@@ -529,42 +557,63 @@ function resolveLlmConfig(provider: LlmProvider): LlmConfig | null {
     return resolveOpenAiCompatibleConfig({
       provider,
       apiKey: pickEnv(["GROQ_API_KEY", "groq_api_key"]),
-      baseUrl: pickEnv(["GROQ_BASE_URL", "groq_base_url"]) || "https://api.groq.com/openai/v1",
-      model: pickEnv(["GROQ_MODEL", "groq_model"]) || "llama-3.1-8b-instant",
+      baseUrl: pickEnv(["GROQ_BASE_URL", "groq_base_url"]) || setting.baseUrl,
+      model: pickEnv(["GROQ_MODEL", "groq_model"]) || setting.model,
+      pricing: setting.pricing,
     });
   }
 
   return resolveOpenAiCompatibleConfig({
     provider,
     apiKey: pickEnv(["LOCAL_LLM_API_KEY", "local_llm_api_key"]) || "local",
-    baseUrl: pickEnv(["LOCAL_LLM_BASE_URL", "local_llm_base_url"]),
-    model: pickEnv(["LOCAL_LLM_MODEL", "local_llm_model"]) || "llama3.1:8b",
+    baseUrl: pickEnv(["LOCAL_LLM_BASE_URL", "local_llm_base_url"]) || setting.baseUrl,
+    model: pickEnv(["LOCAL_LLM_MODEL", "local_llm_model"]) || setting.model,
+    pricing: setting.pricing,
   });
 }
 
-function buildLlmStatus() {
-  const providers: LlmProvider[] = ["fallback", "openai", "openrouter", "groq", "local"];
+async function buildLlmStatus() {
+  const settings = await getLlmProviderSettings();
 
   return {
-    providers: providers.map((provider) => {
-      const config = resolveLlmConfig(provider);
+    providers: settings.map((setting) => {
+      const provider = setting.provider;
+      const config = resolveLlmConfig(provider, settings);
 
       if (provider === "fallback") {
         return {
           provider,
+          label: setting.label,
+          description: setting.description,
+          enabled: setting.enabled,
+          default_provider: setting.defaultProvider,
           configured: true,
           model: "deterministic",
           base_url_configured: true,
+          estimated_cost_per_run_usd: setting.estimatedCostPerRunUsd,
+          input_per_million_usd: setting.pricing.inputPerMillion,
+          output_per_million_usd: setting.pricing.outputPerMillion,
+          sort_order: setting.sortOrder,
           message: "Disponible sans coût API.",
         };
       }
 
       return {
         provider,
-        configured: Boolean(config),
-        model: config?.model ?? "",
-        base_url_configured: Boolean(config?.baseUrl),
-        message: config
+        label: setting.label,
+        description: setting.description,
+        enabled: setting.enabled,
+        default_provider: setting.defaultProvider,
+        configured: setting.enabled && Boolean(config),
+        model: config?.model ?? setting.model,
+        base_url_configured: Boolean(config?.baseUrl || setting.baseUrl),
+        estimated_cost_per_run_usd: setting.estimatedCostPerRunUsd,
+        input_per_million_usd: setting.pricing.inputPerMillion,
+        output_per_million_usd: setting.pricing.outputPerMillion,
+        sort_order: setting.sortOrder,
+        message: !setting.enabled
+          ? "Fournisseur desactive dans Supabase."
+          : config
           ? "Configuration présente. Le fournisseur peut encore refuser selon quota, modèle ou billing."
           : buildMissingLlmConfigMessage(provider),
       };
@@ -581,6 +630,122 @@ function resolveOpenAiCompatibleConfig(config: LlmConfig): LlmConfig | null {
     ...config,
     baseUrl: config.baseUrl.replace(/\/$/, ""),
   };
+}
+
+async function getLlmProviderSettings(): Promise<LlmProviderSetting[]> {
+  try {
+    const rows = await supabaseFetch<JsonRecord[]>(
+      "/rest/v1/llm_provider_settings?select=provider,label,description,enabled,default_provider,base_url,model,estimated_cost_per_run_usd,input_per_million_usd,output_per_million_usd,sort_order&order=sort_order.asc",
+    );
+
+    if (rows.length === 0) {
+      return getDefaultLlmProviderSettings();
+    }
+
+    return rows.map(normalizeLlmProviderSetting).sort((left, right) => left.sortOrder - right.sortOrder);
+  } catch (error) {
+    if (isMissingTable(error)) {
+      return getDefaultLlmProviderSettings();
+    }
+
+    throw error;
+  }
+}
+
+function normalizeLlmProviderSetting(row: JsonRecord): LlmProviderSetting {
+  const provider = normalizeLlmProvider(String(row.provider ?? "fallback"));
+  const fallback = findLlmProviderSetting(getDefaultLlmProviderSettings(), provider);
+
+  return {
+    provider,
+    label: String(row.label ?? fallback.label),
+    description: String(row.description ?? fallback.description),
+    enabled: row.enabled !== false,
+    defaultProvider: row.default_provider === true,
+    baseUrl: String(row.base_url ?? fallback.baseUrl).trim(),
+    model: String(row.model ?? fallback.model).trim(),
+    estimatedCostPerRunUsd: toPositiveNumber(row.estimated_cost_per_run_usd, fallback.estimatedCostPerRunUsd),
+    pricing: {
+      inputPerMillion: toPositiveNumber(row.input_per_million_usd, fallback.pricing.inputPerMillion),
+      outputPerMillion: toPositiveNumber(row.output_per_million_usd, fallback.pricing.outputPerMillion),
+    },
+    sortOrder: toPositiveInteger(row.sort_order) || fallback.sortOrder,
+  };
+}
+
+function getDefaultLlmProvider(settings: LlmProviderSetting[]) {
+  return settings.find((setting) => setting.defaultProvider && setting.enabled)?.provider ?? "fallback";
+}
+
+function findLlmProviderSetting(settings: LlmProviderSetting[], provider: LlmProvider) {
+  return settings.find((setting) => setting.provider === provider) ??
+    getDefaultLlmProviderSettings().find((setting) => setting.provider === provider) ??
+    getDefaultLlmProviderSettings()[0];
+}
+
+function getDefaultLlmProviderSettings(): LlmProviderSetting[] {
+  return [
+    {
+      provider: "openai",
+      label: "OpenAI",
+      description: "Qualite stable, facturation OpenAI API.",
+      enabled: true,
+      defaultProvider: false,
+      baseUrl: "https://api.openai.com/v1",
+      model: "gpt-4o-mini",
+      estimatedCostPerRunUsd: 0.006,
+      pricing: { inputPerMillion: 0.75, outputPerMillion: 4.5 },
+      sortOrder: 10,
+    },
+    {
+      provider: "openrouter",
+      label: "OpenRouter",
+      description: "Routeur multi-modeles compatible OpenAI.",
+      enabled: true,
+      defaultProvider: false,
+      baseUrl: "https://openrouter.ai/api/v1",
+      model: "openai/gpt-4o-mini",
+      estimatedCostPerRunUsd: 0.004,
+      pricing: { inputPerMillion: 0.5, outputPerMillion: 1.5 },
+      sortOrder: 20,
+    },
+    {
+      provider: "groq",
+      label: "Groq",
+      description: "Modeles rapides compatibles OpenAI.",
+      enabled: true,
+      defaultProvider: false,
+      baseUrl: "https://api.groq.com/openai/v1",
+      model: "llama-3.1-8b-instant",
+      estimatedCostPerRunUsd: 0.002,
+      pricing: { inputPerMillion: 0.1, outputPerMillion: 0.3 },
+      sortOrder: 30,
+    },
+    {
+      provider: "local",
+      label: "Local",
+      description: "LLM PC via URL publique/tunnel compatible OpenAI.",
+      enabled: true,
+      defaultProvider: false,
+      baseUrl: "",
+      model: "llama3.1:8b",
+      estimatedCostPerRunUsd: 0,
+      pricing: { inputPerMillion: 0, outputPerMillion: 0 },
+      sortOrder: 40,
+    },
+    {
+      provider: "fallback",
+      label: "Fallback",
+      description: "Aucun cout API, generation deterministe.",
+      enabled: true,
+      defaultProvider: true,
+      baseUrl: "",
+      model: "deterministic",
+      estimatedCostPerRunUsd: 0,
+      pricing: { inputPerMillion: 0, outputPerMillion: 0 },
+      sortOrder: 50,
+    },
+  ];
 }
 
 function pickEnv(names: string[]) {
@@ -707,6 +872,7 @@ async function generateAssetWithLlm(
         asset,
         "llm",
         usage,
+        llmConfig.pricing,
       ),
     };
   } finally {
@@ -800,7 +966,16 @@ async function evaluateLlmBudgetGuard(
   currentAsset: Partial<ProductionAsset>,
   fallbackAsset: ProductionAsset,
 ) {
-  const usage = estimateLlmUsage(llmConfig.provider, llmConfig.model, draft, currentAsset, fallbackAsset, "llm");
+  const usage = estimateLlmUsage(
+    llmConfig.provider,
+    llmConfig.model,
+    draft,
+    currentAsset,
+    fallbackAsset,
+    "llm",
+    undefined,
+    llmConfig.pricing,
+  );
 
   if (llmConfig.provider === "local" || usage.costUsd <= 0) {
     return { blocked: false, usage, message: "" };
@@ -964,6 +1139,7 @@ function estimateLlmUsage(
   asset: ProductionAsset,
   source: "llm" | "fallback",
   usage?: JsonRecord,
+  pricingOverride?: LlmProviderPricing,
 ): LlmUsageEstimate {
   if (source === "fallback" || provider === "fallback" || provider === "local") {
     return { inputTokens: 0, outputTokens: 0, costUsd: 0 };
@@ -972,7 +1148,7 @@ function estimateLlmUsage(
   const inputTokens = toPositiveInteger(usage?.prompt_tokens) ||
     estimateTokens(JSON.stringify({ draft: draft.content, currentAsset }));
   const outputTokens = toPositiveInteger(usage?.completion_tokens) || estimateTokens(JSON.stringify(asset));
-  const pricing = getProviderPricing(provider, model);
+  const pricing = pricingOverride ?? getProviderPricing(provider, model);
   const costUsd = ((inputTokens * pricing.inputPerMillion) + (outputTokens * pricing.outputPerMillion)) / 1_000_000;
 
   return {
