@@ -1728,6 +1728,10 @@ async function updateExecutionExperiment(body: JsonRecord) {
     throw new Error("Resultat de test invalide.");
   }
 
+  if (status === "DONE" && outcome !== "UNKNOWN") {
+    await assertExecutionPlanCanClose(experimentId);
+  }
+
   const previousRows = await supabaseFetch<ExecutionExperimentSummary[]>(
     `/rest/v1/execution_experiments?id=eq.${experimentId}&select=id,opportunity_scan_id,keyword,title,decision_label,priority_score,status,outcome,next_action,success_criteria,result_note,evidence_video_ids,created_at,updated_at&limit=1`,
   );
@@ -1762,6 +1766,29 @@ async function updateExecutionExperiment(body: JsonRecord) {
   });
 
   return { experiment: rows[0] };
+}
+
+async function assertExecutionPlanCanClose(experimentId: string) {
+  const plans = await supabaseFetch<ExecutionPlanSummary[]>(
+    `/rest/v1/execution_plans?experiment_id=eq.${experimentId}&select=id,experiment_id,opportunity_scan_id,keyword,title,steps,created_at,updated_at&limit=1`,
+  ).catch((error) => {
+    if (isMissingTable(error)) {
+      return [];
+    }
+
+    throw error;
+  });
+  const plan = plans[0];
+
+  if (!plan) {
+    return;
+  }
+
+  const h72 = plan.steps.find((step) => step.id === "h72");
+
+  if (h72?.status !== "DONE") {
+    throw new Error("H72 doit etre cochee avant de marquer un test reussi ou echoue.");
+  }
 }
 
 function resolveDecisionEventType(

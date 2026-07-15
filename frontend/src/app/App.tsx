@@ -3093,12 +3093,14 @@ function buildActionChecklist(
 
 function ExperimentQueue({
   experiments,
+  executionPlans,
   isLoading,
   error,
   isUpdatingExperiment,
   onUpdateExperiment,
 }: {
   experiments: ExecutionExperimentSummary[];
+  executionPlans: ExecutionPlanSummary[];
   isLoading: boolean;
   error: unknown;
   isUpdatingExperiment: boolean;
@@ -3131,7 +3133,12 @@ function ExperimentQueue({
         {experiments.length === 0 && !isLoading ? (
           <p className="panel-empty">Aucun test créé. Sélectionne une opportunité puis clique sur Créer test.</p>
         ) : null}
-        {experiments.slice(0, 5).map((experiment) => (
+        {experiments.slice(0, 5).map((experiment) => {
+          const plan = getExecutionPlanForExperiment(executionPlans, experiment);
+          const closureBlocked = isExperimentClosureBlocked(experiment, plan);
+          const planProgress = plan ? formatExecutionPlanProgress(plan) : "";
+
+          return (
           <article className="experiment-card" key={experiment.id}>
             <div>
               <span className={`experiment-status experiment-status--${experiment.status.toLowerCase()}`}>
@@ -3184,7 +3191,7 @@ function ExperimentQueue({
                 Pause
               </button>
               <button
-                disabled={isUpdatingExperiment}
+                disabled={isUpdatingExperiment || closureBlocked}
                 onClick={() =>
                   onUpdateExperiment(experiment, {
                     status: "DONE",
@@ -3197,7 +3204,7 @@ function ExperimentQueue({
                 Réussi
               </button>
               <button
-                disabled={isUpdatingExperiment}
+                disabled={isUpdatingExperiment || closureBlocked}
                 onClick={() =>
                   onUpdateExperiment(experiment, {
                     status: "DONE",
@@ -3210,14 +3217,21 @@ function ExperimentQueue({
                 Échec
               </button>
             </div>
+            {closureBlocked ? (
+              <p className="experiment-plan-warning">
+                H72 non cochée : impossible de marquer Réussi ou Échec.
+              </p>
+            ) : null}
             <div className="experiment-meta">
               <span>{experiment.decision_label}</span>
               <span>score {experiment.priority_score}</span>
               <span>{experiment.outcome}</span>
+              {planProgress ? <span>plan {planProgress}</span> : null}
               <span>{formatDate(experiment.created_at)}</span>
             </div>
           </article>
-        ))}
+          );
+        })}
       </div>
     </section>
   );
@@ -3241,6 +3255,14 @@ function buildOptimizerRecommendation(
 
     return experiment && experiment.status !== "DONE" && getNextPlanStep(plan);
   });
+  const readyToClosePlan = executionPlans.find((plan) => {
+    const experiment = experiments.find((item) => item.id === plan.experiment_id);
+
+    return experiment && experiment.status !== "DONE" && isExecutionPlanReadyToClose(plan);
+  });
+  const readyToCloseExperiment = readyToClosePlan
+    ? experiments.find((item) => item.id === readyToClosePlan.experiment_id)
+    : undefined;
   const nextPlanStep = activeMeasurementPlan ? getNextPlanStep(activeMeasurementPlan) : undefined;
   const successRate =
     doneExperiments.length > 0 ? Math.round((passedExperiments.length / doneExperiments.length) * 100) : 0;
@@ -3292,6 +3314,26 @@ function buildOptimizerRecommendation(
       status: nextPlanStep.id === "h24" ? "LANCER" : "MESURER",
       action: `${nextPlanStep.label} · ${activeMeasurementPlan.keyword}`,
       reason: `${nextPlanStep.objective} Mesure attendue: ${nextPlanStep.measure}`,
+      successRate,
+      latestNote,
+      doneCount: doneExperiments.length,
+      runningCount: runningExperiments.length,
+      readyCount: readyExperiments.length,
+      passedCount: passedExperiments.length,
+      failedCount: failedExperiments.length,
+      readyDraftCount: readyDrafts.length,
+      usedDraftCount: usedDrafts.length,
+      latestUsedDraft,
+      planDoneCount: activePlanProgress.done,
+      planTotalCount: activePlanProgress.total,
+    };
+  }
+
+  if (readyToClosePlan && readyToCloseExperiment) {
+    return {
+      status: "CLOTURER",
+      action: `Décider ${readyToCloseExperiment.keyword}`,
+      reason: "H72 est cochée. Il faut enregistrer le verdict Réussi ou Échec avec une note terrain.",
       successRate,
       latestNote,
       doneCount: doneExperiments.length,
@@ -3363,7 +3405,11 @@ function buildOptimizerBacklog(
       let nextMove = experiment.next_action;
       let priority = experiment.priority_score;
 
-      if (nextStep && experiment.status !== "DONE") {
+      if (plan && isExecutionPlanReadyToClose(plan) && experiment.status !== "DONE") {
+        decision = "CLOTURER";
+        nextMove = "H72 est terminée: marquer Réussi ou Échec avec une note exploitable.";
+        priority += 35;
+      } else if (nextStep && experiment.status !== "DONE") {
         decision = nextStep.id === "h24" && experiment.status === "READY" ? "LANCER" : "MESURER";
         nextMove = `${nextStep.label}: ${nextStep.measure}`;
         priority += nextStep.id === "h72" ? 30 : nextStep.id === "h48" ? 20 : 10;
@@ -3405,6 +3451,28 @@ function buildOptimizerBacklog(
 
 function getNextPlanStep(plan: ExecutionPlanSummary) {
   return plan.steps.find((step) => step.status !== "DONE");
+}
+
+function getExecutionPlanForExperiment(
+  plans: ExecutionPlanSummary[],
+  experiment: ExecutionExperimentSummary,
+) {
+  return plans.find(
+    (plan) =>
+      plan.experiment_id === experiment.id ||
+      plan.opportunity_scan_id === experiment.opportunity_scan_id,
+  );
+}
+
+function isExecutionPlanReadyToClose(plan: ExecutionPlanSummary) {
+  return plan.steps.find((step) => step.id === "h72")?.status === "DONE";
+}
+
+function isExperimentClosureBlocked(
+  experiment: ExecutionExperimentSummary,
+  plan: ExecutionPlanSummary | undefined,
+) {
+  return plan !== undefined && experiment.status !== "DONE" && !isExecutionPlanReadyToClose(plan);
 }
 
 function formatExecutionPlanProgress(plan: ExecutionPlanSummary) {
@@ -4182,6 +4250,7 @@ export function App() {
         <section className="workspace-stage workspace-stage--optimizer" aria-label="Espace Optimizer">
           <ExperimentQueue
             error={edgeExperimentsQuery.error}
+            executionPlans={executionPlans}
             experiments={edgeExperiments}
             isLoading={edgeExperimentsQuery.isLoading}
             isUpdatingExperiment={updateExperimentMutation.isPending}

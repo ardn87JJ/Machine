@@ -1028,11 +1028,28 @@ describe("App", () => {
     expect(screen.getByText("H48 · ai music channel")).toBeInTheDocument();
     expect(screen.getByText("1/3")).toBeInTheDocument();
     expect(screen.getByText("Plan 1/3 étapes")).toBeInTheDocument();
+    expect(screen.getByText("H72 non cochée : impossible de marquer Réussi ou Échec.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Réussi" })).toBeDisabled();
     expect(screen.getByText("Backlog priorisé")).toBeInTheDocument();
     expect(screen.getAllByText("MESURER").length).toBeGreaterThan(0);
     expect(screen.getByText("Apprentissages par niche")).toBeInTheDocument();
     expect(screen.getByText("Historique décisions")).toBeInTheDocument();
     expect(screen.getByText("STATUS_CHANGED")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Décision.*Analyse \+ test/ }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Cocher" })[0]);
+    await waitFor(() => {
+      expect(screen.getAllByText("DONE").length).toBeGreaterThan(1);
+    });
+    fireEvent.click(screen.getAllByRole("button", { name: "Cocher" })[0]);
+    await waitFor(() => {
+      expect(screen.getAllByText("DONE").length).toBeGreaterThan(2);
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Optimizer.*Tests \+ apprentissages/ }));
+
+    expect(await screen.findByText("Plan 3/3 étapes")).toBeInTheDocument();
+    expect(screen.getAllByText("CLOTURER").length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "Réussi" })).not.toBeDisabled();
 
     fireEvent.change(screen.getByLabelText("Note résultat"), {
       target: { value: "Bon signal initial, continuer le test." },

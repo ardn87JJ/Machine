@@ -1303,6 +1303,22 @@ h3 {
   background: #201111;
 }
 
+.experiment-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.experiment-plan-warning {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid #7b5a1b;
+  border-radius: 10px;
+  color: #ffd28a;
+  background: #1c160a;
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
 .experiment-meta {
   display: flex;
   flex-wrap: wrap;
@@ -1368,6 +1384,10 @@ h3 {
 
 .optimizer-backlog-card--pivoter {
   border-color: #7b5a1b;
+}
+
+.optimizer-backlog-card--cloturer {
+  border-color: #35506b;
 }
 
 .optimizer-backlog-card--abandonner {

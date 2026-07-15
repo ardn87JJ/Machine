@@ -92,19 +92,24 @@ scorables, tests actionnables, drafts de production et apprentissages.
   relancer / produire / doubler / pivoter / abandonner, et apprentissages par niche.
 - conserver un historique append-only dans `decision_events` pour les tests :
   creation, changement de statut, resultat et note terrain.
+- empecher une cloture incoherente : `Reussi` et `Echec` restent bloques tant que
+  H72 n'est pas cochee, et `run-scout` rejette aussi `DONE/PASSED` ou
+  `DONE/FAILED` si le plan Supabase existe mais n'a pas H72 `DONE`.
 
 ## Tranche en cours
 
-Revenir au coeur Scout / Analyste sans dépendance LLM :
+Finaliser la boucle test :
 
-- afficher le taux d'avancement des plans dans Optimizer ;
-- recommander `MESURER` tant que H48/H72 ne sont pas cochés ;
-- utiliser le prochain jalon incomplet comme action prioritaire.
+- lier la file de tests aux plans d'execution dans Optimizer ;
+- bloquer `PASSED/FAILED` avant H72 dans l'interface ;
+- bloquer `PASSED/FAILED` avant H72 dans l'Edge Function ;
+- pousser l'Optimizer vers `CLOTURER` quand H72 est terminee mais sans verdict.
 
 ## Prochaine etape apres cette tranche
 
-Finaliser la boucle test :
+Exploiter les apprentissages :
 
-- pousser vers `PASSED` ou `FAILED` quand H72 est terminée ;
-- afficher un avertissement si un test est marqué terminé sans H72 cochée ;
-- intégrer l'état du plan dans les apprentissages par niche.
+- enrichir `decision_events` / Optimizer avec une synthese par niche ;
+- afficher ce qui a ete appris apres un `PASSED` ou `FAILED` ;
+- proposer la prochaine action automatique : doubler, pivoter, produire ou sortir
+  de la file active.

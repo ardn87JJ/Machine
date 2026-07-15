@@ -110,6 +110,9 @@ Le format suit les principes de [Keep a Changelog](https://keepachangelog.com/fr
   persister le statut dans `execution_plans.steps`.
 - Optimizer relié aux checklists `execution_plans`, avec progression H24/H48/H72
   et recommandation basée sur le prochain jalon incomplet.
+- clôture des tests protégée par le plan d'exécution : `Réussi/Échec` est
+  désactivé tant que H72 n'est pas cochée, et l'Edge Function refuse aussi un
+  verdict `PASSED/FAILED` incohérent.
 
 ### Décidé
 
