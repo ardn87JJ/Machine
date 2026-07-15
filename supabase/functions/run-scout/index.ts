@@ -118,6 +118,26 @@ type ExecutionExperimentSummary = {
   updated_at: string;
 };
 
+type ExecutionPlanStep = {
+  id: "h24" | "h48" | "h72";
+  label: string;
+  objective: string;
+  measure: string;
+  success_criteria: string;
+  status: "TODO" | "DONE";
+};
+
+type ExecutionPlanSummary = {
+  id: string;
+  experiment_id: string;
+  opportunity_scan_id: string;
+  keyword: string;
+  title: string;
+  steps: ExecutionPlanStep[];
+  created_at: string;
+  updated_at: string;
+};
+
 type DecisionEventSummary = {
   id: string;
   experiment_id: string | null;
@@ -238,6 +258,10 @@ Deno.serve(async (request) => {
 
       if (url.searchParams.get("view") === "decision-events") {
         return json(await listDecisionEvents(request));
+      }
+
+      if (url.searchParams.get("view") === "execution-plans") {
+        return json(await listExecutionPlans(request));
       }
 
       if (url.searchParams.get("view") === "drafts") {
@@ -1602,6 +1626,22 @@ async function listDecisionEvents(request: Request) {
   return { events };
 }
 
+async function listExecutionPlans(request: Request) {
+  const url = new URL(request.url);
+  const limit = Math.max(1, Math.min(50, Number(url.searchParams.get("limit") ?? 20)));
+  const plans = await supabaseFetch<ExecutionPlanSummary[]>(
+    `/rest/v1/execution_plans?select=id,experiment_id,opportunity_scan_id,keyword,title,steps,created_at,updated_at&order=created_at.desc&limit=${limit}`,
+  ).catch((error) => {
+    if (isMissingTable(error)) {
+      return [];
+    }
+
+    throw error;
+  });
+
+  return { plans };
+}
+
 async function createExecutionExperiment(body: JsonRecord) {
   const scanId = String(body.scan_id ?? "");
   const decisionLabel = String(body.decision_label ?? "TESTER") as ExecutionExperimentSummary["decision_label"];
@@ -1643,6 +1683,12 @@ async function createExecutionExperiment(body: JsonRecord) {
   );
 
   if (rows[0]) {
+    await upsertExecutionPlan(rows[0]).catch((error) => {
+      if (!isMissingTable(error)) {
+        throw error;
+      }
+    });
+
     await insertDecisionEvent({
       experiment: rows[0],
       eventType: "CREATED",
@@ -1757,6 +1803,50 @@ async function insertDecisionEvent(event: {
       note: event.note.slice(0, 1000),
     }),
   });
+}
+
+async function upsertExecutionPlan(experiment: ExecutionExperimentSummary) {
+  await supabaseFetch("/rest/v1/execution_plans?on_conflict=experiment_id", {
+    method: "POST",
+    headers: { Prefer: "resolution=merge-duplicates" },
+    body: JSON.stringify({
+      experiment_id: experiment.id,
+      opportunity_scan_id: experiment.opportunity_scan_id,
+      keyword: experiment.keyword,
+      title: experiment.title,
+      steps: buildExecutionPlanSteps(experiment),
+      updated_at: new Date().toISOString(),
+    }),
+  });
+}
+
+function buildExecutionPlanSteps(experiment: ExecutionExperimentSummary): ExecutionPlanStep[] {
+  return [
+    {
+      id: "h24",
+      label: "H24",
+      objective: `Publier ou préparer le premier test: ${experiment.next_action}`,
+      measure: "Collecter vues initiales, CTR si disponible, commentaires et signal de rétention.",
+      success_criteria: "Un signal faible mais réel apparaît: vues non nulles, commentaires utiles ou hook à améliorer clairement.",
+      status: "TODO",
+    },
+    {
+      id: "h48",
+      label: "H48",
+      objective: "Comparer la performance aux vidéos preuves et aux concurrents faibles.",
+      measure: "Comparer vues, engagement et qualité d’exécution face aux benchmarks du Scout.",
+      success_criteria: experiment.success_criteria,
+      status: "TODO",
+    },
+    {
+      id: "h72",
+      label: "H72",
+      objective: "Décider: doubler, pivoter ou abandonner le test.",
+      measure: "Noter résultat, friction de production, potentiel de série et prochaine action.",
+      success_criteria: "Marquer PASSED si le critère est atteint, sinon FAILED avec une note exploitable.",
+      status: "TODO",
+    },
+  ];
 }
 
 async function listScoutLedger(request: Request) {

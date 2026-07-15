@@ -105,6 +105,7 @@ Le format suit les principes de [Keep a Changelog](https://keepachangelog.com/fr
   chargé pour repérer les cibles faibles et benchmarks récurrents.
 - bloc Analyste "Pourquoi ce score" reliant décision, critères GO, vidéos preuves
   et concurrents exploitables.
+- table Supabase `execution_plans` et checklist de test 24/48/72h dans la fiche action.
 
 ### Décidé
 

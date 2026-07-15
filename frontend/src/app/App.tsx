@@ -8,6 +8,7 @@ import {
   getScanAnalysis,
   listEdgeDecisionEvents,
   listEdgeExperiments,
+  listEdgeExecutionPlans,
   listEdgeProductionDrafts,
   listEdgeLlmUsage,
   listEdgeScoutLedger,
@@ -27,6 +28,8 @@ import {
   type DecisionEventSummary,
   type ExecutionPlan,
   type ExecutionExperimentSummary,
+  type ExecutionPlanSummary,
+  type ExecutionPlanStep,
   type EdgeLlmBudgetSettings,
   type EdgeLlmStatusSummary,
   type EdgeLlmUsageResponse,
@@ -2929,15 +2932,18 @@ function ContentFactoryWorkbench({
 function ExecutionBrief({
   opportunity,
   activeExperiment,
+  activeExecutionPlan,
   isCreatingExperiment,
   onCreateExperiment,
 }: {
   opportunity: OpportunityRecord | undefined;
   activeExperiment: ExecutionExperimentSummary | undefined;
+  activeExecutionPlan: ExecutionPlanSummary | undefined;
   isCreatingExperiment: boolean;
   onCreateExperiment: (opportunity: OpportunityRecord) => void;
 }) {
   const evidenceVideos = opportunity?.videos.slice(0, 3) ?? [];
+  const checklistSteps = activeExecutionPlan?.steps ?? buildActionChecklist(opportunity, activeExperiment);
   const decisionText = opportunity
     ? `Décision ${opportunity.decisionLabel} · score ${opportunity.priorityScore}/100`
     : "Décision en attente · lance un scan";
@@ -2993,6 +2999,27 @@ function ExecutionBrief({
         <span>gap {opportunity?.qualityGapScore ?? 0}</span>
       </div>
 
+      <div className="execution-checklist" aria-label="Checklist test 24 48 72h">
+        <div>
+          <span>Checklist test</span>
+          <strong>{activeExecutionPlan ? "Plan Supabase 24/48/72h" : "Plan préparatoire 24/48/72h"}</strong>
+        </div>
+        <ol>
+          {checklistSteps.map((step) => (
+            <li key={step.id}>
+              <span className={step.status === "DONE" ? "check-state check-state--done" : "check-state"}>
+                {step.status}
+              </span>
+              <div>
+                <strong>{step.label} · {step.objective}</strong>
+                <p>{step.measure}</p>
+                <small>{step.success_criteria}</small>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </div>
+
       <div className="brief-evidence">
         <span>Preuves vidéo</span>
         {evidenceVideos.length > 0 ? (
@@ -3003,6 +3030,41 @@ function ExecutionBrief({
       </div>
     </section>
   );
+}
+
+function buildActionChecklist(
+  opportunity: OpportunityRecord | undefined,
+  activeExperiment: ExecutionExperimentSummary | undefined,
+): ExecutionPlanStep[] {
+  const firstTest = opportunity?.executionPlan.first_test ?? activeExperiment?.next_action ?? "Préparer le premier test.";
+  const criteria = opportunity?.executionPlan.criteria_go ?? activeExperiment?.success_criteria ?? "Définir un critère mesurable.";
+
+  return [
+    {
+      id: "h24",
+      label: "H24",
+      objective: `Lancer ou préparer: ${firstTest}`,
+      measure: "Relever vues initiales, commentaires, friction de production et signal de hook.",
+      success_criteria: "Un signal exploitable apparaît ou le blocage principal est identifié.",
+      status: "TODO",
+    },
+    {
+      id: "h48",
+      label: "H48",
+      objective: "Comparer aux preuves Scout et concurrents faibles.",
+      measure: "Comparer vues, engagement et qualité face aux vidéos preuves.",
+      success_criteria: criteria,
+      status: "TODO",
+    },
+    {
+      id: "h72",
+      label: "H72",
+      objective: "Décider PASSED ou FAILED.",
+      measure: "Noter résultat, apprentissage, prochaine action et potentiel de série.",
+      success_criteria: "Marquer le test avec une note résultat exploitable.",
+      status: "TODO",
+    },
+  ];
 }
 
 function ExperimentQueue({
@@ -3510,6 +3572,14 @@ export function App() {
     refetchInterval: 30_000,
   });
 
+  const edgeExecutionPlansQuery = useQuery({
+    queryKey: ["edge-execution-plans"],
+    queryFn: listEdgeExecutionPlans,
+    enabled: statusQuery.isError,
+    retry: false,
+    refetchInterval: 30_000,
+  });
+
   const edgeProductionDraftsQuery = useQuery({
     queryKey: ["edge-production-drafts"],
     queryFn: listEdgeProductionDrafts,
@@ -3552,6 +3622,7 @@ export function App() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["edge-experiments"] });
       await queryClient.invalidateQueries({ queryKey: ["edge-decision-events"] });
+      await queryClient.invalidateQueries({ queryKey: ["edge-execution-plans"] });
       setWorkspaceView("optimizer");
     },
   });
@@ -3798,8 +3869,14 @@ export function App() {
   const attackCount = opportunityRecords.filter((opportunity) => opportunity.decisionLabel === "ATTAQUER").length;
   const edgeExperiments = edgeExperimentsQuery.data?.experiments ?? [];
   const decisionEvents = edgeDecisionEventsQuery.data?.events ?? [];
+  const executionPlans = edgeExecutionPlansQuery.data?.plans ?? [];
   const activeExperiment = edgeExperiments.find(
     (experiment) => experiment.opportunity_scan_id === selectedOpportunity?.scanId,
+  );
+  const activeExecutionPlan = executionPlans.find(
+    (plan) =>
+      plan.opportunity_scan_id === selectedOpportunity?.scanId ||
+      (activeExperiment && plan.experiment_id === activeExperiment.id),
   );
   const productionDrafts = edgeProductionDraftsQuery.data?.drafts ?? [];
   const activeDraft = productionDrafts.find(
@@ -3920,6 +3997,7 @@ export function App() {
           />
           <ExecutionBrief
             activeExperiment={activeExperiment}
+            activeExecutionPlan={activeExecutionPlan}
             isCreatingExperiment={createExperimentMutation.isPending}
             onCreateExperiment={(opportunity) => createExperimentMutation.mutate(opportunity)}
             opportunity={selectedOpportunity}

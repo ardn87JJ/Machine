@@ -97,14 +97,14 @@ scorables, tests actionnables, drafts de production et apprentissages.
 
 Revenir au coeur Scout / Analyste sans dépendance LLM :
 
-- ajouter un bloc "pourquoi ce score" sur chaque opportunité ;
-- relier les meilleures vidéos/preuves aux scores ;
-- préparer des critères explicites pour transformer `WATCH` en `GO`.
+- transformer la fiche action en checklist de test 24/48/72h ;
+- stocker les étapes de test dans `execution_plans` ;
+- afficher quoi mesurer avant de marquer `PASSED` ou `FAILED`.
 
 ## Prochaine etape apres cette tranche
 
-Rendre les tests plus exécutables :
+Rendre la checklist pilotable :
 
-- transformer la fiche action en checklist de test 24/48/72h ;
-- stocker les étapes de test dans `execution_plans` ou dans le contenu d'expérience ;
-- afficher quoi mesurer avant de marquer `PASSED` ou `FAILED`.
+- ajouter une action pour cocher H24/H48/H72 ;
+- persister le statut des étapes dans `execution_plans.steps` ;
+- relier l'état des étapes à la recommandation Optimizer.

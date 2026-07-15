@@ -709,6 +709,71 @@ h3 {
   color: #c8d3df;
 }
 
+.execution-checklist {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #253142;
+  border-radius: 12px;
+  background: #101722;
+}
+
+.execution-checklist > div {
+  display: grid;
+  gap: 4px;
+}
+
+.execution-checklist span {
+  color: #8f9baa;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.execution-checklist strong {
+  color: #edf3fb;
+}
+
+.execution-checklist ol {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.execution-checklist li {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid #253142;
+  border-radius: 10px;
+  background: #0b1018;
+}
+
+.execution-checklist p,
+.execution-checklist small {
+  margin: 0;
+  color: #9aa7b6;
+  line-height: 1.45;
+}
+
+.check-state {
+  align-self: start;
+  padding: 5px 7px;
+  border: 1px solid #253142;
+  border-radius: 999px;
+  background: #141e2b;
+}
+
+.check-state--done {
+  border-color: #1f6f5f;
+  color: #83f1d8;
+  background: #10211f;
+}
+
 .brief-evidence {
   padding-top: 2px;
 }

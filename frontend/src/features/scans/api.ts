@@ -113,6 +113,26 @@ export interface ExecutionExperimentSummary {
   updated_at: string;
 }
 
+export interface ExecutionPlanStep {
+  id: "h24" | "h48" | "h72";
+  label: string;
+  objective: string;
+  measure: string;
+  success_criteria: string;
+  status: "TODO" | "DONE";
+}
+
+export interface ExecutionPlanSummary {
+  id: string;
+  experiment_id: string;
+  opportunity_scan_id: string;
+  keyword: string;
+  title: string;
+  steps: ExecutionPlanStep[];
+  created_at: string;
+  updated_at: string;
+}
+
 export interface ProductionPackContent {
   status: string;
   concept: string;
@@ -220,6 +240,10 @@ export interface DecisionEventSummary {
 
 interface EdgeDecisionEventsResponse {
   events: DecisionEventSummary[];
+}
+
+interface EdgeExecutionPlansResponse {
+  plans: ExecutionPlanSummary[];
 }
 
 interface CreateEdgeExperimentResponse {
@@ -468,6 +492,30 @@ export async function listEdgeDecisionEvents() {
   }
 
   return response.json() as Promise<EdgeDecisionEventsResponse>;
+}
+
+export async function listEdgeExecutionPlans() {
+  const response = await fetch(`${SCOUT_FUNCTION_URL}?view=execution-plans&limit=50`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    let message = `La fonction Scout a repondu avec le statut ${response.status}.`;
+
+    try {
+      const payload = (await response.json()) as { message?: string };
+      message = payload.message || message;
+    } catch {
+      // Keep the status-based message when the Edge Function does not return JSON.
+    }
+
+    throw new Error(message);
+  }
+
+  return response.json() as Promise<EdgeExecutionPlansResponse>;
 }
 
 export async function createEdgeExperiment(payload: {

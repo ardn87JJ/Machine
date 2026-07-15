@@ -74,7 +74,7 @@ Critère de sortie :
 - [x] Classement des opportunités.
 - [x] Table `opportunities`.
 - [x] Table `competitor_data`.
-- [ ] Table `execution_plans`.
+- [x] Table `execution_plans`.
 - [ ] Jeux de données de référence.
 
 ## Phase 4 — Décisions

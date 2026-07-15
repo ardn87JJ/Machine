@@ -264,6 +264,23 @@ describe("App", () => {
       note: string;
       created_at: string;
     }> = [];
+    let executionPlans: Array<{
+      id: string;
+      experiment_id: string;
+      opportunity_scan_id: string;
+      keyword: string;
+      title: string;
+      steps: Array<{
+        id: "h24" | "h48" | "h72";
+        label: string;
+        objective: string;
+        measure: string;
+        success_criteria: string;
+        status: "TODO" | "DONE";
+      }>;
+      created_at: string;
+      updated_at: string;
+    }> = [];
     let drafts: Array<{
       id: string;
       opportunity_scan_id: string;
@@ -388,6 +405,15 @@ describe("App", () => {
           if (url.includes("view=decision-events")) {
             return Promise.resolve(
               new Response(JSON.stringify({ events: decisionEvents }), {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+              }),
+            );
+          }
+
+          if (url.includes("view=execution-plans")) {
+            return Promise.resolve(
+              new Response(JSON.stringify({ plans: executionPlans }), {
                 status: 200,
                 headers: { "Content-Type": "application/json" },
               }),
@@ -519,6 +545,43 @@ describe("App", () => {
           };
 
           experiments = [experiment];
+          executionPlans = [
+            {
+              id: "plan-ai-music-channel",
+              experiment_id: experiment.id,
+              opportunity_scan_id: experiment.opportunity_scan_id,
+              keyword: experiment.keyword,
+              title: experiment.title,
+              steps: [
+                {
+                  id: "h24",
+                  label: "H24",
+                  objective: "Publier ou préparer le premier test: Publier 7 morceaux courts autour de ai music channel avec visuels cohérents",
+                  measure: "Collecter vues initiales, CTR si disponible, commentaires et signal de rétention.",
+                  success_criteria: "Un signal faible mais réel apparaît: vues non nulles, commentaires utiles ou hook à améliorer clairement.",
+                  status: "TODO",
+                },
+                {
+                  id: "h48",
+                  label: "H48",
+                  objective: "Comparer la performance aux vidéos preuves et aux concurrents faibles.",
+                  measure: "Comparer vues, engagement et qualité d’exécution face aux benchmarks du Scout.",
+                  success_criteria: "Un morceau dépasse le benchmark de vues initial en 72h",
+                  status: "TODO",
+                },
+                {
+                  id: "h72",
+                  label: "H72",
+                  objective: "Décider: doubler, pivoter ou abandonner le test.",
+                  measure: "Noter résultat, friction de production, potentiel de série et prochaine action.",
+                  success_criteria: "Marquer PASSED si le critère est atteint, sinon FAILED avec une note exploitable.",
+                  status: "TODO",
+                },
+              ],
+              created_at: "2026-07-08T13:35:00Z",
+              updated_at: "2026-07-08T13:35:00Z",
+            },
+          ];
           decisionEvents = [
             {
               id: "decision-event-created",
@@ -917,6 +980,9 @@ describe("App", () => {
     expect(screen.getByRole("heading", { name: "Cibles récurrentes" })).toBeInTheDocument();
     expect(screen.getByText("Persisted Creator")).toBeInTheDocument();
     expect(screen.getAllByText("Edge Creator").length).toBeGreaterThan(0);
+    expect(screen.getByText("Checklist test")).toBeInTheDocument();
+    expect(screen.getByText("Plan préparatoire 24/48/72h")).toBeInTheDocument();
+    expect(screen.getByText("H24 · Lancer ou préparer: Publier 7 morceaux courts autour de ai music channel avec visuels cohérents")).toBeInTheDocument();
     expect(
       screen.getAllByText("Publier 7 morceaux courts autour de ai music channel avec visuels cohérents").length,
     ).toBeGreaterThan(0);
