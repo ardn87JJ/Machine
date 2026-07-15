@@ -99,6 +99,8 @@ Le format suit les principes de [Keep a Changelog](https://keepachangelog.com/fr
   changements de statut/résultat des tests, affiché dans l’Optimizer.
 - table Supabase `competitor_data` pour persister les concurrents par scan, avec vues
   moyennes, faiblesse détectée et tag d'attaque côté Analyste.
+- scoring Analyste `edge-business-heuristic-v0.3` enrichi par `competitor_data`
+  pour ajuster `attack_score`, `quality_gap_score` et `weak_competitor_score`.
 
 ### Décidé
 

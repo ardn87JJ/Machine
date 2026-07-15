@@ -1230,6 +1230,16 @@ h3 {
   margin-top: 12px;
 }
 
+.score-explanation {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border: 1px solid #253142;
+  border-radius: 10px;
+  color: #c8d3df;
+  background: #0b1018;
+  font-size: 0.85rem;
+}
+
 .score-bar {
   display: grid;
   gap: 8px;

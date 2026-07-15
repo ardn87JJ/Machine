@@ -59,20 +59,20 @@ Critère de sortie :
 - [x] Exposer une première analyse backend versionnée d’un scan.
 - [ ] Score de demande.
 - [ ] Score de monétisation.
-- [ ] Score d’accessibilité.
+- [x] Score d’accessibilité.
 - [ ] Score de faisabilité.
 - [ ] `money_score`.
-- [ ] `attack_score`.
+- [x] `attack_score`.
 - [ ] `speed_cash_score`.
-- [ ] `quality_gap_score`.
+- [x] `quality_gap_score`.
 - [x] `weak_competitor_score`.
 - [ ] `upload_pressure_score`.
 - [ ] `ecosystem_score`.
 - [ ] Niveau de confiance séparé.
-- [ ] Versionnement du scoring.
+- [x] Versionnement du scoring.
 - [ ] Preuves associées.
-- [ ] Classement des opportunités.
-- [ ] Table `opportunities`.
+- [x] Classement des opportunités.
+- [x] Table `opportunities`.
 - [x] Table `competitor_data`.
 - [ ] Table `execution_plans`.
 - [ ] Jeux de données de référence.

@@ -413,7 +413,7 @@ describe("App", () => {
                     keyword: "persisted edge niche",
                     title: "Chaîne faceless stories automatisable",
                     verdict: "WATCH",
-                    model_version: "edge-business-heuristic-v0.2",
+                    model_version: "edge-business-heuristic-v0.3",
                     summary: "50000 vues moyennes sur 1 vidéos, 1 chaînes observées, 1 quality gaps.",
                     scores: {
                       money_score: 90,
@@ -829,7 +829,7 @@ describe("App", () => {
                 },
               ],
               analysis: {
-                model_version: "edge-business-heuristic-v0.2",
+                model_version: "edge-business-heuristic-v0.3",
                 opportunity_title: "Chaîne musicale IA monétisable",
                 verdict: "GO",
                 scores: {
@@ -851,7 +851,7 @@ describe("App", () => {
                 keyword,
                 title: "Chaîne musicale IA monétisable",
                 verdict: "GO",
-                model_version: "edge-business-heuristic-v0.2",
+                model_version: "edge-business-heuristic-v0.3",
                 summary: "210278 vues moyennes sur 1 vidéos, 1 chaînes observées, 0 quality gaps.",
                 scores: {
                   money_score: 100,
@@ -901,13 +901,14 @@ describe("App", () => {
 
     expect((await screen.findAllByRole("heading", { name: "ai music channel" })).length).toBeGreaterThan(0);
     expect(
-      await screen.findByText("edge-business-heuristic-v0.2", { selector: ".model-version" }),
+      await screen.findByText("edge-business-heuristic-v0.3", { selector: ".model-version" }),
     ).toBeInTheDocument();
     expect(screen.getAllByText("Chaîne musicale IA monétisable").length).toBeGreaterThan(0);
     expect(screen.getByText("ATTAQUER · 91")).toBeInTheDocument();
     expect(screen.getByText("Décision ATTAQUER · score 91/100")).toBeInTheDocument();
     expect(screen.getByText("BENCHMARK")).toBeInTheDocument();
     expect(screen.getByText("Benchmark utile: moyenne 210 278 vues sur 1 video.")).toBeInTheDocument();
+    expect(screen.getByText("Score enrichi par competitor_data : 0 cibles faibles, 1 benchmarks, 0 à surveiller.")).toBeInTheDocument();
     expect(
       screen.getAllByText("Publier 7 morceaux courts autour de ai music channel avec visuels cohérents").length,
     ).toBeGreaterThan(0);

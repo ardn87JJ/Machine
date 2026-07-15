@@ -320,7 +320,7 @@ Deno.serve(async (request) => {
 
     const videos = toVideoSummaries(collection);
     const competitorData = buildCompetitorData(scan.id, videos, collection.channels);
-    const analysis = buildScanAnalysis(keyword, videos);
+    const analysis = buildScanAnalysis(keyword, videos, competitorData);
     await updateScan(scan.id, "completed", null, null);
     await upsertCompetitorData(competitorData).catch((error) => {
       if (!isMissingTable(error)) {
@@ -2158,22 +2158,34 @@ function buildCompetitorWeaknessSummary(
   return `A surveiller: signal moyen avec ${observedVideoCount} video(s) observee(s).`;
 }
 
-function buildScanAnalysis(keyword: string, videos: ScanVideoSummary[]): ScanAnalysis {
+function buildScanAnalysis(
+  keyword: string,
+  videos: ScanVideoSummary[],
+  competitorData: CompetitorDataSummary[] = [],
+): ScanAnalysis {
   const totalViews = videos.reduce((total, video) => total + (video.view_count ?? 0), 0);
   const averageViews = videos.length > 0 ? totalViews / videos.length : 0;
   const competitorChannels = [...new Set(videos.map((video) => video.channel_title || video.channel_id))].sort();
+  const competitorCount = competitorData.length || competitorChannels.length;
+  const weakTargetCount = competitorData.filter((competitor) => competitor.attack_tag === "WEAK_TARGET").length;
+  const benchmarkCount = competitorData.filter((competitor) => competitor.attack_tag === "BENCHMARK").length;
+  const watchCount = competitorData.filter((competitor) => competitor.attack_tag === "WATCH").length;
   const lowViewCount = videos.filter((video) => (video.view_count ?? 0) < 30000).length;
   const highViewCount = videos.filter((video) => (video.view_count ?? 0) >= 50000).length;
 
   const scores = {
     money_score: clampScore(48 + safeLog10(totalViews) * 10),
-    attack_score: clampScore(45 + lowViewCount * 9 + competitorChannels.length * 3),
+    attack_score: clampScore(
+      45 + lowViewCount * 6 + weakTargetCount * 11 + benchmarkCount * 4 + competitorCount * 2 - watchCount,
+    ),
     speed_cash_score: clampScore(42 + highViewCount * 13 + videos.length * 2),
-    quality_gap_score: clampScore(35 + lowViewCount * 14),
-    weak_competitor_score: clampScore(30 + lowViewCount * 12 + (competitorChannels.length >= 4 ? 10 : 0)),
+    quality_gap_score: clampScore(35 + lowViewCount * 12 + weakTargetCount * 5),
+    weak_competitor_score: clampScore(
+      28 + weakTargetCount * 16 + lowViewCount * 8 + (competitorCount >= 4 ? 8 : 0) - benchmarkCount * 2,
+    ),
     upload_pressure_score: clampScore(55 + videos.length * 5 - lowViewCount * 3),
-    ecosystem_score: clampScore(40 + competitorChannels.length * 8 + highViewCount * 7),
-    confidence: clampScore(35 + videos.length * 8 + competitorChannels.length * 4),
+    ecosystem_score: clampScore(40 + competitorCount * 7 + highViewCount * 6 + benchmarkCount * 3),
+    confidence: clampScore(35 + videos.length * 8 + competitorCount * 4 + competitorData.length * 2),
   };
   let verdict: "GO" | "WATCH" | "SKIP" = "WATCH";
 
@@ -2184,11 +2196,11 @@ function buildScanAnalysis(keyword: string, videos: ScanVideoSummary[]): ScanAna
   }
 
   return {
-    model_version: "edge-business-heuristic-v0.2",
+    model_version: "edge-business-heuristic-v0.3",
     opportunity_title: inferOpportunityTitle(keyword, videos),
     verdict,
     scores,
-    summary: `${Math.round(averageViews).toLocaleString("fr-FR")} vues moyennes sur ${videos.length} vidéos, ${competitorChannels.length} chaînes observées, ${lowViewCount} quality gaps.`,
+    summary: `${Math.round(averageViews).toLocaleString("fr-FR")} vues moyennes sur ${videos.length} vidéos, ${competitorCount} chaînes observées, ${weakTargetCount} cibles faibles, ${benchmarkCount} benchmarks.`,
     evidence_video_ids: videos.slice(0, 3).map((video) => video.video_id),
     competitor_channels: competitorChannels,
   };

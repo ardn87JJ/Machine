@@ -380,20 +380,38 @@ function estimateYoutubeQuotaUnits(keywordCount: number) {
   return keywordCount * 102;
 }
 
-function buildOpportunity(videos: ScanVideoSummary[], focus = "Mini-drama IA vertical court"): Opportunity {
+function buildOpportunity(
+  videos: ScanVideoSummary[],
+  focus = "Mini-drama IA vertical court",
+  competitorData: CompetitorDataSummary[] = [],
+): Opportunity {
   const totalViews = videos.reduce((total, video) => total + (video.view_count ?? 0), 0);
   const averageViews = videos.length > 0 ? totalViews / videos.length : 0;
   const channelCount = new Set(videos.map((video) => video.channel_id)).size;
+  const competitorCount = competitorData.length || channelCount;
+  const weakTargetCount = competitorData.filter((competitor) => competitor.attack_tag === "WEAK_TARGET").length;
+  const benchmarkCount = competitorData.filter((competitor) => competitor.attack_tag === "BENCHMARK").length;
+  const watchCount = competitorData.filter((competitor) => competitor.attack_tag === "WATCH").length;
   const lowViewVideos = videos.filter((video) => (video.view_count ?? 0) < 30_000).length;
   const highViewVideos = videos.filter((video) => (video.view_count ?? 0) >= 50_000).length;
 
   const moneyScore = clampScore(48 + Math.log10(Math.max(totalViews, 1)) * 10);
-  const attackScore = clampScore(45 + lowViewVideos * 9 + channelCount * 3);
+  const attackScore = clampScore(
+    competitorData.length > 0
+      ? 45 + lowViewVideos * 6 + weakTargetCount * 11 + benchmarkCount * 4 + competitorCount * 2 - watchCount
+      : 45 + lowViewVideos * 9 + channelCount * 3,
+  );
   const speedCashScore = clampScore(42 + highViewVideos * 13 + videos.length * 2);
-  const qualityGapScore = clampScore(35 + lowViewVideos * 14);
-  const weakCompetitorScore = clampScore(30 + lowViewVideos * 12 + (channelCount >= 4 ? 10 : 0));
+  const qualityGapScore = clampScore(
+    competitorData.length > 0 ? 35 + lowViewVideos * 12 + weakTargetCount * 5 : 35 + lowViewVideos * 14,
+  );
+  const weakCompetitorScore = clampScore(
+    competitorData.length > 0
+      ? 28 + weakTargetCount * 16 + lowViewVideos * 8 + (competitorCount >= 4 ? 8 : 0) - benchmarkCount * 2
+      : 30 + lowViewVideos * 12 + (channelCount >= 4 ? 10 : 0),
+  );
   const uploadPressureScore = clampScore(55 + videos.length * 5 - lowViewVideos * 3);
-  const confidence = clampScore(35 + videos.length * 8 + channelCount * 4);
+  const confidence = clampScore(35 + videos.length * 8 + competitorCount * 4 + competitorData.length * 2);
 
   return {
     title: focus,
@@ -405,7 +423,10 @@ function buildOpportunity(videos: ScanVideoSummary[], focus = "Mini-drama IA ver
     weakCompetitorScore,
     uploadPressureScore,
     confidence,
-    reason: `${formatMetric(Math.round(averageViews))} vues moyennes sur ${videos.length} vidéos, ${channelCount} chaînes observées, plusieurs concurrents à faible volume.`,
+    reason:
+      competitorData.length > 0
+        ? `${formatMetric(Math.round(averageViews))} vues moyennes sur ${videos.length} vidéos, ${competitorCount} chaînes observées, ${weakTargetCount} cibles faibles, ${benchmarkCount} benchmarks.`
+        : `${formatMetric(Math.round(averageViews))} vues moyennes sur ${videos.length} vidéos, ${channelCount} chaînes observées, plusieurs concurrents à faible volume.`,
   };
 }
 
@@ -518,8 +539,9 @@ function buildAnalysisFromVideos(
   videos: ScanVideoSummary[],
   opportunityTitle = "Mini-drama IA vertical court",
   modelVersion = "frontend-preview-v0",
+  competitorData: CompetitorDataSummary[] = [],
 ): ScanAnalysis {
-  const opportunity = buildOpportunity(videos, opportunityTitle);
+  const opportunity = buildOpportunity(videos, opportunityTitle, competitorData);
 
   return {
     model_version: modelVersion,
@@ -735,6 +757,18 @@ function competitorRowsFromData(competitors: CompetitorDataSummary[]): Competito
       return right.averageViews - left.averageViews;
     })
     .slice(0, 5);
+}
+
+function buildScoreExplanation(competitors: CompetitorDataSummary[]) {
+  if (competitors.length === 0) {
+    return "Score basé sur les vidéos du scan. Les prochains scans réels enrichissent ce bloc avec competitor_data.";
+  }
+
+  const weakTargets = competitors.filter((competitor) => competitor.attack_tag === "WEAK_TARGET").length;
+  const benchmarks = competitors.filter((competitor) => competitor.attack_tag === "BENCHMARK").length;
+  const watch = competitors.filter((competitor) => competitor.attack_tag === "WATCH").length;
+
+  return `Score enrichi par competitor_data : ${weakTargets} cibles faibles, ${benchmarks} benchmarks, ${watch} à surveiller.`;
 }
 
 function formatCompetitorAttackTag(tag: CompetitorDataSummary["attack_tag"]): CompetitorAttackLabel {
@@ -1237,6 +1271,9 @@ function AnalystConsole({
             <ScoreBar label="weak_competitor_score" value={opportunity?.weakCompetitorScore ?? 0} />
             <ScoreBar label="upload_pressure_score" value={opportunity?.uploadPressureScore ?? 0} />
           </div>
+          <p className="score-explanation">
+            {buildScoreExplanation(opportunity?.competitorData ?? [])}
+          </p>
         </article>
 
         <aside className="signal-stack">
@@ -3479,6 +3516,7 @@ export function App() {
             visibleVideos,
             `${primaryCompletedScan.keyword} · opportunité backend`,
             "frontend-preview-v0",
+            competitorDataByScan.get(primaryCompletedScan.id) ?? [],
           ),
         competitorData: competitorDataByScan.get(primaryCompletedScan.id) ?? [],
         source: "backend",
