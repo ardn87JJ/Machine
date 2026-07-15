@@ -20,6 +20,7 @@ import {
   runScoutWorkerOnce,
   testEdgeLlmProvider,
   updateEdgeExperiment,
+  updateEdgeExecutionPlanStep,
   updateEdgeLlmBudgetSettings,
   updateEdgeLlmProviderSettings,
   updateEdgeProductionDraft,
@@ -2934,13 +2935,21 @@ function ExecutionBrief({
   activeExperiment,
   activeExecutionPlan,
   isCreatingExperiment,
+  isUpdatingExecutionPlanStep,
   onCreateExperiment,
+  onToggleExecutionPlanStep,
 }: {
   opportunity: OpportunityRecord | undefined;
   activeExperiment: ExecutionExperimentSummary | undefined;
   activeExecutionPlan: ExecutionPlanSummary | undefined;
   isCreatingExperiment: boolean;
+  isUpdatingExecutionPlanStep: boolean;
   onCreateExperiment: (opportunity: OpportunityRecord) => void;
+  onToggleExecutionPlanStep: (
+    plan: ExecutionPlanSummary,
+    step: ExecutionPlanStep,
+    status: ExecutionPlanStep["status"],
+  ) => void;
 }) {
   const evidenceVideos = opportunity?.videos.slice(0, 3) ?? [];
   const checklistSteps = activeExecutionPlan?.steps ?? buildActionChecklist(opportunity, activeExperiment);
@@ -3014,6 +3023,21 @@ function ExecutionBrief({
                 <strong>{step.label} · {step.objective}</strong>
                 <p>{step.measure}</p>
                 <small>{step.success_criteria}</small>
+                {activeExecutionPlan ? (
+                  <button
+                    disabled={isUpdatingExecutionPlanStep}
+                    onClick={() =>
+                      onToggleExecutionPlanStep(
+                        activeExecutionPlan,
+                        step,
+                        step.status === "DONE" ? "TODO" : "DONE",
+                      )
+                    }
+                    type="button"
+                  >
+                    {step.status === "DONE" ? "Réouvrir" : "Cocher"}
+                  </button>
+                ) : null}
               </div>
             </li>
           ))}
@@ -3645,6 +3669,22 @@ export function App() {
     },
   });
 
+  const updateExecutionPlanStepMutation = useMutation({
+    mutationFn: (payload: {
+      plan: ExecutionPlanSummary;
+      step: ExecutionPlanStep;
+      status: ExecutionPlanStep["status"];
+    }) =>
+      updateEdgeExecutionPlanStep({
+        plan_id: payload.plan.id,
+        step_id: payload.step.id,
+        status: payload.status,
+      }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["edge-execution-plans"] });
+    },
+  });
+
   const createProductionDraftMutation = useMutation({
     mutationFn: (pack: ProductionPackContent) => {
       if (!selectedOpportunity) {
@@ -3999,7 +4039,11 @@ export function App() {
             activeExperiment={activeExperiment}
             activeExecutionPlan={activeExecutionPlan}
             isCreatingExperiment={createExperimentMutation.isPending}
+            isUpdatingExecutionPlanStep={updateExecutionPlanStepMutation.isPending}
             onCreateExperiment={(opportunity) => createExperimentMutation.mutate(opportunity)}
+            onToggleExecutionPlanStep={(plan, step, status) =>
+              updateExecutionPlanStepMutation.mutate({ plan, step, status })
+            }
             opportunity={selectedOpportunity}
           />
           <AnalystConsole backendOnline={backendOnline} opportunity={selectedOpportunity} />

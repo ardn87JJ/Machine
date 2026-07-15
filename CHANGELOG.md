@@ -106,6 +106,8 @@ Le format suit les principes de [Keep a Changelog](https://keepachangelog.com/fr
 - bloc Analyste "Pourquoi ce score" reliant décision, critères GO, vidéos preuves
   et concurrents exploitables.
 - table Supabase `execution_plans` et checklist de test 24/48/72h dans la fiche action.
+- action Edge `update-execution-plan-step` pour cocher/réouvrir H24/H48/H72 et
+  persister le statut dans `execution_plans.steps`.
 
 ### Décidé
 

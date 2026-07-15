@@ -609,6 +609,31 @@ describe("App", () => {
           );
         }
 
+        if ((body as { action?: string }).action === "update-execution-plan-step") {
+          const patch = body as {
+            plan_id: string;
+            step_id: "h24" | "h48" | "h72";
+            status: "TODO" | "DONE";
+          };
+          const plan = executionPlans.find((item) => item.id === patch.plan_id)!;
+          const updatedPlan = {
+            ...plan,
+            steps: plan.steps.map((step) =>
+              step.id === patch.step_id ? { ...step, status: patch.status } : step,
+            ),
+            updated_at: "2026-07-08T13:37:00Z",
+          };
+
+          executionPlans = [updatedPlan];
+
+          return Promise.resolve(
+            new Response(JSON.stringify({ plan: updatedPlan }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            }),
+          );
+        }
+
         if ((body as { action?: string }).action === "update-experiment") {
           const patch = body as {
             experiment_id: string;
@@ -990,6 +1015,12 @@ describe("App", () => {
 
     expect(await screen.findByText("READY")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "File de tests" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Décision.*Analyse \+ test/ }));
+
+    expect(await screen.findByText("Plan Supabase 24/48/72h")).toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole("button", { name: "Cocher" })[0]);
+    expect(await screen.findByText("DONE")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Optimizer.*Tests \+ apprentissages/ }));
     fireEvent.click(screen.getByRole("button", { name: "Démarrer" }));
 
     expect(await screen.findByText("RUNNING")).toBeInTheDocument();

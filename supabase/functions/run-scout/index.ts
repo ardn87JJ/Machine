@@ -300,6 +300,11 @@ Deno.serve(async (request) => {
       return json(await updateExecutionExperiment(body));
     }
 
+    if (body.action === "update-execution-plan-step") {
+      assertConfigured();
+      return json(await updateExecutionPlanStep(body));
+    }
+
     if (body.action === "create-draft") {
       assertConfigured();
       return json(await createProductionDraft(body));
@@ -1818,6 +1823,52 @@ async function upsertExecutionPlan(experiment: ExecutionExperimentSummary) {
       updated_at: new Date().toISOString(),
     }),
   });
+}
+
+async function updateExecutionPlanStep(body: JsonRecord) {
+  const planId = String(body.plan_id ?? "");
+  const stepId = String(body.step_id ?? "");
+  const status = String(body.status ?? "") as ExecutionPlanStep["status"];
+  const allowedStepIds = new Set(["h24", "h48", "h72"]);
+  const allowedStatuses = new Set(["TODO", "DONE"]);
+
+  if (!planId) {
+    throw new Error("plan_id est requis pour mettre a jour une etape.");
+  }
+
+  if (!allowedStepIds.has(stepId)) {
+    throw new Error("step_id invalide.");
+  }
+
+  if (!allowedStatuses.has(status)) {
+    throw new Error("Statut d'etape invalide.");
+  }
+
+  const rows = await supabaseFetch<ExecutionPlanSummary[]>(
+    `/rest/v1/execution_plans?id=eq.${planId}&select=id,experiment_id,opportunity_scan_id,keyword,title,steps,created_at,updated_at&limit=1`,
+  );
+  const plan = rows[0];
+
+  if (!plan) {
+    throw new Error("Plan d'execution introuvable.");
+  }
+
+  const steps = plan.steps.map((step) => (
+    step.id === stepId ? { ...step, status } : step
+  ));
+  const updatedRows = await supabaseFetch<ExecutionPlanSummary[]>(
+    `/rest/v1/execution_plans?id=eq.${planId}`,
+    {
+      method: "PATCH",
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify({
+        steps,
+        updated_at: new Date().toISOString(),
+      }),
+    },
+  );
+
+  return { plan: updatedRows[0] };
 }
 
 function buildExecutionPlanSteps(experiment: ExecutionExperimentSummary): ExecutionPlanStep[] {

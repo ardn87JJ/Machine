@@ -760,6 +760,23 @@ h3 {
   line-height: 1.45;
 }
 
+.execution-checklist button {
+  width: fit-content;
+  border: 1px solid #1f6f5f;
+  border-radius: 999px;
+  padding: 7px 10px;
+  color: #83f1d8;
+  background: #10211f;
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.execution-checklist button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
 .check-state {
   align-self: start;
   padding: 5px 7px;

@@ -97,14 +97,14 @@ scorables, tests actionnables, drafts de production et apprentissages.
 
 Revenir au coeur Scout / Analyste sans dépendance LLM :
 
-- transformer la fiche action en checklist de test 24/48/72h ;
-- stocker les étapes de test dans `execution_plans` ;
-- afficher quoi mesurer avant de marquer `PASSED` ou `FAILED`.
+- ajouter une action pour cocher H24/H48/H72 ;
+- persister le statut des étapes dans `execution_plans.steps` ;
+- relire la checklist après mise à jour.
 
 ## Prochaine etape apres cette tranche
 
-Rendre la checklist pilotable :
+Relier la checklist à l'Optimizer :
 
-- ajouter une action pour cocher H24/H48/H72 ;
-- persister le statut des étapes dans `execution_plans.steps` ;
-- relier l'état des étapes à la recommandation Optimizer.
+- afficher le taux d'avancement des plans dans Optimizer ;
+- recommander `MESURER` tant que H48/H72 ne sont pas cochés ;
+- pousser vers `PASSED` ou `FAILED` quand H72 est terminée.

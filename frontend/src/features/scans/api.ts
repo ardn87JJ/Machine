@@ -246,6 +246,10 @@ interface EdgeExecutionPlansResponse {
   plans: ExecutionPlanSummary[];
 }
 
+interface UpdateEdgeExecutionPlanStepResponse {
+  plan: ExecutionPlanSummary;
+}
+
 interface CreateEdgeExperimentResponse {
   experiment: ExecutionExperimentSummary;
 }
@@ -516,6 +520,39 @@ export async function listEdgeExecutionPlans() {
   }
 
   return response.json() as Promise<EdgeExecutionPlansResponse>;
+}
+
+export async function updateEdgeExecutionPlanStep(payload: {
+  plan_id: string;
+  step_id: ExecutionPlanStep["id"];
+  status: ExecutionPlanStep["status"];
+}) {
+  const response = await fetch(SCOUT_FUNCTION_URL, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      action: "update-execution-plan-step",
+      ...payload,
+    }),
+  });
+
+  if (!response.ok) {
+    let message = `La fonction Scout a repondu avec le statut ${response.status}.`;
+
+    try {
+      const payload = (await response.json()) as { message?: string };
+      message = payload.message || message;
+    } catch {
+      // Keep the status-based message when the Edge Function does not return JSON.
+    }
+
+    throw new Error(message);
+  }
+
+  return response.json() as Promise<UpdateEdgeExecutionPlanStepResponse>;
 }
 
 export async function createEdgeExperiment(payload: {
