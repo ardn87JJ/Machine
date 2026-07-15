@@ -77,6 +77,25 @@ export interface OpportunitySummary {
   updated_at: string;
 }
 
+export interface CompetitorDataSummary {
+  scan_id: string;
+  channel_id: string;
+  channel_title: string;
+  subscriber_count: number | null;
+  channel_video_count: number | null;
+  channel_view_count: number | null;
+  observed_video_count: number;
+  average_views: number;
+  total_views: number;
+  best_video_id: string | null;
+  best_video_title: string;
+  weak_signals: number;
+  attack_tag: "WEAK_TARGET" | "BENCHMARK" | "WATCH";
+  weakness_summary: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface ExecutionExperimentSummary {
   id: string;
   opportunity_scan_id: string;
@@ -167,6 +186,7 @@ interface ListOpportunitiesResponse {
 export interface RunEdgeScoutResponse {
   scan: ScanSummary;
   videos: ScanVideoSummary[];
+  competitor_data?: CompetitorDataSummary[];
   analysis: ScanAnalysis;
   opportunity: Omit<OpportunitySummary, "id" | "created_at" | "updated_at">;
 }
@@ -175,6 +195,7 @@ export interface EdgeScoutLedgerResponse {
   opportunities: OpportunitySummary[];
   scans: ScanSummary[];
   videos_by_scan: Record<string, ScanVideoSummary[]>;
+  competitor_data_by_scan?: Record<string, CompetitorDataSummary[]>;
 }
 
 interface EdgeExperimentsResponse {

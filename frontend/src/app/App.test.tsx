@@ -466,6 +466,28 @@ describe("App", () => {
                     },
                   ],
                 },
+                competitor_data_by_scan: {
+                  "55555555-5555-5555-5555-555555555551": [
+                    {
+                      scan_id: "55555555-5555-5555-5555-555555555551",
+                      channel_id: "persisted-channel-1",
+                      channel_title: "Persisted Creator",
+                      subscriber_count: 1200,
+                      channel_video_count: 18,
+                      channel_view_count: 240000,
+                      observed_video_count: 1,
+                      average_views: 50000,
+                      total_views: 50000,
+                      best_video_id: "persisted-video-1",
+                      best_video_title: "Persisted Edge Scout Result",
+                      weak_signals: 2,
+                      attack_tag: "WEAK_TARGET",
+                      weakness_summary: "2 videos faibles sur 1, moyenne 50 000 vues.",
+                      created_at: "2026-07-08T13:20:00Z",
+                      updated_at: "2026-07-08T13:20:10Z",
+                    },
+                  ],
+                },
               }),
               {
                 status: 200,
@@ -788,6 +810,24 @@ describe("App", () => {
                   thumbnail_url: "https://img.youtube.com/vi/edge-video-1/hqdefault.jpg",
                 },
               ],
+              competitor_data: [
+                {
+                  scan_id: scanId,
+                  channel_id: "edge-channel-1",
+                  channel_title: "Edge Creator",
+                  subscriber_count: 8200,
+                  channel_video_count: 44,
+                  channel_view_count: 820000,
+                  observed_video_count: 1,
+                  average_views: 210278,
+                  total_views: 210278,
+                  best_video_id: "edge-video-1",
+                  best_video_title: "How To Start an AI Music YouTube Channel",
+                  weak_signals: 0,
+                  attack_tag: "BENCHMARK",
+                  weakness_summary: "Benchmark utile: moyenne 210 278 vues sur 1 video.",
+                },
+              ],
               analysis: {
                 model_version: "edge-business-heuristic-v0.2",
                 opportunity_title: "Chaîne musicale IA monétisable",
@@ -867,6 +907,7 @@ describe("App", () => {
     expect(screen.getByText("ATTAQUER · 91")).toBeInTheDocument();
     expect(screen.getByText("Décision ATTAQUER · score 91/100")).toBeInTheDocument();
     expect(screen.getByText("BENCHMARK")).toBeInTheDocument();
+    expect(screen.getByText("Benchmark utile: moyenne 210 278 vues sur 1 video.")).toBeInTheDocument();
     expect(
       screen.getAllByText("Publier 7 morceaux courts autour de ai music channel avec visuels cohérents").length,
     ).toBeGreaterThan(0);

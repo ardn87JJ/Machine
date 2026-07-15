@@ -97,13 +97,13 @@ scorables, tests actionnables, drafts de production et apprentissages.
 
 Revenir au coeur Scout / Analyste sans dépendance LLM :
 
-- enrichir les données concurrentes exploitables ;
-- enrichir les données concurrentes exploitables.
+- persister les données concurrentes exploitables dans `competitor_data` ;
+- afficher les concurrents persistés dans l'Analyste avec leur faiblesse détectée.
 
 ## Prochaine etape apres cette tranche
 
-Enrichir les concurrents :
+Renforcer le scoring Analyste :
 
-- extraire une vraie table `competitor_data` ;
-- afficher fréquence, vues moyennes, faiblesse détectée ;
-- relier les concurrents aux opportunités.
+- intégrer `competitor_data` dans les scores `attack_score` et `weak_competitor_score` ;
+- ajouter une explication de score par opportunité ;
+- préparer une vue comparaison concurrents par niche.

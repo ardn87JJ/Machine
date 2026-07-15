@@ -895,6 +895,14 @@ h3 {
   color: #9aa7b6;
 }
 
+.competitor-row p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: #9aa7b6;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
 .competitor-row dl {
   display: grid;
   grid-template-columns: repeat(3, minmax(72px, 1fr));

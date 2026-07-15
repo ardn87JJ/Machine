@@ -65,7 +65,7 @@ Critère de sortie :
 - [ ] `attack_score`.
 - [ ] `speed_cash_score`.
 - [ ] `quality_gap_score`.
-- [ ] `weak_competitor_score`.
+- [x] `weak_competitor_score`.
 - [ ] `upload_pressure_score`.
 - [ ] `ecosystem_score`.
 - [ ] Niveau de confiance séparé.
@@ -73,7 +73,7 @@ Critère de sortie :
 - [ ] Preuves associées.
 - [ ] Classement des opportunités.
 - [ ] Table `opportunities`.
-- [ ] Table `competitor_data`.
+- [x] Table `competitor_data`.
 - [ ] Table `execution_plans`.
 - [ ] Jeux de données de référence.
 

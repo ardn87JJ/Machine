@@ -97,6 +97,8 @@ Le format suit les principes de [Keep a Changelog](https://keepachangelog.com/fr
   `PRODUIRE` / `DOUBLER` / `PIVOTER` / `ABANDONNER` et apprentissages par niche.
 - table Supabase `decision_events`, journal append-only des créations et
   changements de statut/résultat des tests, affiché dans l’Optimizer.
+- table Supabase `competitor_data` pour persister les concurrents par scan, avec vues
+  moyennes, faiblesse détectée et tag d'attaque côté Analyste.
 
 ### Décidé
 

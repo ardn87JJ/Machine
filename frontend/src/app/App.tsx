@@ -23,6 +23,7 @@ import {
   updateEdgeLlmProviderSettings,
   updateEdgeProductionDraft,
   updateEdgeProductionDraftStatus,
+  type CompetitorDataSummary,
   type DecisionEventSummary,
   type ExecutionPlan,
   type ExecutionExperimentSummary,
@@ -190,6 +191,7 @@ type LocalRun = {
   videos: ScanVideoSummary[];
   analysis: ScanAnalysis;
   executionPlan?: ExecutionPlan;
+  competitorData?: CompetitorDataSummary[];
   source: "local" | "edge";
 };
 
@@ -199,6 +201,7 @@ type OpportunityRecord = Opportunity & {
   modelVersion: string;
   source: "backend" | "local";
   videos: ScanVideoSummary[];
+  competitorData: CompetitorDataSummary[];
   executionPlan: ExecutionPlan;
   priorityScore: number;
   decisionLabel: "ATTAQUER" | "TESTER" | "VEILLE";
@@ -208,6 +211,7 @@ type OpportunityRecord = Opportunity & {
 type DecisionLabel = OpportunityRecord["decisionLabel"];
 type DecisionFilter = DecisionLabel | "ALL";
 type WorkspaceView = "scout" | "decision" | "factory" | "optimizer";
+type CompetitorAttackLabel = "CIBLE FAIBLE" | "BENCHMARK" | "À OBSERVER";
 
 type LlmProviderOption = {
   id: LlmProvider;
@@ -303,8 +307,9 @@ type CompetitorRow = {
   averageViews: number;
   totalViews: number;
   weakSignals: number;
-  bestVideo: ScanVideoSummary;
-  attackTag: "CIBLE FAIBLE" | "BENCHMARK" | "À OBSERVER";
+  bestVideoTitle: string;
+  attackTag: CompetitorAttackLabel;
+  weaknessSummary: string;
 };
 
 function getErrorMessage(error: unknown) {
@@ -480,6 +485,7 @@ function buildEdgeRun(result: RunEdgeScoutResponse): LocalRun {
     videos: result.videos,
     analysis: result.analysis,
     executionPlan: result.opportunity.execution_plan,
+    competitorData: result.competitor_data ?? [],
     source: "edge",
   };
 }
@@ -559,12 +565,14 @@ function buildOpportunityRecord({
   videos,
   analysis,
   executionPlan,
+  competitorData = [],
   source,
 }: {
   scan: ScanSummary;
   videos: ScanVideoSummary[];
   analysis: ScanAnalysis;
   executionPlan?: ExecutionPlan;
+  competitorData?: CompetitorDataSummary[];
   source: "backend" | "local";
 }): OpportunityRecord {
   const opportunity = opportunityFromAnalysis(analysis);
@@ -578,6 +586,7 @@ function buildOpportunityRecord({
     modelVersion: analysis.model_version,
     source,
     videos,
+    competitorData,
     executionPlan:
       executionPlan ?? {
         angle: "Série verticale IA sur tension dramatique courte",
@@ -591,6 +600,7 @@ function buildOpportunityRecord({
 function buildOpportunityRecordFromSaved(
   opportunity: OpportunitySummary,
   videos: ScanVideoSummary[],
+  competitorData: CompetitorDataSummary[] = [],
 ): OpportunityRecord {
   const source: OpportunityRecord["source"] = opportunity.source === "local" ? "local" : "backend";
   const record = {
@@ -609,6 +619,7 @@ function buildOpportunityRecordFromSaved(
     modelVersion: opportunity.model_version,
     source,
     videos,
+    competitorData,
     executionPlan: opportunity.execution_plan,
   };
 
@@ -673,8 +684,12 @@ function buildCompetitorRows(videos: ScanVideoSummary[]): CompetitorRow[] {
         averageViews,
         totalViews,
         weakSignals,
-        bestVideo,
+        bestVideoTitle: bestVideo.title,
         attackTag,
+        weaknessSummary:
+          attackTag === "CIBLE FAIBLE"
+            ? `${weakSignals} vidéos faibles dans les résultats Scout.`
+            : "Signal calculé depuis les vidéos du scan.",
       };
     })
     .sort((left, right) => {
@@ -691,6 +706,47 @@ function buildCompetitorRows(videos: ScanVideoSummary[]): CompetitorRow[] {
       return right.averageViews - left.averageViews;
     })
     .slice(0, 5);
+}
+
+function competitorRowsFromData(competitors: CompetitorDataSummary[]): CompetitorRow[] {
+  return competitors
+    .map((competitor) => ({
+      channelId: competitor.channel_id,
+      channelTitle: competitor.channel_title || competitor.channel_id,
+      videoCount: competitor.observed_video_count,
+      averageViews: competitor.average_views,
+      totalViews: competitor.total_views,
+      weakSignals: competitor.weak_signals,
+      bestVideoTitle: competitor.best_video_title,
+      attackTag: formatCompetitorAttackTag(competitor.attack_tag),
+      weaknessSummary: competitor.weakness_summary,
+    }))
+    .sort((left, right) => {
+      if (left.attackTag !== right.attackTag) {
+        const order: Record<CompetitorAttackLabel, number> = {
+          "CIBLE FAIBLE": 0,
+          BENCHMARK: 1,
+          "À OBSERVER": 2,
+        };
+
+        return order[left.attackTag] - order[right.attackTag];
+      }
+
+      return right.averageViews - left.averageViews;
+    })
+    .slice(0, 5);
+}
+
+function formatCompetitorAttackTag(tag: CompetitorDataSummary["attack_tag"]): CompetitorAttackLabel {
+  if (tag === "WEAK_TARGET") {
+    return "CIBLE FAIBLE";
+  }
+
+  if (tag === "BENCHMARK") {
+    return "BENCHMARK";
+  }
+
+  return "À OBSERVER";
 }
 
 function ScoreBar({ label, value }: { label: string; value: number }) {
@@ -1141,11 +1197,19 @@ function AnalystConsole({
   opportunity: OpportunityRecord | undefined;
   backendOnline: boolean;
 }) {
-  const competitorRows = buildCompetitorRows(opportunity?.videos ?? []);
+  const competitorRows =
+    opportunity?.competitorData && opportunity.competitorData.length > 0
+      ? competitorRowsFromData(opportunity.competitorData)
+      : buildCompetitorRows(opportunity?.videos ?? []);
   const topChannels = Array.from(
-    new Set(opportunity?.videos.map((video) => video.channel_title || video.channel_id) ?? []),
+    new Set(
+      competitorRows.length > 0
+        ? competitorRows.map((competitor) => competitor.channelTitle)
+        : opportunity?.videos.map((video) => video.channel_title || video.channel_id) ?? [],
+    ),
   ).slice(0, 5);
   const weakVideos = opportunity?.videos.filter((video) => (video.view_count ?? 0) < 30_000) ?? [];
+  const weakCompetitors = competitorRows.filter((competitor) => competitor.attackTag === "CIBLE FAIBLE").length;
 
   return (
     <section className="cockpit-panel" id="analyst">
@@ -1187,8 +1251,8 @@ function AnalystConsole({
           </div>
           <div>
             <span>Quality gaps</span>
-            <strong>{weakVideos.length}</strong>
-            <small>vidéos à faible volume ou exécution améliorable</small>
+            <strong>{Math.max(weakVideos.length, weakCompetitors)}</strong>
+            <small>vidéos faibles ou concurrents attaquables</small>
           </div>
         </aside>
       </div>
@@ -1213,7 +1277,7 @@ function AnalystConsole({
                     {competitor.attackTag}
                   </span>
                   <strong>{competitor.channelTitle}</strong>
-                  <small>{competitor.bestVideo.title}</small>
+                  <small>{competitor.bestVideoTitle}</small>
                 </div>
                 <dl>
                   <div>
@@ -1229,6 +1293,7 @@ function AnalystConsole({
                     <dd>{competitor.weakSignals}</dd>
                   </div>
                 </dl>
+                <p>{competitor.weaknessSummary}</p>
               </article>
             ))}
           </div>
@@ -3349,6 +3414,11 @@ export function App() {
     videosByScan.set(scanId, videos);
   });
 
+  const competitorDataByScan = new Map<string, CompetitorDataSummary[]>();
+  Object.entries(edgeLedgerQuery.data?.competitor_data_by_scan ?? {}).forEach(([scanId, competitors]) => {
+    competitorDataByScan.set(scanId, competitors);
+  });
+
   if (showVerifiedFallback) {
     videosByScan.set(verifiedFallbackRun.scan.id, verifiedFallbackRun.videos);
   }
@@ -3371,6 +3441,7 @@ export function App() {
       buildOpportunityRecordFromSaved(
         opportunity,
         videosByScan.get(opportunity.scan_id) ?? [],
+        competitorDataByScan.get(opportunity.scan_id) ?? [],
       ),
   );
   const edgeOpportunityRecords = (edgeLedgerQuery.data?.opportunities ?? []).map(
@@ -3378,6 +3449,7 @@ export function App() {
       buildOpportunityRecordFromSaved(
         opportunity,
         videosByScan.get(opportunity.scan_id) ?? [],
+        competitorDataByScan.get(opportunity.scan_id) ?? [],
       ),
   );
 
@@ -3388,6 +3460,7 @@ export function App() {
         videos: run.videos,
         analysis: run.analysis,
         executionPlan: run.executionPlan,
+        competitorData: run.competitorData,
         source: run.source === "edge" ? "backend" : "local",
       }),
     ),
@@ -3407,6 +3480,7 @@ export function App() {
             `${primaryCompletedScan.keyword} · opportunité backend`,
             "frontend-preview-v0",
           ),
+        competitorData: competitorDataByScan.get(primaryCompletedScan.id) ?? [],
         source: "backend",
       }),
     );

@@ -82,6 +82,25 @@ type OpportunitySummary = {
   updated_at: string;
 };
 
+type CompetitorDataSummary = {
+  scan_id: string;
+  channel_id: string;
+  channel_title: string;
+  subscriber_count: number | null;
+  channel_video_count: number | null;
+  channel_view_count: number | null;
+  observed_video_count: number;
+  average_views: number;
+  total_views: number;
+  best_video_id: string | null;
+  best_video_title: string;
+  weak_signals: number;
+  attack_tag: "WEAK_TARGET" | "BENCHMARK" | "WATCH";
+  weakness_summary: string;
+  created_at?: string;
+  updated_at?: string;
+};
+
 type ExecutionExperimentSummary = {
   id: string;
   opportunity_scan_id: string;
@@ -300,8 +319,14 @@ Deno.serve(async (request) => {
     await storeCollection(scan.id, collection);
 
     const videos = toVideoSummaries(collection);
+    const competitorData = buildCompetitorData(scan.id, videos, collection.channels);
     const analysis = buildScanAnalysis(keyword, videos);
     await updateScan(scan.id, "completed", null, null);
+    await upsertCompetitorData(competitorData).catch((error) => {
+      if (!isMissingTable(error)) {
+        throw error;
+      }
+    });
     await upsertOpportunity(scan.id, keyword, analysis).catch((error) => {
       if (!isMissingTable(error)) {
         throw error;
@@ -315,6 +340,7 @@ Deno.serve(async (request) => {
         updated_at: new Date().toISOString(),
       },
       videos,
+      competitor_data: competitorData,
       analysis,
       opportunity: buildOpportunityPayload(scan.id, keyword, analysis),
     });
@@ -1751,7 +1777,17 @@ async function listScoutLedger(request: Request) {
   const scanVideos = await supabaseFetch<JsonRecord[]>(
     `/rest/v1/scan_videos?select=scan_id,rank,video_id,youtube_videos(title,channel_id,view_count,like_count,comment_count,published_at,thumbnail_url,youtube_channels(title))&scan_id=in.(${scanIds.join(",")})&order=rank.asc`,
   );
+  const competitorData = await supabaseFetch<CompetitorDataSummary[]>(
+    `/rest/v1/competitor_data?select=scan_id,channel_id,channel_title,subscriber_count,channel_video_count,channel_view_count,observed_video_count,average_views,total_views,best_video_id,best_video_title,weak_signals,attack_tag,weakness_summary,created_at,updated_at&scan_id=in.(${scanIds.join(",")})&order=average_views.desc`,
+  ).catch((error) => {
+    if (isMissingTable(error)) {
+      return [];
+    }
+
+    throw error;
+  });
   const videosByScan: Record<string, ScanVideoSummary[]> = {};
+  const competitorDataByScan: Record<string, CompetitorDataSummary[]> = {};
 
   scanVideos.forEach((item) => {
     const scanId = String(item.scan_id);
@@ -1773,10 +1809,18 @@ async function listScoutLedger(request: Request) {
     videosByScan[scanId] = [...(videosByScan[scanId] ?? []), summary];
   });
 
+  competitorData.forEach((competitor) => {
+    competitorDataByScan[competitor.scan_id] = [
+      ...(competitorDataByScan[competitor.scan_id] ?? []),
+      competitor,
+    ];
+  });
+
   return {
     opportunities,
     scans,
     videos_by_scan: videosByScan,
+    competitor_data_by_scan: competitorDataByScan,
   };
 }
 
@@ -2024,6 +2068,96 @@ function toVideoSummaries(
     .sort((left, right) => left.rank - right.rank);
 }
 
+function buildCompetitorData(
+  scanId: string,
+  videos: ScanVideoSummary[],
+  channels: YouTubeChannel[],
+): CompetitorDataSummary[] {
+  const channelsById = new Map(channels.map((channel) => [channel.id, channel]));
+  const videosByChannel = new Map<string, ScanVideoSummary[]>();
+
+  videos.forEach((video) => {
+    if (!video.channel_id) {
+      return;
+    }
+
+    videosByChannel.set(video.channel_id, [...(videosByChannel.get(video.channel_id) ?? []), video]);
+  });
+
+  return Array.from(videosByChannel.entries())
+    .map(([channelId, channelVideos]) => {
+      const channel = channelsById.get(channelId);
+      const totalViews = channelVideos.reduce((total, video) => total + (video.view_count ?? 0), 0);
+      const averageViews = Math.round(totalViews / channelVideos.length);
+      const bestVideo = [...channelVideos].sort((left, right) => (right.view_count ?? 0) - (left.view_count ?? 0))[0];
+      const weakSignals = channelVideos.filter((video) => (video.view_count ?? 0) < 30000).length;
+      const attackTag = resolveCompetitorAttackTag(averageViews, bestVideo.view_count ?? 0, weakSignals);
+
+      return {
+        scan_id: scanId,
+        channel_id: channelId,
+        channel_title: channel?.title || bestVideo.channel_title || channelId,
+        subscriber_count: channel?.subscriber_count ?? null,
+        channel_video_count: channel?.video_count ?? null,
+        channel_view_count: channel?.view_count ?? null,
+        observed_video_count: channelVideos.length,
+        average_views: averageViews,
+        total_views: totalViews,
+        best_video_id: bestVideo.video_id,
+        best_video_title: bestVideo.title,
+        weak_signals: weakSignals,
+        attack_tag: attackTag,
+        weakness_summary: buildCompetitorWeaknessSummary(attackTag, weakSignals, averageViews, channelVideos.length),
+      };
+    })
+    .sort((left, right) => {
+      if (left.attack_tag !== right.attack_tag) {
+        const order: Record<CompetitorDataSummary["attack_tag"], number> = {
+          WEAK_TARGET: 0,
+          BENCHMARK: 1,
+          WATCH: 2,
+        };
+
+        return order[left.attack_tag] - order[right.attack_tag];
+      }
+
+      return right.average_views - left.average_views;
+    });
+}
+
+function resolveCompetitorAttackTag(
+  averageViews: number,
+  bestVideoViews: number,
+  weakSignals: number,
+): CompetitorDataSummary["attack_tag"] {
+  if (averageViews < 30000 || weakSignals >= 2) {
+    return "WEAK_TARGET";
+  }
+
+  if (bestVideoViews >= 100000) {
+    return "BENCHMARK";
+  }
+
+  return "WATCH";
+}
+
+function buildCompetitorWeaknessSummary(
+  attackTag: CompetitorDataSummary["attack_tag"],
+  weakSignals: number,
+  averageViews: number,
+  observedVideoCount: number,
+) {
+  if (attackTag === "WEAK_TARGET") {
+    return `${weakSignals} video(s) faibles sur ${observedVideoCount}, moyenne ${averageViews.toLocaleString("fr-FR")} vues.`;
+  }
+
+  if (attackTag === "BENCHMARK") {
+    return `Benchmark utile: moyenne ${averageViews.toLocaleString("fr-FR")} vues sur ${observedVideoCount} video(s).`;
+  }
+
+  return `A surveiller: signal moyen avec ${observedVideoCount} video(s) observee(s).`;
+}
+
 function buildScanAnalysis(keyword: string, videos: ScanVideoSummary[]): ScanAnalysis {
   const totalViews = videos.reduce((total, video) => total + (video.view_count ?? 0), 0);
   const averageViews = videos.length > 0 ? totalViews / videos.length : 0;
@@ -2172,6 +2306,21 @@ async function upsertOpportunity(scanId: string, keyword: string, analysis: Scan
     method: "POST",
     headers: { Prefer: "resolution=merge-duplicates" },
     body: JSON.stringify(buildOpportunityPayload(scanId, keyword, analysis)),
+  });
+}
+
+async function upsertCompetitorData(competitors: CompetitorDataSummary[]) {
+  if (competitors.length === 0) {
+    return;
+  }
+
+  await supabaseFetch("/rest/v1/competitor_data?on_conflict=scan_id,channel_id", {
+    method: "POST",
+    headers: { Prefer: "resolution=merge-duplicates" },
+    body: JSON.stringify(competitors.map(({ created_at: _, updated_at: __, ...competitor }) => ({
+      ...competitor,
+      updated_at: new Date().toISOString(),
+    }))),
   });
 }
 
