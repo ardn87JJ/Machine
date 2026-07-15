@@ -1160,6 +1160,8 @@ describe("App", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "SCAN 10" }));
 
+    expect(await screen.findByText("Campagne Scout")).toBeInTheDocument();
+
     await waitFor(() => {
       const postedKeywords = fetchMock.mock.calls
         .filter(([url, init]) => String(url).includes("/functions/v1/run-scout") && init?.method === "POST")
@@ -1169,6 +1171,8 @@ describe("App", () => {
         .filter(Boolean);
 
       expect(postedKeywords).toHaveLength(11);
+      expect(screen.getByText("10/10 terminés")).toBeInTheDocument();
+      expect(screen.getByText("Top campagne")).toBeInTheDocument();
       expect(postedKeywords.slice(1, 4)).toEqual([
         "ai music channel",
         "mini drama ia",

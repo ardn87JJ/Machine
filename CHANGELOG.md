@@ -113,6 +113,9 @@ Le format suit les principes de [Keep a Changelog](https://keepachangelog.com/fr
 - clôture des tests protégée par le plan d'exécution : `Réussi/Échec` est
   désactivé tant que H72 n'est pas cochée, et l'Edge Function refuse aussi un
   verdict `PASSED/FAILED` incohérent.
+- campagne Scout batch visible : `SCAN 10/50` affiche désormais chaque mot-clé
+  en file, en cours, terminé ou échoué, continue malgré une erreur isolée et
+  sort un top opportunités consolidé par score.
 
 ### Décidé
 

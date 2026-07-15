@@ -95,21 +95,22 @@ scorables, tests actionnables, drafts de production et apprentissages.
 - empecher une cloture incoherente : `Reussi` et `Echec` restent bloques tant que
   H72 n'est pas cochee, et `run-scout` rejette aussi `DONE/PASSED` ou
   `DONE/FAILED` si le plan Supabase existe mais n'a pas H72 `DONE`.
+- lancer une campagne Scout batch visible : chaque mot-cle du lot affiche son
+  statut `queued`, `running`, `completed` ou `failed`, le lot continue si un scan
+  echoue, puis le cockpit affiche un top opportunites consolide.
 
 ## Tranche en cours
 
-Finaliser la boucle test :
+Renforcer le Scout batch business :
 
-- lier la file de tests aux plans d'execution dans Optimizer ;
-- bloquer `PASSED/FAILED` avant H72 dans l'interface ;
-- bloquer `PASSED/FAILED` avant H72 dans l'Edge Function ;
-- pousser l'Optimizer vers `CLOTURER` quand H72 est terminee mais sans verdict.
+- afficher la progression du lot 10/50 mot-cle par mot-cle ;
+- conserver le scan batch tolerant aux erreurs isolees ;
+- sortir un top opportunites de campagne avec score, decision et metriques.
 
 ## Prochaine etape apres cette tranche
 
-Exploiter les apprentissages :
+Consolider l'Analyste multi-scans :
 
-- enrichir `decision_events` / Optimizer avec une synthese par niche ;
-- afficher ce qui a ete appris apres un `PASSED` ou `FAILED` ;
-- proposer la prochaine action automatique : doubler, pivoter, produire ou sortir
-  de la file active.
+- regrouper les resultats de plusieurs mots-cles proches en une niche unique ;
+- detecter les clusters avec concurrents faibles recurrents ;
+- produire une fiche opportunite consolidée au lieu d'une fiche par scan brut.

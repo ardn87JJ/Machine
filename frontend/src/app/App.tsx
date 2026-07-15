@@ -199,6 +199,21 @@ type LocalRun = {
   source: "local" | "edge";
 };
 
+type ScoutCampaignItem = {
+  keyword: string;
+  position: number;
+  status: "queued" | "running" | "completed" | "failed";
+  scanId: string | null;
+  title: string;
+  decisionLabel: "ATTAQUER" | "TESTER" | "VEILLE" | null;
+  priorityScore: number | null;
+  moneyScore: number | null;
+  attackScore: number | null;
+  videoCount: number;
+  summary: string;
+  error: string | null;
+};
+
 type OpportunityRecord = Opportunity & {
   scanId: string;
   keyword: string;
@@ -534,6 +549,65 @@ function buildEdgeRun(result: RunEdgeScoutResponse): LocalRun {
     executionPlan: result.opportunity.execution_plan,
     competitorData: result.competitor_data ?? [],
     source: "edge",
+  };
+}
+
+function buildCampaignItemFromRun(run: LocalRun, position: number): ScoutCampaignItem {
+  const opportunity = opportunityFromAnalysis(run.analysis);
+  const priority = buildPriority(opportunity);
+  const topVideo = run.videos
+    .slice()
+    .sort((left, right) => (right.view_count ?? 0) - (left.view_count ?? 0))[0];
+
+  return {
+    keyword: run.scan.keyword,
+    position,
+    status: "completed",
+    scanId: run.scan.id,
+    title: opportunity.title,
+    decisionLabel: priority.decisionLabel,
+    priorityScore: priority.priorityScore,
+    moneyScore: opportunity.moneyScore,
+    attackScore: opportunity.attackScore,
+    videoCount: run.videos.length,
+    summary: topVideo
+      ? `${formatMetric(topVideo.view_count)} vues max · ${opportunity.reason}`
+      : opportunity.reason,
+    error: null,
+  };
+}
+
+function buildCampaignItemFromScan(scan: ScanSummary, position: number): ScoutCampaignItem {
+  return {
+    keyword: scan.keyword,
+    position,
+    status: scan.status === "failed" ? "failed" : "completed",
+    scanId: scan.id,
+    title: "Analyse backend en cours",
+    decisionLabel: null,
+    priorityScore: null,
+    moneyScore: null,
+    attackScore: null,
+    videoCount: 0,
+    summary: "Scan créé côté backend. Le ledger se met à jour après le worker.",
+    error: scan.error_message,
+  };
+}
+
+function buildFailedCampaignItem(keyword: string, position: number, error: unknown): ScoutCampaignItem {
+  return {
+    keyword,
+    position,
+    status: "failed",
+    scanId: null,
+    title: "Scan échoué",
+    decisionLabel: null,
+    priorityScore: null,
+    moneyScore: null,
+    attackScore: null,
+    videoCount: 0,
+    summary: "Ce mot-clé n'a pas bloqué le reste de la campagne.",
+    error: getErrorMessage(error),
   };
 }
 
@@ -1126,18 +1200,27 @@ function ScoutConsole({
   backendOnline: boolean;
   localModeActive: boolean;
   onLocalScan: (payload: { count: number; keyword: string }) => void;
-  onEdgeScan: (run: LocalRun) => void;
+  onEdgeScan: (run: LocalRun, options?: { navigateToDecision?: boolean }) => void;
 }) {
   const queryClient = useQueryClient();
   const [keyword, setKeyword] = useState("mini drama ia");
   const [customKeywords, setCustomKeywords] = useState("");
   const [lastBatchSummary, setLastBatchSummary] = useState<string | null>(null);
+  const [campaignItems, setCampaignItems] = useState<ScoutCampaignItem[]>([]);
   const realScanEnabled = backendOnline && !localModeActive;
   const edgeScanEnabled = !realScanEnabled;
   const previewKeywords = buildScoutKeywords(keyword, 10, customKeywords);
   const fullBatchKeywords = buildScoutKeywords(keyword, 50, customKeywords);
   const previewQuotaUnits = estimateYoutubeQuotaUnits(previewKeywords.length);
   const fullBatchQuotaUnits = estimateYoutubeQuotaUnits(fullBatchKeywords.length);
+  const campaignCompletedCount = campaignItems.filter((item) => item.status === "completed").length;
+  const campaignFailedCount = campaignItems.filter((item) => item.status === "failed").length;
+  const campaignRunningCount = campaignItems.filter((item) => item.status === "running").length;
+  const campaignTopItems = campaignItems
+    .filter((item) => item.status === "completed" && item.priorityScore !== null)
+    .slice()
+    .sort((left, right) => (right.priorityScore ?? 0) - (left.priorityScore ?? 0))
+    .slice(0, 5);
 
   const scanMutation = useMutation({
     mutationFn: async ({
@@ -1152,39 +1235,96 @@ function ScoutConsole({
       mode: "backend" | "edge";
     }) => {
       const keywords = buildScoutKeywords(keyword, count, customKeywords);
+      const initialCampaign: ScoutCampaignItem[] = keywords.map((scanKeyword, index) => ({
+        keyword: scanKeyword,
+        position: index + 1,
+        status: index === 0 ? "running" : "queued",
+        scanId: null,
+        title: "En attente",
+        decisionLabel: null,
+        priorityScore: null,
+        moneyScore: null,
+        attackScore: null,
+        videoCount: 0,
+        summary: "En file Scout.",
+        error: null,
+      }));
+      const campaignResults = [...initialCampaign];
+
+      setLastBatchSummary(null);
+      setCampaignItems(initialCampaign);
+
+      function updateCampaignItem(index: number, patch: Partial<ScoutCampaignItem>) {
+        campaignResults[index] = { ...campaignResults[index], ...patch };
+        setCampaignItems([...campaignResults]);
+      }
 
       if (mode === "edge") {
-        const runs = [];
+        const runs: LocalRun[] = [];
 
-        for (const scanKeyword of keywords) {
-          runs.push(buildEdgeRun(await runEdgeScout(scanKeyword)));
+        for (let index = 0; index < keywords.length; index += 1) {
+          const scanKeyword = keywords[index];
+
+          updateCampaignItem(index, {
+            status: "running",
+            summary: "Scan YouTube en cours via Supabase Edge.",
+          });
+
+          try {
+            const run = buildEdgeRun(await runEdgeScout(scanKeyword));
+            const campaignItem = buildCampaignItemFromRun(run, index + 1);
+
+            runs.push(run);
+            updateCampaignItem(index, campaignItem);
+          } catch (error) {
+            updateCampaignItem(index, buildFailedCampaignItem(scanKeyword, index + 1, error));
+          }
         }
 
-        return { mode, runs, keywords };
+        return { mode, runs, keywords, campaignItems: campaignResults };
       }
 
       const scans = [];
 
-      for (const scanKeyword of keywords) {
-        scans.push(await createScan(scanKeyword));
+      for (let index = 0; index < keywords.length; index += 1) {
+        const scanKeyword = keywords[index];
+
+        updateCampaignItem(index, {
+          status: "running",
+          summary: "Création du scan backend.",
+        });
+
+        try {
+          const createdScan = (await createScan(scanKeyword)).scan;
+
+          scans.push(createdScan);
+          updateCampaignItem(index, buildCampaignItemFromScan(createdScan, index + 1));
+        } catch (error) {
+          updateCampaignItem(index, buildFailedCampaignItem(scanKeyword, index + 1, error));
+        }
       }
 
       const workerRuns = [];
 
-      for (let index = 0; index < keywords.length; index += 1) {
+      for (let index = 0; index < scans.length; index += 1) {
         workerRuns.push(await runScoutWorkerOnce());
       }
 
-      return { mode, scans, workerRuns, runs: [], keywords };
+      return { mode, scans, workerRuns, runs: [], keywords, campaignItems: campaignResults };
     },
     onSuccess: async (result) => {
       if (result.mode === "edge") {
-        result.runs.forEach(onEdgeScan);
+        result.runs.forEach((run) =>
+          onEdgeScan(run, { navigateToDecision: result.keywords.length === 1 }),
+        );
       }
+
+      const completedCount = result.campaignItems.filter((item) => item.status === "completed").length;
+      const failedCount = result.campaignItems.filter((item) => item.status === "failed").length;
 
       setLastBatchSummary(
         result.keywords.length > 1
-          ? `Dernier lot: ${result.keywords.length} niches scannées · ${result.keywords.slice(0, 4).join(" · ")}`
+          ? `Dernier lot: ${completedCount}/${result.keywords.length} niches scannées · ${failedCount} échecs · ${result.keywords.slice(0, 4).join(" · ")}`
           : `Dernier scan: ${result.keywords[0]}`,
       );
 
@@ -1321,6 +1461,55 @@ function ScoutConsole({
             </button>
           </div>
         </div>
+
+        {campaignItems.length > 0 ? (
+          <div className="campaign-card">
+            <div className="campaign-card__header">
+              <div>
+                <span>Campagne Scout</span>
+                <strong>
+                  {campaignCompletedCount}/{campaignItems.length} terminés
+                </strong>
+                <small>
+                  {campaignRunningCount} en cours · {campaignFailedCount} échecs · top opportunités consolidé
+                </small>
+              </div>
+              <progress max={campaignItems.length} value={campaignCompletedCount + campaignFailedCount} />
+            </div>
+            <div className="campaign-grid">
+              {campaignItems.map((item) => (
+                <article className={`campaign-item campaign-item--${item.status}`} key={`${item.keyword}-${item.position}`}>
+                  <div>
+                    <span>#{item.position}</span>
+                    <strong>{item.keyword}</strong>
+                    <small>{item.status}</small>
+                  </div>
+                  <p>{item.error ?? item.summary}</p>
+                  <div className="campaign-item__metrics">
+                    {item.decisionLabel ? <span>{item.decisionLabel}</span> : null}
+                    {item.priorityScore !== null ? <span>score {item.priorityScore}</span> : null}
+                    {item.moneyScore !== null ? <span>money {item.moneyScore}</span> : null}
+                    {item.attackScore !== null ? <span>attack {item.attackScore}</span> : null}
+                    {item.videoCount > 0 ? <span>{item.videoCount} vidéos</span> : null}
+                  </div>
+                </article>
+              ))}
+            </div>
+            {campaignTopItems.length > 0 ? (
+              <div className="campaign-top">
+                <span>Top campagne</span>
+                {campaignTopItems.map((item) => (
+                  <article key={item.scanId ?? item.keyword}>
+                    <strong>{item.keyword}</strong>
+                    <small>
+                      {item.decisionLabel} · score {item.priorityScore} · {item.title}
+                    </small>
+                  </article>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
 
         <div className="runtime-card">
           <span>Runs</span>
@@ -4083,10 +4272,13 @@ export function App() {
     setWorkspaceView("decision");
   }
 
-  function addEdgeRun(run: LocalRun) {
+  function addEdgeRun(run: LocalRun, options: { navigateToDecision?: boolean } = {}) {
     setLocalRuns((current) => [run, ...current].slice(0, 8));
     setSelectedOpportunityId(run.scan.id);
-    setWorkspaceView("decision");
+
+    if (options.navigateToDecision ?? true) {
+      setWorkspaceView("decision");
+    }
   }
 
   return (
