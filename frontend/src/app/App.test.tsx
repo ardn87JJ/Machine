@@ -992,7 +992,10 @@ describe("App", () => {
       await screen.findByText("edge-business-heuristic-v0.3", { selector: ".model-version" }),
     ).toBeInTheDocument();
     expect(screen.getAllByText("Chaîne musicale IA monétisable").length).toBeGreaterThan(0);
-    expect(screen.getByText("ATTAQUER · 91")).toBeInTheDocument();
+    expect(screen.getAllByText("ATTAQUER · 91").length).toBeGreaterThan(0);
+    expect(screen.getByRole("heading", { name: "Niches consolidées" })).toBeInTheDocument();
+    expect(screen.getByText("Chaînes musicales IA")).toBeInTheDocument();
+    expect(screen.getByText(/Regroupe les mots-clés proches/)).toBeInTheDocument();
     expect(screen.getByText("Décision ATTAQUER · score 91/100")).toBeInTheDocument();
     expect(screen.getByText("BENCHMARK")).toBeInTheDocument();
     expect(screen.getByText("Benchmark utile: moyenne 210 278 vues sur 1 video.")).toBeInTheDocument();
@@ -1003,7 +1006,7 @@ describe("App", () => {
     expect(screen.getByText("Critère de validation : Un morceau dépasse le benchmark de vues initial en 72h")).toBeInTheDocument();
     expect(screen.getByText("Copier Edge Creator : How To Start an AI Music YouTube Channel")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Cibles récurrentes" })).toBeInTheDocument();
-    expect(screen.getByText("Persisted Creator")).toBeInTheDocument();
+    expect(screen.getAllByText("Persisted Creator").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Edge Creator").length).toBeGreaterThan(0);
     expect(screen.getByText("Checklist test")).toBeInTheDocument();
     expect(screen.getByText("Plan préparatoire 24/48/72h")).toBeInTheDocument();

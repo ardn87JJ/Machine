@@ -345,6 +345,28 @@ type CompetitorComparison = {
   recommendation: "ATTAQUER" | "COPIER" | "SURVEILLER";
 };
 
+type NicheCluster = {
+  id: string;
+  title: string;
+  keywords: string[];
+  scanCount: number;
+  totalVideos: number;
+  decisionLabel: DecisionLabel;
+  priorityScore: number;
+  moneyScore: number;
+  attackScore: number;
+  qualityGapScore: number;
+  weakCompetitorScore: number;
+  confidence: number;
+  weakTargets: number;
+  benchmarks: number;
+  topCompetitors: string[];
+  recurringWeakCompetitors: string[];
+  bestOpportunity: OpportunityRecord;
+  recommendation: string;
+  nextMove: string;
+};
+
 type AnalystEvidence = {
   scoreDrivers: string[];
   goCriteria: string[];
@@ -1004,6 +1026,185 @@ function buildCompetitorComparisons(opportunities: OpportunityRecord[]): Competi
     .slice(0, 8);
 }
 
+function buildNicheClusters(opportunities: OpportunityRecord[]): NicheCluster[] {
+  const byNiche = new Map<string, OpportunityRecord[]>();
+
+  opportunities.forEach((opportunity) => {
+    const niche = inferNicheCluster(opportunity);
+    byNiche.set(niche.id, [...(byNiche.get(niche.id) ?? []), opportunity]);
+  });
+
+  return Array.from(byNiche.entries())
+    .map(([id, entries]) => {
+      const sortedEntries = [...entries].sort((left, right) => right.priorityScore - left.priorityScore);
+      const bestOpportunity = sortedEntries[0];
+      const weakTargets = entries.reduce(
+        (total, opportunity) =>
+          total + opportunity.competitorData.filter((competitor) => competitor.attack_tag === "WEAK_TARGET").length,
+        0,
+      );
+      const benchmarks = entries.reduce(
+        (total, opportunity) =>
+          total + opportunity.competitorData.filter((competitor) => competitor.attack_tag === "BENCHMARK").length,
+        0,
+      );
+      const channelCounts = new Map<string, { title: string; count: number; weakCount: number }>();
+
+      entries.forEach((opportunity) => {
+        opportunity.competitorData.forEach((competitor) => {
+          const channelId = competitor.channel_id || competitor.channel_title;
+
+          if (!channelId) {
+            return;
+          }
+
+          const current = channelCounts.get(channelId) ?? {
+            title: competitor.channel_title || channelId,
+            count: 0,
+            weakCount: 0,
+          };
+
+          current.count += 1;
+          current.weakCount += competitor.attack_tag === "WEAK_TARGET" ? 1 : 0;
+          channelCounts.set(channelId, current);
+        });
+      });
+
+      const topCompetitors = Array.from(channelCounts.values())
+        .sort((left, right) => right.count - left.count || right.weakCount - left.weakCount)
+        .map((competitor) => competitor.title)
+        .slice(0, 4);
+      const recurringWeakCompetitors = Array.from(channelCounts.values())
+        .filter((competitor) => competitor.weakCount >= 2 || (competitor.weakCount >= 1 && entries.length === 1))
+        .sort((left, right) => right.weakCount - left.weakCount)
+        .map((competitor) => competitor.title)
+        .slice(0, 3);
+      const priorityScore = clampScore(
+        average(entries.map((entry) => entry.priorityScore)) + weakTargets * 2 + Math.max(0, entries.length - 1) * 3,
+      );
+      const decisionLabel: DecisionLabel =
+        priorityScore >= 78
+          ? "ATTAQUER"
+          : priorityScore >= 62
+            ? "TESTER"
+            : "VEILLE";
+      const nicheTitle = inferNicheCluster(bestOpportunity).title;
+
+      return {
+        id,
+        title: nicheTitle,
+        keywords: Array.from(new Set(entries.map((entry) => entry.keyword))).slice(0, 6),
+        scanCount: entries.length,
+        totalVideos: entries.reduce((total, entry) => total + entry.videos.length, 0),
+        decisionLabel,
+        priorityScore,
+        moneyScore: clampScore(average(entries.map((entry) => entry.moneyScore))),
+        attackScore: clampScore(average(entries.map((entry) => entry.attackScore))),
+        qualityGapScore: clampScore(average(entries.map((entry) => entry.qualityGapScore))),
+        weakCompetitorScore: clampScore(average(entries.map((entry) => entry.weakCompetitorScore))),
+        confidence: clampScore(average(entries.map((entry) => entry.confidence))),
+        weakTargets,
+        benchmarks,
+        topCompetitors,
+        recurringWeakCompetitors,
+        bestOpportunity,
+        recommendation: buildClusterRecommendation(decisionLabel, weakTargets, benchmarks),
+        nextMove: buildClusterNextMove(decisionLabel, bestOpportunity),
+      };
+    })
+    .sort((left, right) => {
+      if (right.priorityScore !== left.priorityScore) {
+        return right.priorityScore - left.priorityScore;
+      }
+
+      return right.scanCount - left.scanCount;
+    })
+    .slice(0, 6);
+}
+
+function inferNicheCluster(opportunity: OpportunityRecord) {
+  const haystack = `${opportunity.keyword} ${opportunity.title}`.toLowerCase();
+
+  if (/\b(music|musique|song|suno|playlist|lofi)\b/.test(haystack)) {
+    return { id: "ai-music", title: "Chaînes musicales IA" };
+  }
+
+  if (/\b(drama|série|serie|series|revenge|millionaire|romance|vertical)\b/.test(haystack)) {
+    return { id: "ai-drama", title: "Mini-drama IA / séries verticales" };
+  }
+
+  if (/\b(story|stories|reddit|horror|sleep|bedtime|bible|crime|documentary|history|narration)\b/.test(haystack)) {
+    return { id: "faceless-stories", title: "Stories faceless automatisées" };
+  }
+
+  if (/\b(finance|business|money|cash|side hustle|luxury|wealth)\b/.test(haystack)) {
+    return { id: "money-shorts", title: "Finance / money shorts" };
+  }
+
+  if (/\b(motivation|stoic|wisdom|fitness|transformation)\b/.test(haystack)) {
+    return { id: "motivation-shorts", title: "Motivation / transformation shorts" };
+  }
+
+  if (/\b(football|nba|sport|edits)\b/.test(haystack)) {
+    return { id: "sports-shorts", title: "Sports edits / shorts" };
+  }
+
+  const fallback = buildFallbackClusterTitle(opportunity.keyword);
+
+  return { id: fallback.toLowerCase().replace(/[^a-z0-9]+/g, "-"), title: fallback };
+}
+
+function buildFallbackClusterTitle(keyword: string) {
+  const stopWords = new Set(["ai", "ia", "the", "and", "pour", "avec", "sur", "de", "des", "la", "le", "les"]);
+  const tokens = keyword
+    .toLowerCase()
+    .split(/[^a-z0-9àâçéèêëîïôûùüÿñæœ]+/i)
+    .filter((token) => token.length >= 3 && !stopWords.has(token))
+    .slice(0, 3);
+  const title = tokens.length > 0 ? tokens.join(" ") : keyword;
+
+  return title
+    .split(" ")
+    .map((token) => token.charAt(0).toUpperCase() + token.slice(1))
+    .join(" ");
+}
+
+function buildClusterRecommendation(decisionLabel: DecisionLabel, weakTargets: number, benchmarks: number) {
+  if (decisionLabel === "ATTAQUER") {
+    return weakTargets > 0
+      ? "Attaquer maintenant : signal business fort et concurrents faibles détectés."
+      : "Attaquer prudemment : score fort, mais commencer par copier les benchmarks.";
+  }
+
+  if (decisionLabel === "TESTER") {
+    return benchmarks > 0
+      ? "Tester un angle court en copiant les benchmarks avant d'élargir."
+      : "Tester un format minimal pour confirmer la demande avant production.";
+  }
+
+  return "Mettre en veille jusqu'à nouveau signal ou batch plus large.";
+}
+
+function buildClusterNextMove(decisionLabel: DecisionLabel, opportunity: OpportunityRecord) {
+  if (decisionLabel === "ATTAQUER") {
+    return `Créer un test depuis ${opportunity.keyword}, puis produire une variante sur les 2 meilleurs mots-clés du cluster.`;
+  }
+
+  if (decisionLabel === "TESTER") {
+    return `Lancer un seul test léger sur ${opportunity.keyword}, avec critère GO strict.`;
+  }
+
+  return "Conserver dans le ledger, ne pas consommer de production maintenant.";
+}
+
+function average(values: number[]) {
+  if (values.length === 0) {
+    return 0;
+  }
+
+  return values.reduce((total, value) => total + value, 0) / values.length;
+}
+
 function ScoreBar({ label, value }: { label: string; value: number }) {
   return (
     <div className="score-bar">
@@ -1183,6 +1384,88 @@ function OpportunityLedger({
           </div>
         </aside>
       </div>
+    </section>
+  );
+}
+
+function NicheClusterPanel({
+  opportunities,
+  onSelectOpportunity,
+}: {
+  opportunities: OpportunityRecord[];
+  onSelectOpportunity: (id: string) => void;
+}) {
+  const clusters = buildNicheClusters(opportunities);
+
+  return (
+    <section className="cockpit-panel niche-clusters" aria-labelledby="niche-clusters-title">
+      <div className="panel-heading">
+        <div>
+          <p className="eyebrow">Analyste multi-scans</p>
+          <h2 id="niche-clusters-title">Niches consolidées</h2>
+          <p className="panel-substatus">
+            Regroupe les mots-clés proches pour décider sur une niche, pas sur un scan isolé.
+          </p>
+        </div>
+        <span className="phase">{clusters.length} clusters</span>
+      </div>
+
+      {clusters.length === 0 ? (
+        <p className="panel-empty">Aucun cluster disponible. Lance un batch Scout 10/50 pour consolider les signaux.</p>
+      ) : (
+        <div className="niche-cluster-grid">
+          {clusters.map((cluster) => (
+            <article className={`niche-cluster-card niche-cluster-card--${cluster.decisionLabel.toLowerCase()}`} key={cluster.id}>
+              <div className="niche-cluster-card__header">
+                <div>
+                  <span className="priority-badge">{cluster.decisionLabel} · {cluster.priorityScore}</span>
+                  <strong>{cluster.title}</strong>
+                  <small>{cluster.keywords.join(" · ")}</small>
+                </div>
+                <button onClick={() => onSelectOpportunity(cluster.bestOpportunity.scanId)} type="button">
+                  Ouvrir fiche
+                </button>
+              </div>
+              <p>{cluster.recommendation}</p>
+              <dl>
+                <div>
+                  <dt>Scans</dt>
+                  <dd>{cluster.scanCount}</dd>
+                </div>
+                <div>
+                  <dt>Vidéos</dt>
+                  <dd>{cluster.totalVideos}</dd>
+                </div>
+                <div>
+                  <dt>Money</dt>
+                  <dd>{cluster.moneyScore}</dd>
+                </div>
+                <div>
+                  <dt>Attack</dt>
+                  <dd>{cluster.attackScore}</dd>
+                </div>
+                <div>
+                  <dt>Cibles faibles</dt>
+                  <dd>{cluster.weakTargets}</dd>
+                </div>
+                <div>
+                  <dt>Benchmarks</dt>
+                  <dd>{cluster.benchmarks}</dd>
+                </div>
+              </dl>
+              <div className="niche-cluster-card__intel">
+                <span>Concurrents</span>
+                <small>{cluster.topCompetitors.join(" · ") || "aucun concurrent consolidé"}</small>
+              </div>
+              <div className="niche-cluster-card__intel">
+                <span>Faiblesses récurrentes</span>
+                <small>{cluster.recurringWeakCompetitors.join(" · ") || "aucune cible faible récurrente"}</small>
+              </div>
+              <em>{cluster.nextMove}</em>
+            </article>
+          ))}
+        </div>
+      )}
     </section>
   );
 }
@@ -4369,6 +4652,10 @@ export function App() {
             onSelectOpportunity={setSelectedOpportunityId}
             opportunities={filteredOpportunityRecords}
             selectedOpportunityId={selectedOpportunity?.scanId ?? null}
+          />
+          <NicheClusterPanel
+            onSelectOpportunity={setSelectedOpportunityId}
+            opportunities={opportunityRecords}
           />
           <ExecutionBrief
             activeExperiment={activeExperiment}

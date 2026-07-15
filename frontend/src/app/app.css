@@ -1148,6 +1148,120 @@ h3 {
   background: #1c160a;
 }
 
+.niche-clusters,
+.niche-cluster-grid,
+.niche-cluster-card,
+.niche-cluster-card__intel {
+  display: grid;
+  gap: 10px;
+}
+
+.niche-cluster-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.niche-cluster-card {
+  padding: 12px;
+  border: 1px solid #253142;
+  border-radius: 12px;
+  background: #101722;
+}
+
+.niche-cluster-card--attaquer {
+  border-color: #1f6f5f;
+}
+
+.niche-cluster-card--tester {
+  border-color: #7b5a1b;
+}
+
+.niche-cluster-card--veille {
+  border-color: #35506b;
+}
+
+.niche-cluster-card__header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  gap: 10px;
+  align-items: start;
+}
+
+.niche-cluster-card__header > div {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.niche-cluster-card__header strong,
+.niche-cluster-card__header small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.niche-cluster-card__header strong {
+  color: #edf3fb;
+}
+
+.niche-cluster-card__header small,
+.niche-cluster-card p,
+.niche-cluster-card em,
+.niche-cluster-card__intel small {
+  margin: 0;
+  color: #9aa7b6;
+  line-height: 1.45;
+}
+
+.niche-cluster-card button {
+  border: 1px solid #2d3a4d;
+  border-radius: 999px;
+  padding: 8px 10px;
+  color: #83f1d8;
+  background: #10211f;
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.niche-cluster-card dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+}
+
+.niche-cluster-card dl div {
+  display: grid;
+  gap: 3px;
+  padding: 8px;
+  border: 1px solid #253142;
+  border-radius: 9px;
+  background: #0b1018;
+}
+
+.niche-cluster-card dt,
+.niche-cluster-card dd {
+  margin: 0;
+}
+
+.niche-cluster-card dt,
+.niche-cluster-card__intel span {
+  color: #8f9baa;
+  font-size: 0.68rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.niche-cluster-card dd {
+  color: #edf3fb;
+  font-weight: 850;
+}
+
+.niche-cluster-card em {
+  padding-top: 2px;
+  font-style: normal;
+  font-weight: 850;
+}
+
 .analyst-evidence {
   display: grid;
   gap: 10px;
@@ -2227,6 +2341,9 @@ h3 {
   .competitor-row,
   .competitor-comparison__grid,
   .competitor-comparison__card dl,
+  .niche-cluster-grid,
+  .niche-cluster-card dl,
+  .niche-cluster-card__header,
   .dashboard-summary,
   .optimizer-learning-grid,
   .factory-grid,

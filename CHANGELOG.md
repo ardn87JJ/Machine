@@ -116,6 +116,9 @@ Le format suit les principes de [Keep a Changelog](https://keepachangelog.com/fr
 - campagne Scout batch visible : `SCAN 10/50` affiche désormais chaque mot-clé
   en file, en cours, terminé ou échoué, continue malgré une erreur isolée et
   sort un top opportunités consolidé par score.
+- Analyste multi-scans : panneau `Niches consolidées` qui regroupe les mots-clés
+  proches, agrège les scores business, concurrents faibles et benchmarks, puis
+  propose une action sur la meilleure fiche représentative.
 
 ### Décidé
 

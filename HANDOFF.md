@@ -98,19 +98,22 @@ scorables, tests actionnables, drafts de production et apprentissages.
 - lancer une campagne Scout batch visible : chaque mot-cle du lot affiche son
   statut `queued`, `running`, `completed` ou `failed`, le lot continue si un scan
   echoue, puis le cockpit affiche un top opportunites consolide.
+- lire l'Analyste multi-scans : l'espace Decision affiche des niches consolidees
+  qui regroupent les mots-cles proches, agregent scores/concurrents et ouvrent la
+  meilleure fiche representant le cluster.
 
 ## Tranche en cours
-
-Renforcer le Scout batch business :
-
-- afficher la progression du lot 10/50 mot-cle par mot-cle ;
-- conserver le scan batch tolerant aux erreurs isolees ;
-- sortir un top opportunites de campagne avec score, decision et metriques.
-
-## Prochaine etape apres cette tranche
 
 Consolider l'Analyste multi-scans :
 
 - regrouper les resultats de plusieurs mots-cles proches en une niche unique ;
 - detecter les clusters avec concurrents faibles recurrents ;
 - produire une fiche opportunite consolidée au lieu d'une fiche par scan brut.
+
+## Prochaine etape apres cette tranche
+
+Transformer les niches consolidees en execution :
+
+- creer un test directement depuis une niche consolidée ;
+- generer un plan d'attaque au niveau cluster, pas seulement au niveau scan ;
+- relier ce plan cluster a Factory pour produire une premiere variante.
