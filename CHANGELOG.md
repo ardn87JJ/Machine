@@ -91,6 +91,8 @@ Le format suit les principes de [Keep a Changelog](https://keepachangelog.com/fr
   statut, latence, modèle et message d’erreur lisible.
 - panneau d’aide LLM local dans Content Factory avec presets Ollama/LM Studio,
   commandes à copier et rappel de l’URL publique `/v1` requise par Supabase.
+- file Scout contrôlée : mots-clés additionnels, prévisualisation du lot,
+  déduplication visible, estimation quota et copie des lots 10/50.
 
 ### Décidé
 

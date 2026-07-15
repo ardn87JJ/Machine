@@ -86,21 +86,21 @@ scorables, tests actionnables, drafts de production et apprentissages.
   et erreur lisible.
 - guider le branchement local depuis Factory : preset Ollama, preset LM Studio,
   commande de tunnel et format d'URL publique `/v1`.
+- piloter une file Scout contrôlée : mots-clés additionnels, prévisualisation
+  des lots 10/50, estimation quota et copie du lot avant scan.
 
 ## Tranche en cours
 
-Brancher le LLM local sur la machine utilisateur :
+Revenir au coeur Scout / Analyste sans dépendance LLM :
 
-- choisir Ollama ou LM Studio ;
-- installer/lancer le serveur local ;
-- créer le tunnel public ;
-- coller l'URL publique `/v1`, sauvegarder Local et tester.
+- enrichir les données concurrentes exploitables ;
+- rendre l'Optimizer plus décisionnel ;
+- ajouter des apprentissages append-only.
 
 ## Prochaine etape apres cette tranche
 
-Faire le branchement opérationnel avec l'utilisateur :
+Enrichir l'Optimizer :
 
-- lui faire choisir Ollama ou LM Studio ;
-- lancer les commandes côté PC ;
-- vérifier le bouton `Tester provider` sur Local ;
-- lancer une régénération d'asset via provider Local.
+- backlog priorisé des prochains tests ;
+- distinction relancer / pivoter / abandonner ;
+- synthèse des apprentissages par niche.

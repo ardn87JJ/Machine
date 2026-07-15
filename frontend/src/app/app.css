@@ -474,13 +474,19 @@ h3 {
   font-size: 0.9rem;
 }
 
-.command-panel input {
+.command-panel input,
+.command-panel textarea {
   width: 100%;
   border: 1px solid #2d3a4d;
   border-radius: 12px;
   padding: 13px 14px;
   color: #edf3fb;
   background: #0b1018;
+}
+
+.command-panel textarea {
+  resize: vertical;
+  line-height: 1.45;
 }
 
 .segmented,
@@ -533,6 +539,82 @@ h3 {
   display: grid;
   gap: 6px;
   padding: 12px;
+}
+
+.keyword-queue-card {
+  grid-column: span 2;
+  display: grid;
+  gap: 10px;
+  border: 1px solid #253142;
+  border-radius: 14px;
+  padding: 12px;
+  background: #0e1724;
+}
+
+.keyword-queue-card > div:first-child {
+  display: grid;
+  gap: 5px;
+}
+
+.keyword-queue-card span {
+  color: #83f1d8;
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.keyword-queue-card strong {
+  color: #edf3fb;
+}
+
+.keyword-queue-card small {
+  color: #9aa7b6;
+  line-height: 1.4;
+}
+
+.keyword-queue-card ol {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.keyword-queue-card li {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  border: 1px solid #253142;
+  border-radius: 999px;
+  padding: 7px 9px;
+  color: #c8d3df;
+  background: #0b1018;
+  font-size: 0.78rem;
+}
+
+.keyword-queue-card li span {
+  flex: 0 0 auto;
+  color: #8f9baa;
+  font-size: 0.62rem;
+}
+
+.keyword-queue-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.keyword-queue-actions button {
+  border: 1px solid #2d3a4d;
+  border-radius: 999px;
+  padding: 8px 10px;
+  color: #83f1d8;
+  background: #10211f;
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
 }
 
 .runtime-card span,
@@ -1689,6 +1771,8 @@ h3 {
   }
 
   .control-grid,
+  .keyword-queue-card,
+  .keyword-queue-card ol,
   .opportunity-layout,
   .execution-plan,
   .production-pack,
@@ -1719,6 +1803,10 @@ h3 {
   }
 
   .workspace-column--decision {
+    grid-column: auto;
+  }
+
+  .keyword-queue-card {
     grid-column: auto;
   }
 

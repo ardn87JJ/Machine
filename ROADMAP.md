@@ -38,12 +38,12 @@ Critère de sortie :
 - [x] Créer un écran Scout Core orienté action.
 - [x] Ajouter boutons `start`, `stop`, scan par lot et état `WORKING...`.
 - [x] Recherches par lots.
-- [ ] Expansion contrôlée des mots-clés.
+- [x] Expansion contrôlée des mots-clés.
 - [ ] Génération aléatoire limitée de mots-clés.
 - [ ] Estimation et suivi du quota.
 - [ ] Cache.
 - [ ] Snapshots.
-- [ ] Déduplication.
+- [x] Déduplication.
 - [ ] Progression.
 - [ ] Annulation coopérative.
 - [ ] Reprise après incident.

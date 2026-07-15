@@ -193,6 +193,9 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: "START REAL SCAN" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "SCAN 10" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "SCAN 50" })).toBeInTheDocument();
+    expect(screen.getByText("File Scout contrôlée")).toBeInTheDocument();
+    expect(screen.getByLabelText("Mots-clés additionnels")).toBeInTheDocument();
+    expect(screen.getByText(/Quota estimé:/)).toBeInTheDocument();
     expect((await screen.findAllByRole("heading", { name: "mini drama ia" })).length).toBeGreaterThan(0);
     expect(
       await screen.findByText("I Made a Netflix-Level Drama Series in 24 HOURS Using ONLY AI!", {

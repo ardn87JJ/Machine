@@ -337,7 +337,14 @@ function clampScore(value: number) {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
 
-function buildScoutKeywords(keyword: string, count: number) {
+function parseKeywordList(value: string) {
+  return value
+    .split(/[\n,;]+/)
+    .map((item) => item.trim().replace(/\s+/g, " "))
+    .filter((item) => item.length >= 2);
+}
+
+function buildScoutKeywords(keyword: string, count: number, customKeywords = "") {
   const baseKeyword = keyword.trim().replace(/\s+/g, " ");
 
   if (count === 1) {
@@ -345,8 +352,9 @@ function buildScoutKeywords(keyword: string, count: number) {
   }
 
   const seen = new Set<string>();
+  const customKeywordList = parseKeywordList(customKeywords);
 
-  return [baseKeyword, ...keywordExpansions]
+  return [baseKeyword, ...customKeywordList, ...keywordExpansions]
     .map((item) => item.trim().replace(/\s+/g, " "))
     .filter((item) => {
       const key = item.toLowerCase();
@@ -359,6 +367,10 @@ function buildScoutKeywords(keyword: string, count: number) {
       return true;
     })
     .slice(0, count);
+}
+
+function estimateYoutubeQuotaUnits(keywordCount: number) {
+  return keywordCount * 102;
 }
 
 function buildOpportunity(videos: ScanVideoSummary[], focus = "Mini-drama IA vertical court"): Opportunity {
@@ -879,21 +891,28 @@ function ScoutConsole({
 }) {
   const queryClient = useQueryClient();
   const [keyword, setKeyword] = useState("mini drama ia");
+  const [customKeywords, setCustomKeywords] = useState("");
   const [lastBatchSummary, setLastBatchSummary] = useState<string | null>(null);
   const realScanEnabled = backendOnline && !localModeActive;
   const edgeScanEnabled = !realScanEnabled;
+  const previewKeywords = buildScoutKeywords(keyword, 10, customKeywords);
+  const fullBatchKeywords = buildScoutKeywords(keyword, 50, customKeywords);
+  const previewQuotaUnits = estimateYoutubeQuotaUnits(previewKeywords.length);
+  const fullBatchQuotaUnits = estimateYoutubeQuotaUnits(fullBatchKeywords.length);
 
   const scanMutation = useMutation({
     mutationFn: async ({
       count,
       keyword,
       mode,
+      customKeywords,
     }: {
       count: number;
       keyword: string;
+      customKeywords: string;
       mode: "backend" | "edge";
     }) => {
-      const keywords = buildScoutKeywords(keyword, count);
+      const keywords = buildScoutKeywords(keyword, count, customKeywords);
 
       if (mode === "edge") {
         const runs = [];
@@ -950,7 +969,7 @@ function ScoutConsole({
       return;
     }
 
-    scanMutation.mutate({ count: 1, keyword, mode: realScanEnabled ? "backend" : "edge" });
+    scanMutation.mutate({ count: 1, customKeywords, keyword, mode: realScanEnabled ? "backend" : "edge" });
   }
 
   function launchBatch(count: number) {
@@ -963,7 +982,7 @@ function ScoutConsole({
       return;
     }
 
-    scanMutation.mutate({ count, keyword, mode: realScanEnabled ? "backend" : "edge" });
+    scanMutation.mutate({ count, customKeywords, keyword, mode: realScanEnabled ? "backend" : "edge" });
   }
 
   const completedScans = scans.filter((scan) => scan.status === "completed").length;
@@ -998,6 +1017,16 @@ function ScoutConsole({
               value={keyword}
             />
           </label>
+          <label>
+            <span>Mots-clés additionnels</span>
+            <textarea
+              maxLength={1200}
+              onChange={(event) => setCustomKeywords(event.target.value)}
+              placeholder="Un mot-clé par ligne, ou séparé par virgule. Ex: ai horror shorts, faceless music channel..."
+              rows={4}
+              value={customKeywords}
+            />
+          </label>
 
           <div className="command-actions">
             <button disabled={scanMutation.isPending} type="submit">
@@ -1028,6 +1057,32 @@ function ScoutConsole({
           {lastBatchSummary ? <p className="panel-substatus">{lastBatchSummary}</p> : null}
         </form>
 
+        <div className="keyword-queue-card">
+          <div>
+            <span>File Scout contrôlée</span>
+            <strong>{previewKeywords.length} prêts · {fullBatchKeywords.length} max</strong>
+            <small>
+              Quota estimé: {previewQuotaUnits}u pour SCAN 10 · {fullBatchQuotaUnits}u pour SCAN 50
+            </small>
+          </div>
+          <ol>
+            {previewKeywords.map((scanKeyword, index) => (
+              <li key={`${scanKeyword}-${index}`}>
+                <span>{index === 0 ? "seed" : "expand"}</span>
+                {scanKeyword}
+              </li>
+            ))}
+          </ol>
+          <div className="keyword-queue-actions">
+            <button onClick={() => copyTextToClipboard(previewKeywords.join("\n"))} type="button">
+              Copier 10
+            </button>
+            <button onClick={() => copyTextToClipboard(fullBatchKeywords.join("\n"))} type="button">
+              Copier 50
+            </button>
+          </div>
+        </div>
+
         <div className="runtime-card">
           <span>Runs</span>
           <strong>{scans.length}</strong>
@@ -1035,7 +1090,7 @@ function ScoutConsole({
         </div>
         <div className="runtime-card">
           <span>Quota estimé</span>
-          <strong>{realScanEnabled || edgeScanEnabled ? "102u/scan" : "0u"}</strong>
+          <strong>{realScanEnabled || edgeScanEnabled ? `${previewQuotaUnits}u/10` : "0u"}</strong>
           <small>{realScanEnabled || edgeScanEnabled ? "search + videos + channels YouTube" : "mode local sans coût API"}</small>
         </div>
         <div className="runtime-card">
