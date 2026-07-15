@@ -80,10 +80,10 @@ Critère de sortie :
 ## Phase 4 — Décisions
 
 - [ ] Décisions `GO`, `WATCH`, `REJECT`.
-- [ ] Historique append-only.
+- [x] Historique append-only.
 - [ ] Premier plan de test.
 - [ ] Comparaison d’opportunités.
-- [ ] Daily logs et apprentissages.
+- [x] Daily logs et apprentissages.
 
 ## Producteur futur
 

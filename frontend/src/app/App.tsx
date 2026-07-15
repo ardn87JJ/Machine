@@ -6,6 +6,7 @@ import {
   createEdgeProductionDraft,
   listEdgeLlmStatus,
   getScanAnalysis,
+  listEdgeDecisionEvents,
   listEdgeExperiments,
   listEdgeProductionDrafts,
   listEdgeLlmUsage,
@@ -22,6 +23,7 @@ import {
   updateEdgeLlmProviderSettings,
   updateEdgeProductionDraft,
   updateEdgeProductionDraftStatus,
+  type DecisionEventSummary,
   type ExecutionPlan,
   type ExecutionExperimentSummary,
   type EdgeLlmBudgetSettings,
@@ -2948,9 +2950,11 @@ function buildOptimizerLearningByNiche(experiments: ExecutionExperimentSummary[]
 function OptimizerPanel({
   experiments,
   drafts,
+  decisionEvents,
 }: {
   experiments: ExecutionExperimentSummary[];
   drafts: ProductionDraftSummary[];
+  decisionEvents: DecisionEventSummary[];
 }) {
   const recommendation = buildOptimizerRecommendation(experiments, drafts);
   const backlog = buildOptimizerBacklog(experiments, drafts);
@@ -3049,6 +3053,28 @@ function OptimizerPanel({
           <p>{recommendation.latestUsedDraft.title}</p>
         </div>
       ) : null}
+
+      <div className="decision-history">
+        <span>Historique décisions</span>
+        {decisionEvents.length === 0 ? (
+          <p className="panel-empty">Aucun événement décisionnel enregistré.</p>
+        ) : (
+          decisionEvents.slice(0, 8).map((event) => (
+            <article key={event.id}>
+              <strong>{event.event_type}</strong>
+              <p>{event.keyword}</p>
+              <small>
+                {event.previous_status ?? "-"} → {event.next_status ?? "-"}
+                {" · "}
+                {event.previous_outcome ?? "-"} → {event.next_outcome ?? "-"}
+                {" · "}
+                {formatDate(event.created_at)}
+              </small>
+              {event.note ? <em>{event.note}</em> : null}
+            </article>
+          ))
+        )}
+      </div>
     </section>
   );
 }
@@ -3114,6 +3140,14 @@ export function App() {
     refetchInterval: 30_000,
   });
 
+  const edgeDecisionEventsQuery = useQuery({
+    queryKey: ["edge-decision-events"],
+    queryFn: listEdgeDecisionEvents,
+    enabled: statusQuery.isError,
+    retry: false,
+    refetchInterval: 30_000,
+  });
+
   const edgeProductionDraftsQuery = useQuery({
     queryKey: ["edge-production-drafts"],
     queryFn: listEdgeProductionDrafts,
@@ -3155,6 +3189,7 @@ export function App() {
       }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["edge-experiments"] });
+      await queryClient.invalidateQueries({ queryKey: ["edge-decision-events"] });
       setWorkspaceView("optimizer");
     },
   });
@@ -3170,6 +3205,7 @@ export function App() {
       }),
     onSuccess: async (data) => {
       await queryClient.invalidateQueries({ queryKey: ["edge-experiments"] });
+      await queryClient.invalidateQueries({ queryKey: ["edge-decision-events"] });
       if (data.experiment.outcome === "PASSED") {
         setWorkspaceView("factory");
       }
@@ -3389,6 +3425,7 @@ export function App() {
     undefined;
   const attackCount = opportunityRecords.filter((opportunity) => opportunity.decisionLabel === "ATTAQUER").length;
   const edgeExperiments = edgeExperimentsQuery.data?.experiments ?? [];
+  const decisionEvents = edgeDecisionEventsQuery.data?.events ?? [];
   const activeExperiment = edgeExperiments.find(
     (experiment) => experiment.opportunity_scan_id === selectedOpportunity?.scanId,
   );
@@ -3582,7 +3619,7 @@ export function App() {
               updateExperimentMutation.mutate({ experiment, patch })
             }
           />
-          <OptimizerPanel drafts={productionDrafts} experiments={edgeExperiments} />
+          <OptimizerPanel decisionEvents={decisionEvents} drafts={productionDrafts} experiments={edgeExperiments} />
         </section>
       ) : null}
     </main>

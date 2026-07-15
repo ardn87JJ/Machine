@@ -249,6 +249,21 @@ describe("App", () => {
       created_at: string;
       updated_at: string;
     }> = [];
+    let decisionEvents: Array<{
+      id: string;
+      experiment_id: string | null;
+      opportunity_scan_id: string | null;
+      keyword: string;
+      event_type: "CREATED" | "STATUS_CHANGED" | "OUTCOME_RECORDED" | "NOTE_UPDATED";
+      previous_status: string | null;
+      next_status: string | null;
+      previous_outcome: string | null;
+      next_outcome: string | null;
+      decision_label: "ATTAQUER" | "TESTER" | "VEILLE" | null;
+      priority_score: number | null;
+      note: string;
+      created_at: string;
+    }> = [];
     let drafts: Array<{
       id: string;
       opportunity_scan_id: string;
@@ -370,6 +385,15 @@ describe("App", () => {
             );
           }
 
+          if (url.includes("view=decision-events")) {
+            return Promise.resolve(
+              new Response(JSON.stringify({ events: decisionEvents }), {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+              }),
+            );
+          }
+
           if (url.includes("view=drafts")) {
             return Promise.resolve(
               new Response(JSON.stringify({ drafts }), {
@@ -473,6 +497,24 @@ describe("App", () => {
           };
 
           experiments = [experiment];
+          decisionEvents = [
+            {
+              id: "decision-event-created",
+              experiment_id: experiment.id,
+              opportunity_scan_id: experiment.opportunity_scan_id,
+              keyword: experiment.keyword,
+              event_type: "CREATED",
+              previous_status: null,
+              next_status: "READY",
+              previous_outcome: null,
+              next_outcome: "UNKNOWN",
+              decision_label: experiment.decision_label,
+              priority_score: experiment.priority_score,
+              note: "Test cree depuis une opportunite Scout.",
+              created_at: "2026-07-08T13:35:00Z",
+            },
+            ...decisionEvents,
+          ];
 
           return Promise.resolve(
             new Response(JSON.stringify({ experiment }), {
@@ -489,8 +531,9 @@ describe("App", () => {
             outcome: "UNKNOWN" | "PASSED" | "FAILED";
             result_note: string;
           };
+          const previousExperiment = experiments[0]!;
           const experiment = {
-            ...experiments[0],
+            ...previousExperiment,
             status: patch.status,
             outcome: patch.outcome,
             result_note: patch.result_note,
@@ -498,6 +541,26 @@ describe("App", () => {
           };
 
           experiments = [experiment];
+          decisionEvents = [
+            {
+              id: `decision-event-${patch.status}-${patch.outcome}`,
+              experiment_id: experiment.id,
+              opportunity_scan_id: experiment.opportunity_scan_id,
+              keyword: experiment.keyword,
+              event_type: patch.outcome === "PASSED" || patch.outcome === "FAILED"
+                ? "OUTCOME_RECORDED"
+                : "STATUS_CHANGED",
+              previous_status: previousExperiment?.status ?? null,
+              next_status: patch.status,
+              previous_outcome: previousExperiment?.outcome ?? null,
+              next_outcome: patch.outcome,
+              decision_label: experiment.decision_label,
+              priority_score: experiment.priority_score,
+              note: patch.result_note,
+              created_at: "2026-07-08T13:40:00Z",
+            },
+            ...decisionEvents,
+          ];
 
           return Promise.resolve(
             new Response(JSON.stringify({ experiment }), {
@@ -819,6 +882,8 @@ describe("App", () => {
     expect(screen.getByText("Backlog priorisé")).toBeInTheDocument();
     expect(screen.getAllByText("MESURER").length).toBeGreaterThan(0);
     expect(screen.getByText("Apprentissages par niche")).toBeInTheDocument();
+    expect(screen.getByText("Historique décisions")).toBeInTheDocument();
+    expect(screen.getByText("STATUS_CHANGED")).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("Note résultat"), {
       target: { value: "Bon signal initial, continuer le test." },

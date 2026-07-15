@@ -1086,7 +1086,8 @@ h3 {
 .optimizer-action,
 .optimizer-notes,
 .optimizer-backlog,
-.optimizer-learning-grid {
+.optimizer-learning-grid,
+.decision-history {
   display: grid;
   gap: 10px;
 }
@@ -1099,7 +1100,8 @@ h3 {
 .optimizer-action,
 .optimizer-notes blockquote,
 .optimizer-backlog-card,
-.optimizer-learning-grid article {
+.optimizer-learning-grid article,
+.decision-history article {
   margin: 0;
   padding: 12px;
   border: 1px solid #253142;
@@ -1146,7 +1148,8 @@ h3 {
 .optimizer-action span,
 .optimizer-notes > span,
 .optimizer-backlog > span,
-.optimizer-learning-grid > span {
+.optimizer-learning-grid > span,
+.decision-history > span {
   color: #8f9baa;
   font-size: 0.74rem;
   font-weight: 850;
@@ -1158,7 +1161,8 @@ h3 {
 .optimizer-action strong,
 .optimizer-notes strong,
 .optimizer-backlog-card strong,
-.optimizer-learning-grid strong {
+.optimizer-learning-grid strong,
+.decision-history strong {
   color: #edf3fb;
 }
 
@@ -1173,7 +1177,10 @@ h3 {
 .optimizer-backlog-card small,
 .optimizer-backlog-card em,
 .optimizer-learning-grid p,
-.optimizer-learning-grid small {
+.optimizer-learning-grid small,
+.decision-history p,
+.decision-history small,
+.decision-history em {
   margin: 0;
   color: #9aa7b6;
   line-height: 1.5;
@@ -1185,6 +1192,15 @@ h3 {
 }
 
 .optimizer-backlog-card em {
+  font-style: normal;
+}
+
+.decision-history article {
+  display: grid;
+  gap: 5px;
+}
+
+.decision-history em {
   font-style: normal;
 }
 

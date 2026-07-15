@@ -99,6 +99,22 @@ type ExecutionExperimentSummary = {
   updated_at: string;
 };
 
+type DecisionEventSummary = {
+  id: string;
+  experiment_id: string | null;
+  opportunity_scan_id: string | null;
+  keyword: string;
+  event_type: "CREATED" | "STATUS_CHANGED" | "OUTCOME_RECORDED" | "NOTE_UPDATED";
+  previous_status: string | null;
+  next_status: string | null;
+  previous_outcome: string | null;
+  next_outcome: string | null;
+  decision_label: "ATTAQUER" | "TESTER" | "VEILLE" | null;
+  priority_score: number | null;
+  note: string;
+  created_at: string;
+};
+
 type ProductionDraftSummary = {
   id: string;
   opportunity_scan_id: string;
@@ -199,6 +215,10 @@ Deno.serve(async (request) => {
 
       if (url.searchParams.get("view") === "experiments") {
         return json(await listExecutionExperiments(request));
+      }
+
+      if (url.searchParams.get("view") === "decision-events") {
+        return json(await listDecisionEvents(request));
       }
 
       if (url.searchParams.get("view") === "drafts") {
@@ -1546,6 +1566,16 @@ async function listExecutionExperiments(request: Request) {
   return { experiments };
 }
 
+async function listDecisionEvents(request: Request) {
+  const url = new URL(request.url);
+  const limit = Math.max(1, Math.min(100, Number(url.searchParams.get("limit") ?? 50)));
+  const events = await supabaseFetch<DecisionEventSummary[]>(
+    `/rest/v1/decision_events?select=id,experiment_id,opportunity_scan_id,keyword,event_type,previous_status,next_status,previous_outcome,next_outcome,decision_label,priority_score,note,created_at&order=created_at.desc&limit=${limit}`,
+  );
+
+  return { events };
+}
+
 async function createExecutionExperiment(body: JsonRecord) {
   const scanId = String(body.scan_id ?? "");
   const decisionLabel = String(body.decision_label ?? "TESTER") as ExecutionExperimentSummary["decision_label"];
@@ -1586,6 +1616,18 @@ async function createExecutionExperiment(body: JsonRecord) {
     },
   );
 
+  if (rows[0]) {
+    await insertDecisionEvent({
+      experiment: rows[0],
+      eventType: "CREATED",
+      previousStatus: null,
+      nextStatus: rows[0].status,
+      previousOutcome: null,
+      nextOutcome: rows[0].outcome,
+      note: "Test cree depuis une opportunite Scout.",
+    });
+  }
+
   return { experiment: rows[0] };
 }
 
@@ -1609,6 +1651,11 @@ async function updateExecutionExperiment(body: JsonRecord) {
     throw new Error("Resultat de test invalide.");
   }
 
+  const previousRows = await supabaseFetch<ExecutionExperimentSummary[]>(
+    `/rest/v1/execution_experiments?id=eq.${experimentId}&select=id,opportunity_scan_id,keyword,title,decision_label,priority_score,status,outcome,next_action,success_criteria,result_note,evidence_video_ids,created_at,updated_at&limit=1`,
+  );
+  const previous = previousRows[0];
+
   const rows = await supabaseFetch<ExecutionExperimentSummary[]>(
     `/rest/v1/execution_experiments?id=eq.${experimentId}`,
     {
@@ -1627,7 +1674,63 @@ async function updateExecutionExperiment(body: JsonRecord) {
     throw new Error("Test introuvable.");
   }
 
+  await insertDecisionEvent({
+    experiment: rows[0],
+    eventType: resolveDecisionEventType(previous, rows[0]),
+    previousStatus: previous?.status ?? null,
+    nextStatus: rows[0].status,
+    previousOutcome: previous?.outcome ?? null,
+    nextOutcome: rows[0].outcome,
+    note: resultNote,
+  });
+
   return { experiment: rows[0] };
+}
+
+function resolveDecisionEventType(
+  previous: ExecutionExperimentSummary | undefined,
+  next: ExecutionExperimentSummary,
+): DecisionEventSummary["event_type"] {
+  if (!previous) {
+    return "STATUS_CHANGED";
+  }
+
+  if (previous.outcome !== next.outcome && next.outcome !== "UNKNOWN") {
+    return "OUTCOME_RECORDED";
+  }
+
+  if (previous.status !== next.status) {
+    return "STATUS_CHANGED";
+  }
+
+  return "NOTE_UPDATED";
+}
+
+async function insertDecisionEvent(event: {
+  experiment: ExecutionExperimentSummary;
+  eventType: DecisionEventSummary["event_type"];
+  previousStatus: string | null;
+  nextStatus: string | null;
+  previousOutcome: string | null;
+  nextOutcome: string | null;
+  note: string;
+}) {
+  await supabaseFetch("/rest/v1/decision_events", {
+    method: "POST",
+    body: JSON.stringify({
+      experiment_id: event.experiment.id,
+      opportunity_scan_id: event.experiment.opportunity_scan_id,
+      keyword: event.experiment.keyword,
+      event_type: event.eventType,
+      previous_status: event.previousStatus,
+      next_status: event.nextStatus,
+      previous_outcome: event.previousOutcome,
+      next_outcome: event.nextOutcome,
+      decision_label: event.experiment.decision_label,
+      priority_score: event.experiment.priority_score,
+      note: event.note.slice(0, 1000),
+    }),
+  });
 }
 
 async function listScoutLedger(request: Request) {

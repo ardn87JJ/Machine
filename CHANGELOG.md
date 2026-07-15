@@ -95,6 +95,8 @@ Le format suit les principes de [Keep a Changelog](https://keepachangelog.com/fr
   déduplication visible, estimation quota et copie des lots 10/50.
 - Optimizer enrichi avec backlog priorisé, décisions `LANCER` / `MESURER` /
   `PRODUIRE` / `DOUBLER` / `PIVOTER` / `ABANDONNER` et apprentissages par niche.
+- table Supabase `decision_events`, journal append-only des créations et
+  changements de statut/résultat des tests, affiché dans l’Optimizer.
 
 ### Décidé
 

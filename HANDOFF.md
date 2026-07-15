@@ -90,18 +90,20 @@ scorables, tests actionnables, drafts de production et apprentissages.
   des lots 10/50, estimation quota et copie du lot avant scan.
 - lire l'Optimizer comme un backlog decisionnel : priorite, action recommandee,
   relancer / produire / doubler / pivoter / abandonner, et apprentissages par niche.
+- conserver un historique append-only dans `decision_events` pour les tests :
+  creation, changement de statut, resultat et note terrain.
 
 ## Tranche en cours
 
 Revenir au coeur Scout / Analyste sans dépendance LLM :
 
 - enrichir les données concurrentes exploitables ;
-- ajouter des apprentissages append-only.
+- enrichir les données concurrentes exploitables.
 
 ## Prochaine etape apres cette tranche
 
-Ajouter un historique append-only des décisions :
+Enrichir les concurrents :
 
-- table ou journal `daily_logs` / `decision_events` ;
-- conserver chaque passage READY/RUNNING/DONE ;
-- exploiter cet historique dans Optimizer.
+- extraire une vraie table `competitor_data` ;
+- afficher fréquence, vues moyennes, faiblesse détectée ;
+- relier les concurrents aux opportunités.
