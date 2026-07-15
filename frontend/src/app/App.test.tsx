@@ -1025,7 +1025,9 @@ describe("App", () => {
 
     expect(await screen.findByText("RUNNING")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Apprentissages" })).toBeInTheDocument();
-    expect(screen.getByText("Collecter les résultats de ai music channel")).toBeInTheDocument();
+    expect(screen.getByText("H48 · ai music channel")).toBeInTheDocument();
+    expect(screen.getByText("1/3")).toBeInTheDocument();
+    expect(screen.getByText("Plan 1/3 étapes")).toBeInTheDocument();
     expect(screen.getByText("Backlog priorisé")).toBeInTheDocument();
     expect(screen.getAllByText("MESURER").length).toBeGreaterThan(0);
     expect(screen.getByText("Apprentissages par niche")).toBeInTheDocument();

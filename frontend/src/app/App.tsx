@@ -3226,6 +3226,7 @@ function ExperimentQueue({
 function buildOptimizerRecommendation(
   experiments: ExecutionExperimentSummary[],
   drafts: ProductionDraftSummary[],
+  executionPlans: ExecutionPlanSummary[],
 ) {
   const doneExperiments = experiments.filter((experiment) => experiment.status === "DONE");
   const passedExperiments = doneExperiments.filter((experiment) => experiment.outcome === "PASSED");
@@ -3234,6 +3235,13 @@ function buildOptimizerRecommendation(
   const readyExperiments = experiments.filter((experiment) => experiment.status === "READY");
   const readyDrafts = drafts.filter((draft) => draft.status === "READY");
   const usedDrafts = drafts.filter((draft) => draft.status === "USED");
+  const activePlanProgress = buildExecutionPlanProgress(executionPlans);
+  const activeMeasurementPlan = executionPlans.find((plan) => {
+    const experiment = experiments.find((item) => item.id === plan.experiment_id);
+
+    return experiment && experiment.status !== "DONE" && getNextPlanStep(plan);
+  });
+  const nextPlanStep = activeMeasurementPlan ? getNextPlanStep(activeMeasurementPlan) : undefined;
   const successRate =
     doneExperiments.length > 0 ? Math.round((passedExperiments.length / doneExperiments.length) * 100) : 0;
   const latestNote = doneExperiments.find((experiment) => experiment.result_note.trim().length > 0)?.result_note ?? "";
@@ -3254,6 +3262,8 @@ function buildOptimizerRecommendation(
       readyDraftCount: readyDrafts.length,
       usedDraftCount: usedDrafts.length,
       latestUsedDraft,
+      planDoneCount: activePlanProgress.done,
+      planTotalCount: activePlanProgress.total,
     };
   }
 
@@ -3272,6 +3282,28 @@ function buildOptimizerRecommendation(
       readyDraftCount: readyDrafts.length,
       usedDraftCount: usedDrafts.length,
       latestUsedDraft,
+      planDoneCount: activePlanProgress.done,
+      planTotalCount: activePlanProgress.total,
+    };
+  }
+
+  if (activeMeasurementPlan && nextPlanStep) {
+    return {
+      status: nextPlanStep.id === "h24" ? "LANCER" : "MESURER",
+      action: `${nextPlanStep.label} · ${activeMeasurementPlan.keyword}`,
+      reason: `${nextPlanStep.objective} Mesure attendue: ${nextPlanStep.measure}`,
+      successRate,
+      latestNote,
+      doneCount: doneExperiments.length,
+      runningCount: runningExperiments.length,
+      readyCount: readyExperiments.length,
+      passedCount: passedExperiments.length,
+      failedCount: failedExperiments.length,
+      readyDraftCount: readyDrafts.length,
+      usedDraftCount: usedDrafts.length,
+      latestUsedDraft,
+      planDoneCount: activePlanProgress.done,
+      planTotalCount: activePlanProgress.total,
     };
   }
 
@@ -3290,6 +3322,8 @@ function buildOptimizerRecommendation(
       readyDraftCount: readyDrafts.length,
       usedDraftCount: usedDrafts.length,
       latestUsedDraft,
+      planDoneCount: activePlanProgress.done,
+      planTotalCount: activePlanProgress.total,
     };
   }
 
@@ -3309,21 +3343,31 @@ function buildOptimizerRecommendation(
     readyDraftCount: readyDrafts.length,
     usedDraftCount: usedDrafts.length,
     latestUsedDraft,
+    planDoneCount: activePlanProgress.done,
+    planTotalCount: activePlanProgress.total,
   };
 }
 
 function buildOptimizerBacklog(
   experiments: ExecutionExperimentSummary[],
   drafts: ProductionDraftSummary[],
+  executionPlans: ExecutionPlanSummary[],
 ) {
   return experiments
     .map((experiment) => {
       const draft = drafts.find((item) => item.experiment_id === experiment.id);
+      const plan = executionPlans.find((item) => item.experiment_id === experiment.id);
+      const nextStep = plan ? getNextPlanStep(plan) : undefined;
+      const progress = plan ? formatExecutionPlanProgress(plan) : "";
       let decision = "LANCER";
       let nextMove = experiment.next_action;
       let priority = experiment.priority_score;
 
-      if (experiment.status === "RUNNING") {
+      if (nextStep && experiment.status !== "DONE") {
+        decision = nextStep.id === "h24" && experiment.status === "READY" ? "LANCER" : "MESURER";
+        nextMove = `${nextStep.label}: ${nextStep.measure}`;
+        priority += nextStep.id === "h72" ? 30 : nextStep.id === "h48" ? 20 : 10;
+      } else if (experiment.status === "RUNNING") {
         decision = "MESURER";
         nextMove = "Récupérer les métriques réelles puis marquer Réussi ou Échec.";
         priority += 25;
@@ -3348,6 +3392,8 @@ function buildOptimizerBacklog(
       return {
         experiment,
         draft,
+        plan,
+        progress,
         decision,
         nextMove,
         priority: clampScore(priority),
@@ -3355,6 +3401,27 @@ function buildOptimizerBacklog(
     })
     .sort((left, right) => right.priority - left.priority)
     .slice(0, 6);
+}
+
+function getNextPlanStep(plan: ExecutionPlanSummary) {
+  return plan.steps.find((step) => step.status !== "DONE");
+}
+
+function formatExecutionPlanProgress(plan: ExecutionPlanSummary) {
+  const done = plan.steps.filter((step) => step.status === "DONE").length;
+
+  return `${done}/${plan.steps.length} étapes`;
+}
+
+function buildExecutionPlanProgress(plans: ExecutionPlanSummary[]) {
+  return plans.reduce(
+    (progress, plan) => {
+      progress.done += plan.steps.filter((step) => step.status === "DONE").length;
+      progress.total += plan.steps.length;
+      return progress;
+    },
+    { done: 0, total: 0 },
+  );
 }
 
 function buildOptimizerLearningByNiche(experiments: ExecutionExperimentSummary[]) {
@@ -3399,13 +3466,15 @@ function OptimizerPanel({
   experiments,
   drafts,
   decisionEvents,
+  executionPlans,
 }: {
   experiments: ExecutionExperimentSummary[];
   drafts: ProductionDraftSummary[];
   decisionEvents: DecisionEventSummary[];
+  executionPlans: ExecutionPlanSummary[];
 }) {
-  const recommendation = buildOptimizerRecommendation(experiments, drafts);
-  const backlog = buildOptimizerBacklog(experiments, drafts);
+  const recommendation = buildOptimizerRecommendation(experiments, drafts, executionPlans);
+  const backlog = buildOptimizerBacklog(experiments, drafts, executionPlans);
   const nicheLearnings = buildOptimizerLearningByNiche(experiments);
   const learningNotes = experiments
     .filter((experiment) => experiment.result_note.trim().length > 0)
@@ -3438,6 +3507,11 @@ function OptimizerPanel({
           <strong>{recommendation.readyDraftCount}</strong>
           <small>{recommendation.usedDraftCount} utilisés · prêts Content Factory</small>
         </article>
+        <article>
+          <span>Plans</span>
+          <strong>{recommendation.planDoneCount}/{recommendation.planTotalCount}</strong>
+          <small>étapes H24/H48/H72 cochées</small>
+        </article>
       </div>
 
       <div className="optimizer-action">
@@ -3459,6 +3533,7 @@ function OptimizerPanel({
               </div>
               <p>{item.experiment.keyword}</p>
               <small>{item.nextMove}</small>
+              {item.progress ? <em>Plan {item.progress}</em> : null}
               {item.draft ? <em>Draft {item.draft.status}: {item.draft.title}</em> : null}
             </article>
           ))
@@ -4114,7 +4189,12 @@ export function App() {
               updateExperimentMutation.mutate({ experiment, patch })
             }
           />
-          <OptimizerPanel decisionEvents={decisionEvents} drafts={productionDrafts} experiments={edgeExperiments} />
+          <OptimizerPanel
+            decisionEvents={decisionEvents}
+            drafts={productionDrafts}
+            executionPlans={executionPlans}
+            experiments={edgeExperiments}
+          />
         </section>
       ) : null}
     </main>

@@ -97,14 +97,14 @@ scorables, tests actionnables, drafts de production et apprentissages.
 
 Revenir au coeur Scout / Analyste sans dépendance LLM :
 
-- ajouter une action pour cocher H24/H48/H72 ;
-- persister le statut des étapes dans `execution_plans.steps` ;
-- relire la checklist après mise à jour.
+- afficher le taux d'avancement des plans dans Optimizer ;
+- recommander `MESURER` tant que H48/H72 ne sont pas cochés ;
+- utiliser le prochain jalon incomplet comme action prioritaire.
 
 ## Prochaine etape apres cette tranche
 
-Relier la checklist à l'Optimizer :
+Finaliser la boucle test :
 
-- afficher le taux d'avancement des plans dans Optimizer ;
-- recommander `MESURER` tant que H48/H72 ne sont pas cochés ;
-- pousser vers `PASSED` ou `FAILED` quand H72 est terminée.
+- pousser vers `PASSED` ou `FAILED` quand H72 est terminée ;
+- afficher un avertissement si un test est marqué terminé sans H72 cochée ;
+- intégrer l'état du plan dans les apprentissages par niche.

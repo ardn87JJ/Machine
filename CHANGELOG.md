@@ -108,6 +108,8 @@ Le format suit les principes de [Keep a Changelog](https://keepachangelog.com/fr
 - table Supabase `execution_plans` et checklist de test 24/48/72h dans la fiche action.
 - action Edge `update-execution-plan-step` pour cocher/réouvrir H24/H48/H72 et
   persister le statut dans `execution_plans.steps`.
+- Optimizer relié aux checklists `execution_plans`, avec progression H24/H48/H72
+  et recommandation basée sur le prochain jalon incomplet.
 
 ### Décidé
 
