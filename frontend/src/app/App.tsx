@@ -312,6 +312,20 @@ type CompetitorRow = {
   weaknessSummary: string;
 };
 
+type CompetitorComparison = {
+  channelId: string;
+  channelTitle: string;
+  keywords: string[];
+  scans: number;
+  weakTargets: number;
+  benchmarks: number;
+  watch: number;
+  averageViews: number;
+  maxSubscribers: number | null;
+  bestVideoTitle: string;
+  recommendation: "ATTAQUER" | "COPIER" | "SURVEILLER";
+};
+
 function getErrorMessage(error: unknown) {
   if (error instanceof ApiError) {
     return error.message;
@@ -781,6 +795,78 @@ function formatCompetitorAttackTag(tag: CompetitorDataSummary["attack_tag"]): Co
   }
 
   return "À OBSERVER";
+}
+
+function buildCompetitorComparisons(opportunities: OpportunityRecord[]): CompetitorComparison[] {
+  const byChannel = new Map<string, Array<{ keyword: string; competitor: CompetitorDataSummary }>>();
+
+  opportunities.forEach((opportunity) => {
+    opportunity.competitorData.forEach((competitor) => {
+      const channelId = competitor.channel_id || competitor.channel_title;
+
+      if (!channelId) {
+        return;
+      }
+
+      byChannel.set(channelId, [...(byChannel.get(channelId) ?? []), { keyword: opportunity.keyword, competitor }]);
+    });
+  });
+
+  return Array.from(byChannel.entries())
+    .map(([channelId, entries]) => {
+      const totalViews = entries.reduce((total, entry) => total + entry.competitor.average_views, 0);
+      const weakTargets = entries.filter((entry) => entry.competitor.attack_tag === "WEAK_TARGET").length;
+      const benchmarks = entries.filter((entry) => entry.competitor.attack_tag === "BENCHMARK").length;
+      const watch = entries.filter((entry) => entry.competitor.attack_tag === "WATCH").length;
+      const bestEntry = [...entries].sort((left, right) => right.competitor.average_views - left.competitor.average_views)[0];
+      const maxSubscribers = entries.reduce<number | null>((max, entry) => {
+        const subscriberCount = entry.competitor.subscriber_count;
+
+        if (subscriberCount === null) {
+          return max;
+        }
+
+        return max === null ? subscriberCount : Math.max(max, subscriberCount);
+      }, null);
+      const recommendation: CompetitorComparison["recommendation"] =
+        weakTargets >= 2 || (weakTargets >= 1 && benchmarks === 0)
+          ? "ATTAQUER"
+          : benchmarks >= 1
+            ? "COPIER"
+            : "SURVEILLER";
+
+      return {
+        channelId,
+        channelTitle: bestEntry.competitor.channel_title || channelId,
+        keywords: Array.from(new Set(entries.map((entry) => entry.keyword))).slice(0, 4),
+        scans: entries.length,
+        weakTargets,
+        benchmarks,
+        watch,
+        averageViews: Math.round(totalViews / entries.length),
+        maxSubscribers,
+        bestVideoTitle: bestEntry.competitor.best_video_title,
+        recommendation,
+      };
+    })
+    .sort((left, right) => {
+      const recommendationOrder: Record<CompetitorComparison["recommendation"], number> = {
+        ATTAQUER: 0,
+        COPIER: 1,
+        SURVEILLER: 2,
+      };
+
+      if (left.recommendation !== right.recommendation) {
+        return recommendationOrder[left.recommendation] - recommendationOrder[right.recommendation];
+      }
+
+      if (right.weakTargets !== left.weakTargets) {
+        return right.weakTargets - left.weakTargets;
+      }
+
+      return right.averageViews - left.averageViews;
+    })
+    .slice(0, 8);
 }
 
 function ScoreBar({ label, value }: { label: string; value: number }) {
@@ -1336,6 +1422,63 @@ function AnalystConsole({
           </div>
         )}
       </div>
+    </section>
+  );
+}
+
+function CompetitorComparisonPanel({ opportunities }: { opportunities: OpportunityRecord[] }) {
+  const comparisons = buildCompetitorComparisons(opportunities);
+
+  return (
+    <section className="cockpit-panel competitor-comparison" aria-labelledby="competitor-comparison-title">
+      <div className="panel-heading">
+        <div>
+          <p className="eyebrow">Comparaison concurrents</p>
+          <h2 id="competitor-comparison-title">Cibles récurrentes</h2>
+        </div>
+        <span className="phase">{comparisons.length} chaînes</span>
+      </div>
+
+      {comparisons.length === 0 ? (
+        <p className="panel-empty">Aucune donnée competitor_data disponible dans l’historique chargé.</p>
+      ) : (
+        <div className="competitor-comparison__grid">
+          {comparisons.map((comparison) => (
+            <article className="competitor-comparison__card" key={comparison.channelId}>
+              <div>
+                <span className={`comparison-tag comparison-tag--${comparison.recommendation.toLowerCase()}`}>
+                  {comparison.recommendation}
+                </span>
+                <strong>{comparison.channelTitle}</strong>
+                <small>{comparison.keywords.join(" · ")}</small>
+              </div>
+              <dl>
+                <div>
+                  <dt>Scans</dt>
+                  <dd>{comparison.scans}</dd>
+                </div>
+                <div>
+                  <dt>Cibles faibles</dt>
+                  <dd>{comparison.weakTargets}</dd>
+                </div>
+                <div>
+                  <dt>Benchmarks</dt>
+                  <dd>{comparison.benchmarks}</dd>
+                </div>
+                <div>
+                  <dt>Vues moy.</dt>
+                  <dd>{formatMetric(comparison.averageViews)}</dd>
+                </div>
+                <div>
+                  <dt>Abonnés</dt>
+                  <dd>{formatMetric(comparison.maxSubscribers)}</dd>
+                </div>
+              </dl>
+              <p>{comparison.bestVideoTitle}</p>
+            </article>
+          ))}
+        </div>
+      )}
     </section>
   );
 }
@@ -3665,6 +3808,7 @@ export function App() {
             opportunity={selectedOpportunity}
           />
           <AnalystConsole backendOnline={backendOnline} opportunity={selectedOpportunity} />
+          <CompetitorComparisonPanel opportunities={opportunityRecords} />
         </section>
       ) : null}
 

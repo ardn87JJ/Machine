@@ -70,7 +70,7 @@ Critère de sortie :
 - [ ] `ecosystem_score`.
 - [ ] Niveau de confiance séparé.
 - [x] Versionnement du scoring.
-- [ ] Preuves associées.
+- [x] Preuves associées.
 - [x] Classement des opportunités.
 - [x] Table `opportunities`.
 - [x] Table `competitor_data`.
@@ -82,7 +82,7 @@ Critère de sortie :
 - [ ] Décisions `GO`, `WATCH`, `REJECT`.
 - [x] Historique append-only.
 - [ ] Premier plan de test.
-- [ ] Comparaison d’opportunités.
+- [x] Comparaison d’opportunités.
 - [x] Daily logs et apprentissages.
 
 ## Producteur futur

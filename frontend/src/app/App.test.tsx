@@ -909,6 +909,9 @@ describe("App", () => {
     expect(screen.getByText("BENCHMARK")).toBeInTheDocument();
     expect(screen.getByText("Benchmark utile: moyenne 210 278 vues sur 1 video.")).toBeInTheDocument();
     expect(screen.getByText("Score enrichi par competitor_data : 0 cibles faibles, 1 benchmarks, 0 à surveiller.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Cibles récurrentes" })).toBeInTheDocument();
+    expect(screen.getByText("Persisted Creator")).toBeInTheDocument();
+    expect(screen.getAllByText("Edge Creator").length).toBeGreaterThan(0);
     expect(
       screen.getAllByText("Publier 7 morceaux courts autour de ai music channel avec visuels cohérents").length,
     ).toBeGreaterThan(0);

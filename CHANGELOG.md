@@ -101,6 +101,8 @@ Le format suit les principes de [Keep a Changelog](https://keepachangelog.com/fr
   moyennes, faiblesse détectée et tag d'attaque côté Analyste.
 - scoring Analyste `edge-business-heuristic-v0.3` enrichi par `competitor_data`
   pour ajuster `attack_score`, `quality_gap_score` et `weak_competitor_score`.
+- vue Analyste de comparaison concurrents, agrégeant les chaînes par historique
+  chargé pour repérer les cibles faibles et benchmarks récurrents.
 
 ### Décidé
 

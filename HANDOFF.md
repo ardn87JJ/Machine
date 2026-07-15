@@ -97,13 +97,14 @@ scorables, tests actionnables, drafts de production et apprentissages.
 
 Revenir au coeur Scout / Analyste sans dépendance LLM :
 
-- intégrer `competitor_data` dans `attack_score` et `weak_competitor_score` ;
-- afficher une explication de score par opportunité dans l'Analyste.
-
-## Prochaine etape apres cette tranche
-
-Préparer la comparaison concurrents :
-
 - grouper les chaînes concurrentes par niche / mot-clé ;
 - comparer vues moyennes, abonnés, volume vidéo et faiblesse détectée ;
 - repérer les chaînes à attaquer plusieurs fois dans l'historique.
+
+## Prochaine etape apres cette tranche
+
+Rendre les preuves Analyste plus actionnables :
+
+- ajouter un bloc "pourquoi ce score" sur chaque opportunité ;
+- relier les meilleures vidéos/preuves aux scores ;
+- préparer des critères explicites pour transformer `WATCH` en `GO`.
