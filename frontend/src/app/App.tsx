@@ -326,6 +326,14 @@ type CompetitorComparison = {
   recommendation: "ATTAQUER" | "COPIER" | "SURVEILLER";
 };
 
+type AnalystEvidence = {
+  scoreDrivers: string[];
+  goCriteria: string[];
+  proofVideos: ScanVideoSummary[];
+  weakTargets: CompetitorDataSummary[];
+  benchmarks: CompetitorDataSummary[];
+};
+
 function getErrorMessage(error: unknown) {
   if (error instanceof ApiError) {
     return error.message;
@@ -783,6 +791,55 @@ function buildScoreExplanation(competitors: CompetitorDataSummary[]) {
   const watch = competitors.filter((competitor) => competitor.attack_tag === "WATCH").length;
 
   return `Score enrichi par competitor_data : ${weakTargets} cibles faibles, ${benchmarks} benchmarks, ${watch} à surveiller.`;
+}
+
+function buildAnalystEvidence(opportunity: OpportunityRecord | undefined): AnalystEvidence {
+  if (!opportunity) {
+    return {
+      scoreDrivers: ["Aucune opportunité sélectionnée."],
+      goCriteria: ["Lancer un scan Scout puis sélectionner une opportunité."],
+      proofVideos: [],
+      weakTargets: [],
+      benchmarks: [],
+    };
+  }
+
+  const weakTargets = opportunity.competitorData.filter((competitor) => competitor.attack_tag === "WEAK_TARGET");
+  const benchmarks = opportunity.competitorData.filter((competitor) => competitor.attack_tag === "BENCHMARK");
+  const proofVideos = [...opportunity.videos]
+    .sort((left, right) => (right.view_count ?? 0) - (left.view_count ?? 0))
+    .slice(0, 3);
+  const scoreDrivers = [
+    `Décision ${opportunity.decisionLabel} fondée sur score ${opportunity.priorityScore}/100.`,
+    opportunity.priorityReasons.slice(0, 3).join(" · "),
+    weakTargets.length > 0 ? `${weakTargets.length} cible(s) faible(s) exploitable(s).` : null,
+    benchmarks.length > 0 ? `${benchmarks.length} benchmark(s) à copier.` : null,
+    proofVideos[0] ? `Preuve dominante : ${proofVideos[0].title}` : null,
+  ].filter((driver): driver is string => Boolean(driver));
+
+  const missingCriteria = [
+    opportunity.moneyScore < 70 ? `money_score à monter de ${70 - opportunity.moneyScore} point(s).` : null,
+    opportunity.attackScore < 65 ? `attack_score à monter de ${65 - opportunity.attackScore} point(s).` : null,
+    opportunity.confidence < 55 ? `confiance à monter de ${55 - opportunity.confidence} point(s).` : null,
+    weakTargets.length === 0 && opportunity.verdict !== "GO" ? "Identifier au moins une cible faible." : null,
+  ].filter((criterion): criterion is string => Boolean(criterion));
+  const goCriteria =
+    opportunity.verdict === "GO"
+      ? [
+          "GO actif : créer ou poursuivre un test mesurable.",
+          `Critère de validation : ${opportunity.executionPlan.criteria_go}`,
+        ]
+      : missingCriteria.length > 0
+        ? missingCriteria
+        : ["Passer en GO si le prochain scan confirme les scores money, attack et confiance."];
+
+  return {
+    scoreDrivers,
+    goCriteria,
+    proofVideos,
+    weakTargets: weakTargets.slice(0, 3),
+    benchmarks: benchmarks.slice(0, 3),
+  };
 }
 
 function formatCompetitorAttackTag(tag: CompetitorDataSummary["attack_tag"]): CompetitorAttackLabel {
@@ -1317,6 +1374,7 @@ function AnalystConsole({
   opportunity: OpportunityRecord | undefined;
   backendOnline: boolean;
 }) {
+  const analystEvidence = buildAnalystEvidence(opportunity);
   const competitorRows =
     opportunity?.competitorData && opportunity.competitorData.length > 0
       ? competitorRowsFromData(opportunity.competitorData)
@@ -1378,6 +1436,65 @@ function AnalystConsole({
             <small>vidéos faibles ou concurrents attaquables</small>
           </div>
         </aside>
+      </div>
+
+      <div className="analyst-evidence" aria-label="Preuves Analyste">
+        <div className="intel-heading">
+          <div>
+            <p className="eyebrow">Pourquoi ce score</p>
+            <h3>Preuves et critères GO</h3>
+          </div>
+          <span>{analystEvidence.proofVideos.length} preuves</span>
+        </div>
+
+        <div className="analyst-evidence__grid">
+          <article>
+            <span>Drivers</span>
+            <ul>
+              {analystEvidence.scoreDrivers.map((driver) => (
+                <li key={driver}>{driver}</li>
+              ))}
+            </ul>
+          </article>
+
+          <article>
+            <span>WATCH vers GO</span>
+            <ul>
+              {analystEvidence.goCriteria.map((criterion) => (
+                <li key={criterion}>{criterion}</li>
+              ))}
+            </ul>
+          </article>
+
+          <article className="analyst-evidence__videos">
+            <span>Vidéos preuves</span>
+            {analystEvidence.proofVideos.length > 0 ? (
+              analystEvidence.proofVideos.map((video) => <EvidenceVideo key={video.video_id} video={video} />)
+            ) : (
+              <p className="panel-empty">Aucune vidéo preuve disponible.</p>
+            )}
+          </article>
+
+          <article>
+            <span>Concurrents exploitables</span>
+            {analystEvidence.weakTargets.length === 0 && analystEvidence.benchmarks.length === 0 ? (
+              <p className="panel-empty">Aucun concurrent enrichi disponible.</p>
+            ) : (
+              <ul>
+                {analystEvidence.weakTargets.map((competitor) => (
+                  <li key={`weak-${competitor.channel_id}`}>
+                    Attaquer {competitor.channel_title} : {competitor.weakness_summary}
+                  </li>
+                ))}
+                {analystEvidence.benchmarks.map((competitor) => (
+                  <li key={`benchmark-${competitor.channel_id}`}>
+                    Copier {competitor.channel_title} : {competitor.best_video_title}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </article>
+        </div>
       </div>
 
       <div className="competitor-intel" aria-label="Intel concurrents">

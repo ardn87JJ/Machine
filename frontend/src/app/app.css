@@ -960,6 +960,51 @@ h3 {
   background: #1c160a;
 }
 
+.analyst-evidence {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.analyst-evidence__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.analyst-evidence__grid article {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #253142;
+  border-radius: 12px;
+  background: #101722;
+}
+
+.analyst-evidence__grid span {
+  color: #8f9baa;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.analyst-evidence__grid ul {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.analyst-evidence__grid li {
+  color: #c8d3df;
+  line-height: 1.45;
+}
+
+.analyst-evidence__videos {
+  align-content: start;
+}
+
 .competitor-comparison {
   display: grid;
   gap: 12px;
@@ -1967,6 +2012,7 @@ h3 {
   .execution-plan,
   .production-pack,
   .brief-grid,
+  .analyst-evidence__grid,
   .competitor-row,
   .competitor-comparison__grid,
   .competitor-comparison__card dl,

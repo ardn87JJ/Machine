@@ -81,7 +81,7 @@ Critère de sortie :
 
 - [ ] Décisions `GO`, `WATCH`, `REJECT`.
 - [x] Historique append-only.
-- [ ] Premier plan de test.
+- [x] Premier plan de test.
 - [x] Comparaison d’opportunités.
 - [x] Daily logs et apprentissages.
 

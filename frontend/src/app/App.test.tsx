@@ -909,6 +909,11 @@ describe("App", () => {
     expect(screen.getByText("BENCHMARK")).toBeInTheDocument();
     expect(screen.getByText("Benchmark utile: moyenne 210 278 vues sur 1 video.")).toBeInTheDocument();
     expect(screen.getByText("Score enrichi par competitor_data : 0 cibles faibles, 1 benchmarks, 0 à surveiller.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Preuves et critères GO" })).toBeInTheDocument();
+    expect(screen.getByText("Décision ATTAQUER fondée sur score 91/100.")).toBeInTheDocument();
+    expect(screen.getByText("GO actif : créer ou poursuivre un test mesurable.")).toBeInTheDocument();
+    expect(screen.getByText("Critère de validation : Un morceau dépasse le benchmark de vues initial en 72h")).toBeInTheDocument();
+    expect(screen.getByText("Copier Edge Creator : How To Start an AI Music YouTube Channel")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Cibles récurrentes" })).toBeInTheDocument();
     expect(screen.getByText("Persisted Creator")).toBeInTheDocument();
     expect(screen.getAllByText("Edge Creator").length).toBeGreaterThan(0);

@@ -103,6 +103,8 @@ Le format suit les principes de [Keep a Changelog](https://keepachangelog.com/fr
   pour ajuster `attack_score`, `quality_gap_score` et `weak_competitor_score`.
 - vue Analyste de comparaison concurrents, agrégeant les chaînes par historique
   chargé pour repérer les cibles faibles et benchmarks récurrents.
+- bloc Analyste "Pourquoi ce score" reliant décision, critères GO, vidéos preuves
+  et concurrents exploitables.
 
 ### Décidé
 

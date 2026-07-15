@@ -97,14 +97,14 @@ scorables, tests actionnables, drafts de production et apprentissages.
 
 Revenir au coeur Scout / Analyste sans dépendance LLM :
 
-- grouper les chaînes concurrentes par niche / mot-clé ;
-- comparer vues moyennes, abonnés, volume vidéo et faiblesse détectée ;
-- repérer les chaînes à attaquer plusieurs fois dans l'historique.
-
-## Prochaine etape apres cette tranche
-
-Rendre les preuves Analyste plus actionnables :
-
 - ajouter un bloc "pourquoi ce score" sur chaque opportunité ;
 - relier les meilleures vidéos/preuves aux scores ;
 - préparer des critères explicites pour transformer `WATCH` en `GO`.
+
+## Prochaine etape apres cette tranche
+
+Rendre les tests plus exécutables :
+
+- transformer la fiche action en checklist de test 24/48/72h ;
+- stocker les étapes de test dans `execution_plans` ou dans le contenu d'expérience ;
+- afficher quoi mesurer avant de marquer `PASSED` ou `FAILED`.
