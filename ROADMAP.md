@@ -118,5 +118,8 @@ Critère de sortie :
 - Publisher ;
 - feedback automatisé ;
 - Optimizer complet ;
+- [x] Backlog priorisé des prochains tests.
+- [x] Distinction relancer / pivoter / abandonner.
+- [x] Synthèse des apprentissages par niche.
 - publication automatique ;
 - orchestration multi-agent en chemin critique.

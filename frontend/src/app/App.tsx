@@ -2862,6 +2862,89 @@ function buildOptimizerRecommendation(
   };
 }
 
+function buildOptimizerBacklog(
+  experiments: ExecutionExperimentSummary[],
+  drafts: ProductionDraftSummary[],
+) {
+  return experiments
+    .map((experiment) => {
+      const draft = drafts.find((item) => item.experiment_id === experiment.id);
+      let decision = "LANCER";
+      let nextMove = experiment.next_action;
+      let priority = experiment.priority_score;
+
+      if (experiment.status === "RUNNING") {
+        decision = "MESURER";
+        nextMove = "Récupérer les métriques réelles puis marquer Réussi ou Échec.";
+        priority += 25;
+      } else if (experiment.status === "PAUSED") {
+        decision = "RELANCER";
+        nextMove = "Reprendre le test ou le fermer pour éviter une file morte.";
+        priority += 5;
+      } else if (experiment.status === "DONE" && experiment.outcome === "PASSED") {
+        decision = draft?.status === "USED" ? "DOUBLER" : "PRODUIRE";
+        nextMove = draft?.status === "USED"
+          ? "Créer une variante proche et doubler le volume contrôlé."
+          : "Passer le draft en production et préparer le prochain asset.";
+        priority += 35;
+      } else if (experiment.status === "DONE" && experiment.outcome === "FAILED") {
+        decision = experiment.priority_score >= 75 ? "PIVOTER" : "ABANDONNER";
+        nextMove = experiment.priority_score >= 75
+          ? "Changer hook, angle ou format puis retester une seule variante."
+          : "Sortir la niche de la file active jusqu’à nouveau signal fort.";
+        priority -= experiment.priority_score >= 75 ? 5 : 20;
+      }
+
+      return {
+        experiment,
+        draft,
+        decision,
+        nextMove,
+        priority: clampScore(priority),
+      };
+    })
+    .sort((left, right) => right.priority - left.priority)
+    .slice(0, 6);
+}
+
+function buildOptimizerLearningByNiche(experiments: ExecutionExperimentSummary[]) {
+  const groups = new Map<string, {
+    keyword: string;
+    passed: number;
+    failed: number;
+    notes: string[];
+  }>();
+
+  experiments
+    .filter((experiment) => experiment.status === "DONE")
+    .forEach((experiment) => {
+      const current = groups.get(experiment.keyword) ?? {
+        keyword: experiment.keyword,
+        passed: 0,
+        failed: 0,
+        notes: [],
+      };
+
+      if (experiment.outcome === "PASSED") {
+        current.passed += 1;
+      }
+
+      if (experiment.outcome === "FAILED") {
+        current.failed += 1;
+      }
+
+      if (experiment.result_note.trim()) {
+        current.notes.push(experiment.result_note.trim());
+      }
+
+      groups.set(experiment.keyword, current);
+    });
+
+  return [...groups.values()]
+    .sort((left, right) => (right.passed - right.failed) - (left.passed - left.failed))
+    .slice(0, 4);
+}
+
 function OptimizerPanel({
   experiments,
   drafts,
@@ -2870,6 +2953,8 @@ function OptimizerPanel({
   drafts: ProductionDraftSummary[];
 }) {
   const recommendation = buildOptimizerRecommendation(experiments, drafts);
+  const backlog = buildOptimizerBacklog(experiments, drafts);
+  const nicheLearnings = buildOptimizerLearningByNiche(experiments);
   const learningNotes = experiments
     .filter((experiment) => experiment.result_note.trim().length > 0)
     .slice(0, 3);
@@ -2907,6 +2992,40 @@ function OptimizerPanel({
         <span>Recommandation</span>
         <strong>{recommendation.action}</strong>
         <p>{recommendation.reason}</p>
+      </div>
+
+      <div className="optimizer-backlog">
+        <span>Backlog priorisé</span>
+        {backlog.length === 0 ? (
+          <p className="panel-empty">Aucun test à prioriser. Crée un test depuis une opportunité.</p>
+        ) : (
+          backlog.map((item) => (
+            <article className={`optimizer-backlog-card optimizer-backlog-card--${item.decision.toLowerCase()}`} key={item.experiment.id}>
+              <div>
+                <strong>{item.decision}</strong>
+                <small>priorité {item.priority} · {item.experiment.status} · {item.experiment.outcome}</small>
+              </div>
+              <p>{item.experiment.keyword}</p>
+              <small>{item.nextMove}</small>
+              {item.draft ? <em>Draft {item.draft.status}: {item.draft.title}</em> : null}
+            </article>
+          ))
+        )}
+      </div>
+
+      <div className="optimizer-learning-grid">
+        <span>Apprentissages par niche</span>
+        {nicheLearnings.length === 0 ? (
+          <p className="panel-empty">Aucune niche terminée. Marque un test Réussi ou Échec pour alimenter ce tableau.</p>
+        ) : (
+          nicheLearnings.map((learning) => (
+            <article key={learning.keyword}>
+              <strong>{learning.keyword}</strong>
+              <small>{learning.passed} réussis · {learning.failed} échecs</small>
+              <p>{learning.notes[0] ?? "Pas encore de note terrain."}</p>
+            </article>
+          ))
+        )}
       </div>
 
       <div className="optimizer-notes">

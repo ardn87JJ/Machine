@@ -93,6 +93,8 @@ Le format suit les principes de [Keep a Changelog](https://keepachangelog.com/fr
   commandes à copier et rappel de l’URL publique `/v1` requise par Supabase.
 - file Scout contrôlée : mots-clés additionnels, prévisualisation du lot,
   déduplication visible, estimation quota et copie des lots 10/50.
+- Optimizer enrichi avec backlog priorisé, décisions `LANCER` / `MESURER` /
+  `PRODUIRE` / `DOUBLER` / `PIVOTER` / `ABANDONNER` et apprentissages par niche.
 
 ### Décidé
 

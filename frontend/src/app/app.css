@@ -1084,7 +1084,9 @@ h3 {
 .optimizer-panel,
 .optimizer-summary,
 .optimizer-action,
-.optimizer-notes {
+.optimizer-notes,
+.optimizer-backlog,
+.optimizer-learning-grid {
   display: grid;
   gap: 10px;
 }
@@ -1095,12 +1097,44 @@ h3 {
 
 .optimizer-summary article,
 .optimizer-action,
-.optimizer-notes blockquote {
+.optimizer-notes blockquote,
+.optimizer-backlog-card,
+.optimizer-learning-grid article {
   margin: 0;
   padding: 12px;
   border: 1px solid #253142;
   border-radius: 14px;
   background: #101722;
+}
+
+.optimizer-backlog-card {
+  display: grid;
+  gap: 6px;
+}
+
+.optimizer-backlog-card > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.optimizer-backlog-card--doubler,
+.optimizer-backlog-card--produire {
+  border-color: #1f6f5f;
+}
+
+.optimizer-backlog-card--pivoter {
+  border-color: #7b5a1b;
+}
+
+.optimizer-backlog-card--abandonner {
+  border-color: #7a3c3c;
+}
+
+.optimizer-learning-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .optimizer-summary article {
@@ -1110,7 +1144,9 @@ h3 {
 
 .optimizer-summary span,
 .optimizer-action span,
-.optimizer-notes > span {
+.optimizer-notes > span,
+.optimizer-backlog > span,
+.optimizer-learning-grid > span {
   color: #8f9baa;
   font-size: 0.74rem;
   font-weight: 850;
@@ -1120,7 +1156,9 @@ h3 {
 
 .optimizer-summary strong,
 .optimizer-action strong,
-.optimizer-notes strong {
+.optimizer-notes strong,
+.optimizer-backlog-card strong,
+.optimizer-learning-grid strong {
   color: #edf3fb;
 }
 
@@ -1130,10 +1168,24 @@ h3 {
 
 .optimizer-summary small,
 .optimizer-action p,
-.optimizer-notes p {
+.optimizer-notes p,
+.optimizer-backlog-card p,
+.optimizer-backlog-card small,
+.optimizer-backlog-card em,
+.optimizer-learning-grid p,
+.optimizer-learning-grid small {
   margin: 0;
   color: #9aa7b6;
   line-height: 1.5;
+}
+
+.optimizer-backlog-card p {
+  color: #edf3fb;
+  font-weight: 850;
+}
+
+.optimizer-backlog-card em {
+  font-style: normal;
 }
 
 .opportunity-layout {
@@ -1779,6 +1831,7 @@ h3 {
   .brief-grid,
   .competitor-row,
   .dashboard-summary,
+  .optimizer-learning-grid,
   .factory-grid,
   .llm-budget-panel,
   .llm-provider-settings,

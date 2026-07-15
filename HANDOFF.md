@@ -88,19 +88,20 @@ scorables, tests actionnables, drafts de production et apprentissages.
   commande de tunnel et format d'URL publique `/v1`.
 - piloter une file Scout contrôlée : mots-clés additionnels, prévisualisation
   des lots 10/50, estimation quota et copie du lot avant scan.
+- lire l'Optimizer comme un backlog decisionnel : priorite, action recommandee,
+  relancer / produire / doubler / pivoter / abandonner, et apprentissages par niche.
 
 ## Tranche en cours
 
 Revenir au coeur Scout / Analyste sans dépendance LLM :
 
 - enrichir les données concurrentes exploitables ;
-- rendre l'Optimizer plus décisionnel ;
 - ajouter des apprentissages append-only.
 
 ## Prochaine etape apres cette tranche
 
-Enrichir l'Optimizer :
+Ajouter un historique append-only des décisions :
 
-- backlog priorisé des prochains tests ;
-- distinction relancer / pivoter / abandonner ;
-- synthèse des apprentissages par niche.
+- table ou journal `daily_logs` / `decision_events` ;
+- conserver chaque passage READY/RUNNING/DONE ;
+- exploiter cet historique dans Optimizer.
