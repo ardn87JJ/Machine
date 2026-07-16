@@ -1037,6 +1037,8 @@ describe("App", () => {
     expect(screen.getByText("Backlog priorisé")).toBeInTheDocument();
     expect(screen.getAllByText("MESURER").length).toBeGreaterThan(0);
     expect(screen.getByText("Apprentissages par niche")).toBeInTheDocument();
+    expect(screen.getByText("Apprentissages cluster")).toBeInTheDocument();
+    expect(screen.getByText("Aucun test cluster exploitable. Crée un test depuis une niche consolidée.")).toBeInTheDocument();
     expect(screen.getByText("Historique décisions")).toBeInTheDocument();
     expect(screen.getByText("STATUS_CHANGED")).toBeInTheDocument();
 

@@ -368,6 +368,22 @@ type NicheCluster = {
   nextMove: string;
 };
 
+type ClusterLearningDecision = "CONTINUER" | "MESURER" | "PIVOTER" | "ABANDONNER";
+
+type ClusterLearning = {
+  key: string;
+  title: string;
+  total: number;
+  active: number;
+  passed: number;
+  failed: number;
+  successRate: number;
+  decision: ClusterLearningDecision;
+  recommendation: string;
+  notes: string[];
+  latestUpdatedAt: string;
+};
+
 type AnalystEvidence = {
   scoreDrivers: string[];
   goCriteria: string[];
@@ -1409,11 +1425,13 @@ function OpportunityLedger({
 }
 
 function NicheClusterPanel({
+  clusterLearnings,
   opportunities,
   isCreatingClusterExperiment,
   onCreateClusterExperiment,
   onSelectOpportunity,
 }: {
+  clusterLearnings: ClusterLearning[];
   opportunities: OpportunityRecord[];
   isCreatingClusterExperiment: boolean;
   onCreateClusterExperiment: (cluster: NicheCluster) => void;
@@ -1438,7 +1456,10 @@ function NicheClusterPanel({
         <p className="panel-empty">Aucun cluster disponible. Lance un batch Scout 10/50 pour consolider les signaux.</p>
       ) : (
         <div className="niche-cluster-grid">
-          {clusters.map((cluster) => (
+          {clusters.map((cluster) => {
+            const learning = findClusterLearningForCluster(cluster, clusterLearnings);
+
+            return (
             <article className={`niche-cluster-card niche-cluster-card--${cluster.decisionLabel.toLowerCase()}`} key={cluster.id}>
               <div className="niche-cluster-card__header">
                 <div>
@@ -1485,6 +1506,15 @@ function NicheClusterPanel({
                 <span>Faiblesses récurrentes</span>
                 <small>{cluster.recurringWeakCompetitors.join(" · ") || "aucune cible faible récurrente"}</small>
               </div>
+              {learning ? (
+                <div className={`cluster-learning-pill cluster-learning-pill--${learning.decision.toLowerCase()}`}>
+                  <span>{learning.decision}</span>
+                  <small>
+                    {learning.passed} réussis · {learning.failed} échecs · {learning.active} actifs
+                  </small>
+                  <p>{learning.notes[0] ?? learning.recommendation}</p>
+                </div>
+              ) : null}
               <em>{cluster.nextMove}</em>
               <button
                 disabled={isCreatingClusterExperiment}
@@ -1494,7 +1524,8 @@ function NicheClusterPanel({
                 {isCreatingClusterExperiment ? "Création..." : "Créer test cluster"}
               </button>
             </article>
-          ))}
+            );
+          })}
         </div>
       )}
     </section>
@@ -2258,6 +2289,125 @@ function enrichProductionPackWithCluster(
 function isClusterExperiment(experiment: ExecutionExperimentSummary) {
   return experiment.title.includes("opportunité consolidée") ||
     experiment.next_action.toLowerCase().startsWith("tester la niche");
+}
+
+function normalizeClusterLearningKey(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function buildClusterLearnings(experiments: ExecutionExperimentSummary[]): ClusterLearning[] {
+  const groups = new Map<string, ExecutionExperimentSummary[]>();
+
+  experiments
+    .filter(isClusterExperiment)
+    .forEach((experiment) => {
+      const key = normalizeClusterLearningKey(experiment.keyword);
+      groups.set(key, [...(groups.get(key) ?? []), experiment]);
+    });
+
+  return Array.from(groups.entries())
+    .map(([key, entries]) => {
+      const sortedEntries = [...entries].sort(
+        (left, right) => new Date(right.updated_at).getTime() - new Date(left.updated_at).getTime(),
+      );
+      const done = entries.filter((experiment) => experiment.status === "DONE");
+      const passed = done.filter((experiment) => experiment.outcome === "PASSED").length;
+      const failed = done.filter((experiment) => experiment.outcome === "FAILED").length;
+      const active = entries.filter((experiment) => experiment.status !== "DONE").length;
+      const successRate = done.length > 0 ? Math.round((passed / done.length) * 100) : 0;
+      const decision = inferClusterLearningDecision({ active, failed, passed, totalDone: done.length });
+
+      return {
+        key,
+        title: sortedEntries[0]?.keyword ?? key,
+        total: entries.length,
+        active,
+        passed,
+        failed,
+        successRate,
+        decision,
+        recommendation: buildClusterLearningRecommendation(decision, sortedEntries[0]?.keyword ?? key),
+        notes: sortedEntries
+          .map((experiment) => experiment.result_note.trim())
+          .filter(Boolean)
+          .slice(0, 3),
+        latestUpdatedAt: sortedEntries[0]?.updated_at ?? sortedEntries[0]?.created_at ?? "",
+      };
+    })
+    .sort((left, right) => {
+      const decisionOrder: Record<ClusterLearningDecision, number> = {
+        CONTINUER: 0,
+        MESURER: 1,
+        PIVOTER: 2,
+        ABANDONNER: 3,
+      };
+
+      if (decisionOrder[left.decision] !== decisionOrder[right.decision]) {
+        return decisionOrder[left.decision] - decisionOrder[right.decision];
+      }
+
+      return right.successRate - left.successRate || right.active - left.active;
+    })
+    .slice(0, 6);
+}
+
+function inferClusterLearningDecision({
+  active,
+  failed,
+  passed,
+  totalDone,
+}: {
+  active: number;
+  failed: number;
+  passed: number;
+  totalDone: number;
+}): ClusterLearningDecision {
+  if (passed > failed && passed > 0) {
+    return "CONTINUER";
+  }
+
+  if (active > 0 || totalDone === 0) {
+    return "MESURER";
+  }
+
+  if (failed > 0 && passed === 0) {
+    return "ABANDONNER";
+  }
+
+  return "PIVOTER";
+}
+
+function buildClusterLearningRecommendation(decision: ClusterLearningDecision, title: string) {
+  if (decision === "CONTINUER") {
+    return `Continuer ${title}: garder le meilleur angle et produire une variante proche.`;
+  }
+
+  if (decision === "MESURER") {
+    return `Mesurer ${title}: attendre H72 ou ajouter une note terrain avant de décider.`;
+  }
+
+  if (decision === "PIVOTER") {
+    return `Pivoter ${title}: changer hook, format ou promesse avant nouveau test.`;
+  }
+
+  return `Abandonner ${title}: sortir la niche de la file active jusqu'à nouveau signal.`;
+}
+
+function findClusterLearningForCluster(cluster: NicheCluster, learnings: ClusterLearning[]) {
+  const clusterKey = normalizeClusterLearningKey(cluster.title);
+  const keywordKeys = cluster.keywords.map(normalizeClusterLearningKey);
+
+  return learnings.find(
+    (learning) =>
+      learning.key === clusterKey ||
+      keywordKeys.includes(learning.key) ||
+      learning.title.toLowerCase() === cluster.title.toLowerCase(),
+  );
 }
 
 function extractClusterKeywords(
@@ -4178,6 +4328,7 @@ function OptimizerPanel({
   const recommendation = buildOptimizerRecommendation(experiments, drafts, executionPlans);
   const backlog = buildOptimizerBacklog(experiments, drafts, executionPlans);
   const nicheLearnings = buildOptimizerLearningByNiche(experiments);
+  const clusterLearnings = buildClusterLearnings(experiments);
   const clusterExperimentCount = experiments.filter(isClusterExperiment).length;
   const learningNotes = experiments
     .filter((experiment) => experiment.result_note.trim().length > 0)
@@ -4261,6 +4412,27 @@ function OptimizerPanel({
               <strong>{learning.keyword}</strong>
               <small>{learning.passed} réussis · {learning.failed} échecs</small>
               <p>{learning.notes[0] ?? "Pas encore de note terrain."}</p>
+            </article>
+          ))
+        )}
+      </div>
+
+      <div className="optimizer-cluster-learning">
+        <span>Apprentissages cluster</span>
+        {clusterLearnings.length === 0 ? (
+          <p className="panel-empty">Aucun test cluster exploitable. Crée un test depuis une niche consolidée.</p>
+        ) : (
+          clusterLearnings.map((learning) => (
+            <article className={`cluster-learning-card cluster-learning-card--${learning.decision.toLowerCase()}`} key={learning.key}>
+              <div>
+                <strong>{learning.title}</strong>
+                <span>{learning.decision}</span>
+              </div>
+              <small>
+                {learning.total} tests · {learning.active} actifs · {learning.passed} réussis · {learning.failed} échecs · {learning.successRate}% réussite
+              </small>
+              <p>{learning.recommendation}</p>
+              {learning.notes[0] ? <em>{learning.notes[0]}</em> : null}
             </article>
           ))
         )}
@@ -4705,6 +4877,7 @@ export function App() {
     undefined;
   const attackCount = opportunityRecords.filter((opportunity) => opportunity.decisionLabel === "ATTAQUER").length;
   const edgeExperiments = edgeExperimentsQuery.data?.experiments ?? [];
+  const clusterLearnings = buildClusterLearnings(edgeExperiments);
   const decisionEvents = edgeDecisionEventsQuery.data?.events ?? [];
   const executionPlans = edgeExecutionPlansQuery.data?.plans ?? [];
   const activeExperiment = edgeExperiments.find(
@@ -4836,6 +5009,7 @@ export function App() {
             selectedOpportunityId={selectedOpportunity?.scanId ?? null}
           />
           <NicheClusterPanel
+            clusterLearnings={clusterLearnings}
             isCreatingClusterExperiment={createClusterExperimentMutation.isPending}
             onCreateClusterExperiment={(cluster) => createClusterExperimentMutation.mutate(cluster)}
             onSelectOpportunity={setSelectedOpportunityId}

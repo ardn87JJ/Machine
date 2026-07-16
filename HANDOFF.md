@@ -29,7 +29,7 @@ scorables, tests actionnables, drafts de production et apprentissages.
 
 - Depot Git : `ardn87JJ/Machine`
 - Branche : `main`
-- Dernier commit stable au depart de cette tranche : `c03de40 Connect cluster tests to Factory variants`
+- Dernier commit stable au depart de cette tranche : `7f1fb98 Show cluster origin across execution flow`
 - App publique : `https://ardn87jj.github.io/Machine/`
 - Supabase project ref : `uscmdnzbwvsjrocemset`
 - Edge Function active : `run-scout`
@@ -110,16 +110,12 @@ scorables, tests actionnables, drafts de production et apprentissages.
 - lire l'origine cluster partout dans l'execution : badge `CLUSTER` dans la file
   de tests, compteur dans Optimizer, priorite renforcee pour les clusters actifs,
   badge dans les drafts et panneau source cluster dans l'atelier Factory.
+- consolider les tests cluster cote interface : l'Optimizer groupe les tests
+  issus de niches consolidees par cluster, calcule actifs/reussis/echecs/taux de
+  reussite, propose `CONTINUER`, `MESURER`, `PIVOTER` ou `ABANDONNER`, et
+  l'Analyste affiche ce rappel terrain dans les cartes de niches consolidees.
 
 ## Tranche en cours
-
-Rendre l'origine cluster lisible partout :
-
-- afficher clairement qu'un test vient d'un cluster dans Optimizer ;
-- afficher un badge cluster dans les drafts Factory ;
-- prioriser les tests cluster actifs dans la file Optimizer.
-
-## Prochaine etape apres cette tranche
 
 Transformer les tests cluster en boucle d'apprentissage exploitable :
 
@@ -127,3 +123,11 @@ Transformer les tests cluster en boucle d'apprentissage exploitable :
 - afficher une recommandation "continuer / pivoter / abandonner" au niveau niche
   consolidee ;
 - faire remonter les notes terrain cluster dans Analyste et Optimizer.
+
+## Prochaine etape apres cette tranche
+
+Brancher l'action suivante depuis la boucle cluster vers l'execution :
+
+- depuis `CONTINUER`, creer une variante proche du test gagnant ;
+- depuis `PIVOTER`, proposer un nouveau hook/angle sans recreer un scan ;
+- depuis `ABANDONNER`, masquer ou deprioriser la niche dans la file active.

@@ -1262,6 +1262,42 @@ h3 {
   font-weight: 850;
 }
 
+.cluster-learning-pill {
+  display: grid;
+  gap: 4px;
+  padding: 9px 10px;
+  border: 1px solid #403677;
+  border-radius: 12px;
+  background: #111327;
+}
+
+.cluster-learning-pill span {
+  width: fit-content;
+  padding: 5px 7px;
+  border: 1px solid #6f5cff;
+  border-radius: 999px;
+  color: #d8d2ff;
+  background: #171331;
+  font-size: 0.68rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.cluster-learning-pill small,
+.cluster-learning-pill p {
+  margin: 0;
+  color: #9aa7b6;
+  line-height: 1.45;
+}
+
+.cluster-learning-pill--continuer {
+  border-color: #1f6f5f;
+}
+
+.cluster-learning-pill--abandonner {
+  border-color: #7a3c3c;
+}
+
 .analyst-evidence {
   display: grid;
   gap: 10px;
@@ -1589,6 +1625,7 @@ h3 {
 .optimizer-action,
 .optimizer-notes,
 .optimizer-backlog,
+.optimizer-cluster-learning,
 .optimizer-learning-grid,
 .decision-history {
   display: grid;
@@ -1603,6 +1640,7 @@ h3 {
 .optimizer-action,
 .optimizer-notes blockquote,
 .optimizer-backlog-card,
+.cluster-learning-card,
 .optimizer-learning-grid article,
 .decision-history article {
   margin: 0;
@@ -1613,6 +1651,11 @@ h3 {
 }
 
 .optimizer-backlog-card {
+  display: grid;
+  gap: 6px;
+}
+
+.cluster-learning-card {
   display: grid;
   gap: 6px;
 }
@@ -1655,6 +1698,7 @@ h3 {
 .optimizer-action span,
 .optimizer-notes > span,
 .optimizer-backlog > span,
+.optimizer-cluster-learning > span,
 .optimizer-learning-grid > span,
 .decision-history > span {
   color: #8f9baa;
@@ -1668,6 +1712,7 @@ h3 {
 .optimizer-action strong,
 .optimizer-notes strong,
 .optimizer-backlog-card strong,
+.cluster-learning-card strong,
 .optimizer-learning-grid strong,
 .decision-history strong {
   color: #edf3fb;
@@ -1683,6 +1728,9 @@ h3 {
 .optimizer-backlog-card p,
 .optimizer-backlog-card small,
 .optimizer-backlog-card em,
+.cluster-learning-card p,
+.cluster-learning-card small,
+.cluster-learning-card em,
 .optimizer-learning-grid p,
 .optimizer-learning-grid small,
 .decision-history p,
@@ -1699,6 +1747,40 @@ h3 {
 }
 
 .optimizer-backlog-card em {
+  font-style: normal;
+}
+
+.cluster-learning-card > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cluster-learning-card span {
+  width: fit-content;
+  padding: 5px 7px;
+  border: 1px solid #6f5cff;
+  border-radius: 999px;
+  color: #d8d2ff;
+  background: #171331;
+  font-size: 0.68rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.cluster-learning-card--continuer {
+  border-color: #1f6f5f;
+}
+
+.cluster-learning-card--abandonner {
+  border-color: #7a3c3c;
+}
+
+.cluster-learning-card em {
+  border-left: 2px solid #6f5cff;
+  padding-left: 9px;
   font-style: normal;
 }
 

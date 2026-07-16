@@ -128,6 +128,10 @@ Le format suit les principes de [Keep a Changelog](https://keepachangelog.com/fr
 - origine cluster visible de bout en bout : badge dans la file de tests,
   priorité renforcée dans l’Optimizer, compteur de tests cluster et source
   cluster dans les drafts et l’atelier Factory.
+- boucle d’apprentissage cluster côté interface : consolidation des tests
+  cluster par niche, décision `CONTINUER` / `MESURER` / `PIVOTER` /
+  `ABANDONNER`, affichage dans l’Optimizer et rappel terrain dans les niches
+  consolidées.
 
 ### Décidé
 
