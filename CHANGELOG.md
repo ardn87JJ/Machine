@@ -125,6 +125,9 @@ Le format suit les principes de [Keep a Changelog](https://keepachangelog.com/fr
 - Factory connectée aux tests cluster : les packs production portent un champ
   `cluster`, affichent 2-3 variantes par mot-clé et injectent ces variantes dans
   les titres, hooks, checklist, montage et prompt voix.
+- origine cluster visible de bout en bout : badge dans la file de tests,
+  priorité renforcée dans l’Optimizer, compteur de tests cluster et source
+  cluster dans les drafts et l’atelier Factory.
 
 ### Décidé
 

@@ -1460,6 +1460,34 @@ h3 {
   font-weight: 900;
 }
 
+.experiment-badges,
+.draft-badges,
+.optimizer-backlog-heading {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  align-items: center;
+}
+
+.origin-badge {
+  width: fit-content;
+  padding: 6px 8px;
+  border: 1px solid #4c6fff;
+  border-radius: 999px;
+  color: #b9c9ff;
+  background: #111a36;
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.origin-badge--cluster {
+  border-color: #6f5cff;
+  color: #d8d2ff;
+  background: #171331;
+}
+
 .experiment-status--paused {
   border-color: #7b5a1b;
   color: #ffd28a;
@@ -1893,7 +1921,8 @@ h3 {
   min-width: 0;
 }
 
-.draft-card span {
+.draft-card > div > span,
+.draft-badges > span:first-child {
   width: fit-content;
   padding: 6px 8px;
   border: 1px solid #1f6f5f;
@@ -1902,6 +1931,12 @@ h3 {
   background: #10211f;
   font-size: 0.7rem;
   font-weight: 900;
+}
+
+.draft-badges > .origin-badge {
+  border-color: #6f5cff;
+  color: #d8d2ff;
+  background: #171331;
 }
 
 .draft-card strong,
@@ -1932,6 +1967,11 @@ h3 {
 
 .draft-learning {
   border-left: 2px solid #1f6f5f;
+  padding-left: 9px;
+}
+
+.draft-cluster-source {
+  border-left: 2px solid #6f5cff;
   padding-left: 9px;
 }
 
@@ -1997,6 +2037,23 @@ h3 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.factory-cluster-source {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content minmax(220px, 0.6fr);
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid #403677;
+  border-radius: 14px;
+  background: #111327;
+}
+
+.factory-cluster-source > div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
 .factory-grid article,
 .factory-checklist,
 .factory-script,
@@ -2014,6 +2071,7 @@ h3 {
 .factory-checklist span,
 .factory-script span,
 .factory-learning span,
+.factory-cluster-source span,
 .factory-assets > span,
 .asset-section-heading span {
   color: #83f1d8;
@@ -2054,8 +2112,19 @@ h3 {
 
 .factory-script strong,
 .factory-learning strong,
+.factory-cluster-source strong,
 .asset-card strong {
   color: #edf3fb;
+}
+
+.factory-cluster-source small {
+  margin: 0;
+  color: #9aa7b6;
+  line-height: 1.45;
+}
+
+.factory-cluster-source > .origin-badge {
+  color: #d8d2ff;
 }
 
 .factory-actions {
@@ -2387,6 +2456,7 @@ h3 {
   .dashboard-summary,
   .optimizer-learning-grid,
   .factory-grid,
+  .factory-cluster-source,
   .llm-budget-panel,
   .llm-provider-settings,
   .llm-budget-settings,

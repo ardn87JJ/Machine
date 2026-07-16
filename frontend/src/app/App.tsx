@@ -2710,15 +2710,24 @@ function ProductionDraftsPanel({
             {(() => {
               const experiment = findDraftExperiment(draft, experiments);
               const isSelected = selectedDraftId === draft.id;
+              const cluster = draft.content.cluster;
 
               return (
                 <>
             <div>
-              <span>{draft.status}</span>
+              <div className="draft-badges">
+                <span>{draft.status}</span>
+                {cluster ? <span className="origin-badge origin-badge--cluster">CLUSTER</span> : null}
+              </div>
               <strong>{draft.title}</strong>
               <small>{draft.keyword} · {formatDate(draft.created_at)}</small>
             </div>
             <p>{draft.content.concept}</p>
+            {cluster ? (
+              <p className="draft-cluster-source">
+                Cluster {cluster.title} · {cluster.keywords.slice(0, 3).join(" / ")} · {cluster.variants.length} variantes
+              </p>
+            ) : null}
             {experiment ? (
               <p className="draft-learning">
                 Test {experiment.status} · {experiment.outcome} · {experiment.result_note || experiment.success_criteria}
@@ -3097,6 +3106,18 @@ function ContentFactoryWorkbench({
         </div>
         <span className="phase">{completedCount}/{variants.checklist.length} PRET</span>
       </div>
+
+      {draft.content.cluster ? (
+        <div className="factory-cluster-source">
+          <div>
+            <span>Source cluster</span>
+            <strong>{draft.content.cluster.title}</strong>
+            <small>{draft.content.cluster.keywords.join(" / ")}</small>
+          </div>
+          <span className="origin-badge origin-badge--cluster">CLUSTER</span>
+          <small>{draft.content.cluster.variants.length} variantes coordonnées dans titres, hooks et assets.</small>
+        </div>
+      ) : null}
 
       <div className="factory-grid">
         <article>
@@ -3738,13 +3759,17 @@ function ExperimentQueue({
           const plan = getExecutionPlanForExperiment(executionPlans, experiment);
           const closureBlocked = isExperimentClosureBlocked(experiment, plan);
           const planProgress = plan ? formatExecutionPlanProgress(plan) : "";
+          const isCluster = isClusterExperiment(experiment);
 
           return (
           <article className="experiment-card" key={experiment.id}>
             <div>
-              <span className={`experiment-status experiment-status--${experiment.status.toLowerCase()}`}>
-                {experiment.status}
-              </span>
+              <div className="experiment-badges">
+                <span className={`experiment-status experiment-status--${experiment.status.toLowerCase()}`}>
+                  {experiment.status}
+                </span>
+                {isCluster ? <span className="origin-badge origin-badge--cluster">CLUSTER</span> : null}
+              </div>
               <strong>{experiment.keyword}</strong>
               <small>{experiment.title}</small>
             </div>
@@ -3828,6 +3853,7 @@ function ExperimentQueue({
               <span>score {experiment.priority_score}</span>
               <span>{experiment.outcome}</span>
               {planProgress ? <span>plan {planProgress}</span> : null}
+              {isCluster ? <span>niche consolidée</span> : null}
               <span>{formatDate(experiment.created_at)}</span>
             </div>
           </article>
@@ -4002,6 +4028,7 @@ function buildOptimizerBacklog(
       const plan = executionPlans.find((item) => item.experiment_id === experiment.id);
       const nextStep = plan ? getNextPlanStep(plan) : undefined;
       const progress = plan ? formatExecutionPlanProgress(plan) : "";
+      const isCluster = isClusterExperiment(experiment);
       let decision = "LANCER";
       let nextMove = experiment.next_action;
       let priority = experiment.priority_score;
@@ -4036,11 +4063,17 @@ function buildOptimizerBacklog(
         priority -= experiment.priority_score >= 75 ? 5 : 20;
       }
 
+      if (isCluster && experiment.status !== "DONE") {
+        priority += 12;
+        nextMove = `Cluster prioritaire: ${nextMove}`;
+      }
+
       return {
         experiment,
         draft,
         plan,
         progress,
+        isCluster,
         decision,
         nextMove,
         priority: clampScore(priority),
@@ -4145,6 +4178,7 @@ function OptimizerPanel({
   const recommendation = buildOptimizerRecommendation(experiments, drafts, executionPlans);
   const backlog = buildOptimizerBacklog(experiments, drafts, executionPlans);
   const nicheLearnings = buildOptimizerLearningByNiche(experiments);
+  const clusterExperimentCount = experiments.filter(isClusterExperiment).length;
   const learningNotes = experiments
     .filter((experiment) => experiment.result_note.trim().length > 0)
     .slice(0, 3);
@@ -4181,6 +4215,11 @@ function OptimizerPanel({
           <strong>{recommendation.planDoneCount}/{recommendation.planTotalCount}</strong>
           <small>étapes H24/H48/H72 cochées</small>
         </article>
+        <article>
+          <span>Clusters</span>
+          <strong>{clusterExperimentCount}</strong>
+          <small>tests issus de niches consolidées</small>
+        </article>
       </div>
 
       <div className="optimizer-action">
@@ -4197,7 +4236,10 @@ function OptimizerPanel({
           backlog.map((item) => (
             <article className={`optimizer-backlog-card optimizer-backlog-card--${item.decision.toLowerCase()}`} key={item.experiment.id}>
               <div>
-                <strong>{item.decision}</strong>
+                <div className="optimizer-backlog-heading">
+                  <strong>{item.decision}</strong>
+                  {item.isCluster ? <span className="origin-badge origin-badge--cluster">CLUSTER</span> : null}
+                </div>
                 <small>priorité {item.priority} · {item.experiment.status} · {item.experiment.outcome}</small>
               </div>
               <p>{item.experiment.keyword}</p>

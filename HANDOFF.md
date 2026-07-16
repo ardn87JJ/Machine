@@ -1,6 +1,6 @@
 # Handoff Machine
 
-Derniere mise a jour : 2026-07-10
+Derniere mise a jour : 2026-07-16
 
 ## Objectif produit
 
@@ -29,7 +29,7 @@ scorables, tests actionnables, drafts de production et apprentissages.
 
 - Depot Git : `ardn87JJ/Machine`
 - Branche : `main`
-- Dernier commit stable au depart de cette tranche : `1e36eca Add asset regeneration action`
+- Dernier commit stable au depart de cette tranche : `c03de40 Connect cluster tests to Factory variants`
 - App publique : `https://ardn87jj.github.io/Machine/`
 - Supabase project ref : `uscmdnzbwvsjrocemset`
 - Edge Function active : `run-scout`
@@ -107,19 +107,23 @@ scorables, tests actionnables, drafts de production et apprentissages.
 - relier Factory aux tests cluster : les packs production sauvegardent
   `content.cluster`, exposent 2-3 variantes par mot-cle du cluster et enrichissent
   titres/hooks/checklist/montage/prompt voix.
+- lire l'origine cluster partout dans l'execution : badge `CLUSTER` dans la file
+  de tests, compteur dans Optimizer, priorite renforcee pour les clusters actifs,
+  badge dans les drafts et panneau source cluster dans l'atelier Factory.
 
 ## Tranche en cours
-
-Relier les tests cluster a Factory :
-
-- generer un draft Factory depuis le test cluster ;
-- exploiter les mots-cles du cluster pour proposer 2-3 variantes de contenu ;
-- conserver les anciens drafts compatibles sans champ `cluster`.
-
-## Prochaine etape apres cette tranche
 
 Rendre l'origine cluster lisible partout :
 
 - afficher clairement qu'un test vient d'un cluster dans Optimizer ;
 - afficher un badge cluster dans les drafts Factory ;
-- filtrer ou prioriser les tests cluster dans la file Optimizer.
+- prioriser les tests cluster actifs dans la file Optimizer.
+
+## Prochaine etape apres cette tranche
+
+Transformer les tests cluster en boucle d'apprentissage exploitable :
+
+- consolider les resultats `PASSED/FAILED` par cluster ;
+- afficher une recommandation "continuer / pivoter / abandonner" au niveau niche
+  consolidee ;
+- faire remonter les notes terrain cluster dans Analyste et Optimizer.
