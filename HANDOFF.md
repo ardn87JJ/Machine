@@ -29,7 +29,7 @@ scorables, tests actionnables, drafts de production et apprentissages.
 
 - Depot Git : `ardn87JJ/Machine`
 - Branche : `main`
-- Dernier commit stable au depart de cette tranche : `7f1fb98 Show cluster origin across execution flow`
+- Dernier commit stable au depart de cette tranche : `f1fad73 Add cluster learning loop`
 - App publique : `https://ardn87jj.github.io/Machine/`
 - Supabase project ref : `uscmdnzbwvsjrocemset`
 - Edge Function active : `run-scout`
@@ -114,20 +114,24 @@ scorables, tests actionnables, drafts de production et apprentissages.
   issus de niches consolidees par cluster, calcule actifs/reussis/echecs/taux de
   reussite, propose `CONTINUER`, `MESURER`, `PIVOTER` ou `ABANDONNER`, et
   l'Analyste affiche ce rappel terrain dans les cartes de niches consolidees.
+- agir depuis la boucle cluster : `CONTINUER` cree un test de variante proche,
+  `MESURER`/`PIVOTER` creent un test pivot d'angle, et un test cluster actif peut
+  etre mis en pause avec une note de depriorisation dans l'historique decisionnel.
 
 ## Tranche en cours
-
-Transformer les tests cluster en boucle d'apprentissage exploitable :
-
-- consolider les resultats `PASSED/FAILED` par cluster ;
-- afficher une recommandation "continuer / pivoter / abandonner" au niveau niche
-  consolidee ;
-- faire remonter les notes terrain cluster dans Analyste et Optimizer.
-
-## Prochaine etape apres cette tranche
 
 Brancher l'action suivante depuis la boucle cluster vers l'execution :
 
 - depuis `CONTINUER`, creer une variante proche du test gagnant ;
 - depuis `PIVOTER`, proposer un nouveau hook/angle sans recreer un scan ;
 - depuis `ABANDONNER`, masquer ou deprioriser la niche dans la file active.
+
+## Prochaine etape apres cette tranche
+
+Rendre les follow-ups cluster directement exploitables par Factory :
+
+- afficher dans le Pack Producteur si le test vient d'un follow-up `variante`
+  ou `pivot` ;
+- injecter le mode follow-up dans les titres, hooks et checklist Factory ;
+- faire apparaitre les tests follow-up dans Optimizer comme une sous-famille de
+  leur cluster source.

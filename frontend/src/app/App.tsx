@@ -382,7 +382,11 @@ type ClusterLearning = {
   recommendation: string;
   notes: string[];
   latestUpdatedAt: string;
+  sourceExperiment: ExecutionExperimentSummary;
+  activeExperiment: ExecutionExperimentSummary | null;
 };
+
+type ClusterFollowupMode = "continue" | "pivot";
 
 type AnalystEvidence = {
   scoreDrivers: string[];
@@ -2321,6 +2325,10 @@ function buildClusterLearnings(experiments: ExecutionExperimentSummary[]): Clust
       const active = entries.filter((experiment) => experiment.status !== "DONE").length;
       const successRate = done.length > 0 ? Math.round((passed / done.length) * 100) : 0;
       const decision = inferClusterLearningDecision({ active, failed, passed, totalDone: done.length });
+      const sourceExperiment =
+        sortedEntries.find((experiment) => experiment.status === "DONE" && experiment.outcome === "PASSED") ??
+        sortedEntries[0]!;
+      const activeExperiment = sortedEntries.find((experiment) => experiment.status !== "DONE") ?? null;
 
       return {
         key,
@@ -2337,6 +2345,8 @@ function buildClusterLearnings(experiments: ExecutionExperimentSummary[]): Clust
           .filter(Boolean)
           .slice(0, 3),
         latestUpdatedAt: sortedEntries[0]?.updated_at ?? sortedEntries[0]?.created_at ?? "",
+        sourceExperiment,
+        activeExperiment,
       };
     })
     .sort((left, right) => {
@@ -2371,12 +2381,12 @@ function inferClusterLearningDecision({
     return "CONTINUER";
   }
 
-  if (active > 0 || totalDone === 0) {
-    return "MESURER";
-  }
-
   if (failed > 0 && passed === 0) {
     return "ABANDONNER";
+  }
+
+  if (active > 0 || totalDone === 0) {
+    return "MESURER";
   }
 
   return "PIVOTER";
@@ -2396,6 +2406,33 @@ function buildClusterLearningRecommendation(decision: ClusterLearningDecision, t
   }
 
   return `Abandonner ${title}: sortir la niche de la file active jusqu'à nouveau signal.`;
+}
+
+function buildClusterFollowupPayload(learning: ClusterLearning, mode: ClusterFollowupMode) {
+  const source = learning.sourceExperiment;
+  const isContinue = mode === "continue";
+  const note = learning.notes[0] || source.result_note || source.success_criteria;
+
+  return {
+    scan_id: source.opportunity_scan_id,
+    keyword: learning.title,
+    title: isContinue
+      ? `${learning.title} · variante proche`
+      : `${learning.title} · pivot angle`,
+    decision_label: isContinue ? "ATTAQUER" as const : "TESTER" as const,
+    priority_score: clampScore(
+      isContinue
+        ? Math.max(source.priority_score + 8, 78)
+        : Math.max(source.priority_score - 6, 62),
+    ),
+    next_action: isContinue
+      ? `Continuer la niche ${learning.title}. Créer une variante proche du test gagnant avec un hook plus direct. Signal terrain: ${note}`
+      : `Pivoter la niche ${learning.title}. Tester un nouvel angle, un hook plus agressif ou une promesse plus claire sans relancer de scan. Signal terrain: ${note}`,
+    success_criteria: isContinue
+      ? `Valider la variante si elle égale ou dépasse le meilleur signal cluster en 72h. Taux actuel ${learning.successRate}%.`
+      : `Valider le pivot si le nouveau hook corrige la note terrain et produit un signal supérieur au test précédent en 72h.`,
+    evidence_video_ids: source.evidence_video_ids.slice(0, 5),
+  };
 }
 
 function findClusterLearningForCluster(cluster: NicheCluster, learnings: ClusterLearning[]) {
@@ -4319,11 +4356,19 @@ function OptimizerPanel({
   drafts,
   decisionEvents,
   executionPlans,
+  isCreatingClusterFollowup,
+  isPausingCluster,
+  onCreateClusterFollowup,
+  onPauseCluster,
 }: {
   experiments: ExecutionExperimentSummary[];
   drafts: ProductionDraftSummary[];
   decisionEvents: DecisionEventSummary[];
   executionPlans: ExecutionPlanSummary[];
+  isCreatingClusterFollowup: boolean;
+  isPausingCluster: boolean;
+  onCreateClusterFollowup: (learning: ClusterLearning, mode: ClusterFollowupMode) => void;
+  onPauseCluster: (learning: ClusterLearning) => void;
 }) {
   const recommendation = buildOptimizerRecommendation(experiments, drafts, executionPlans);
   const backlog = buildOptimizerBacklog(experiments, drafts, executionPlans);
@@ -4433,6 +4478,39 @@ function OptimizerPanel({
               </small>
               <p>{learning.recommendation}</p>
               {learning.notes[0] ? <em>{learning.notes[0]}</em> : null}
+              <div className="cluster-learning-actions">
+                {learning.decision === "ABANDONNER" ? (
+                  <button
+                    disabled={isPausingCluster || !learning.activeExperiment}
+                    onClick={() => onPauseCluster(learning)}
+                    type="button"
+                  >
+                    {learning.activeExperiment ? "Déprioriser" : "Déjà sorti"}
+                  </button>
+                ) : (
+                  <button
+                    disabled={isCreatingClusterFollowup}
+                    onClick={() =>
+                      onCreateClusterFollowup(
+                        learning,
+                        learning.decision === "CONTINUER" ? "continue" : "pivot",
+                      )
+                    }
+                    type="button"
+                  >
+                    {learning.decision === "CONTINUER" ? "Créer variante proche" : "Créer test pivot"}
+                  </button>
+                )}
+                {learning.decision !== "ABANDONNER" && learning.activeExperiment ? (
+                  <button
+                    disabled={isPausingCluster}
+                    onClick={() => onPauseCluster(learning)}
+                    type="button"
+                  >
+                    Pause cluster
+                  </button>
+                ) : null}
+              </div>
             </article>
           ))
         )}
@@ -4620,6 +4698,18 @@ export function App() {
     },
   });
 
+  const createClusterFollowupExperimentMutation = useMutation({
+    mutationFn: (payload: { learning: ClusterLearning; mode: ClusterFollowupMode }) =>
+      createEdgeClusterExperiment(buildClusterFollowupPayload(payload.learning, payload.mode)),
+    onSuccess: async (response) => {
+      await queryClient.invalidateQueries({ queryKey: ["edge-experiments"] });
+      await queryClient.invalidateQueries({ queryKey: ["edge-decision-events"] });
+      await queryClient.invalidateQueries({ queryKey: ["edge-execution-plans"] });
+      setSelectedOpportunityId(response.experiment.opportunity_scan_id);
+      setWorkspaceView("optimizer");
+    },
+  });
+
   const updateExperimentMutation = useMutation({
     mutationFn: (payload: {
       experiment: ExecutionExperimentSummary;
@@ -4635,6 +4725,27 @@ export function App() {
       if (data.experiment.outcome === "PASSED") {
         setWorkspaceView("factory");
       }
+    },
+  });
+
+  const pauseClusterExperimentMutation = useMutation({
+    mutationFn: (learning: ClusterLearning) => {
+      const experiment = learning.activeExperiment ?? learning.sourceExperiment;
+      const existingNote = experiment.result_note.trim();
+
+      return updateEdgeExperiment({
+        experiment_id: experiment.id,
+        status: "PAUSED",
+        outcome: "UNKNOWN",
+        result_note: [
+          existingNote,
+          `Cluster dépriorisé depuis Optimizer: ${learning.recommendation}`,
+        ].filter(Boolean).join(" "),
+      });
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["edge-experiments"] });
+      await queryClient.invalidateQueries({ queryKey: ["edge-decision-events"] });
     },
   });
 
@@ -5100,6 +5211,12 @@ export function App() {
             drafts={productionDrafts}
             executionPlans={executionPlans}
             experiments={edgeExperiments}
+            isCreatingClusterFollowup={createClusterFollowupExperimentMutation.isPending}
+            isPausingCluster={pauseClusterExperimentMutation.isPending}
+            onCreateClusterFollowup={(learning, mode) =>
+              createClusterFollowupExperimentMutation.mutate({ learning, mode })
+            }
+            onPauseCluster={(learning) => pauseClusterExperimentMutation.mutate(learning)}
           />
         </section>
       ) : null}

@@ -132,6 +132,10 @@ Le format suit les principes de [Keep a Changelog](https://keepachangelog.com/fr
   cluster par niche, décision `CONTINUER` / `MESURER` / `PIVOTER` /
   `ABANDONNER`, affichage dans l’Optimizer et rappel terrain dans les niches
   consolidées.
+- actions directes depuis les apprentissages cluster : création d’un test
+  `variante proche` pour continuer, création d’un test `pivot angle` pour
+  pivoter ou mesurer, et mise en pause d’un test cluster actif pour déprioriser
+  une niche.
 
 ### Décidé
 

@@ -1784,6 +1784,34 @@ h3 {
   font-style: normal;
 }
 
+.cluster-learning-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cluster-learning-actions button {
+  border: 1px solid #6f5cff;
+  border-radius: 999px;
+  padding: 8px 10px;
+  color: #d8d2ff;
+  background: #171331;
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.cluster-learning-actions button:first-child {
+  border-color: #1f6f5f;
+  color: #83f1d8;
+  background: #10211f;
+}
+
+.cluster-learning-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
 .decision-history article {
   display: grid;
   gap: 5px;

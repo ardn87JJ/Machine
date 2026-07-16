@@ -634,6 +634,44 @@ describe("App", () => {
           );
         }
 
+        if ((body as { action?: string }).action === "create-cluster-experiment") {
+          const payload = body as {
+            scan_id: string;
+            keyword: string;
+            title: string;
+            decision_label: "ATTAQUER" | "TESTER" | "VEILLE";
+            priority_score: number;
+            next_action: string;
+            success_criteria: string;
+            evidence_video_ids: string[];
+          };
+          const experiment = {
+            id: `cluster-experiment-${experiments.length + 1}`,
+            opportunity_scan_id: payload.scan_id,
+            keyword: payload.keyword,
+            title: payload.title,
+            decision_label: payload.decision_label,
+            priority_score: payload.priority_score,
+            status: "READY" as const,
+            outcome: "UNKNOWN" as const,
+            next_action: payload.next_action,
+            success_criteria: payload.success_criteria,
+            result_note: "",
+            evidence_video_ids: payload.evidence_video_ids,
+            created_at: "2026-07-08T13:36:00Z",
+            updated_at: "2026-07-08T13:36:00Z",
+          };
+
+          experiments = [experiment, ...experiments];
+
+          return Promise.resolve(
+            new Response(JSON.stringify({ experiment }), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            }),
+          );
+        }
+
         if ((body as { action?: string }).action === "update-experiment") {
           const patch = body as {
             experiment_id: string;
