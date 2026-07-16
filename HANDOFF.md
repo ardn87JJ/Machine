@@ -104,19 +104,22 @@ scorables, tests actionnables, drafts de production et apprentissages.
 - creer un test depuis une niche consolidee via `create-cluster-experiment`, avec
   keyword/titre/action/critere au niveau cluster et checklist H24/H48/H72 generee
   par `upsertExecutionPlan`.
+- relier Factory aux tests cluster : les packs production sauvegardent
+  `content.cluster`, exposent 2-3 variantes par mot-cle du cluster et enrichissent
+  titres/hooks/checklist/montage/prompt voix.
 
 ## Tranche en cours
 
-Transformer les niches consolidees en execution :
+Relier les tests cluster a Factory :
 
-- creer un test directement depuis une niche consolidée ;
-- generer un plan d'attaque au niveau cluster, pas seulement au niveau scan ;
-- relier ce plan cluster a Factory pour produire une premiere variante.
+- generer un draft Factory depuis le test cluster ;
+- exploiter les mots-cles du cluster pour proposer 2-3 variantes de contenu ;
+- conserver les anciens drafts compatibles sans champ `cluster`.
 
 ## Prochaine etape apres cette tranche
 
-Relier les tests cluster a Factory :
+Rendre l'origine cluster lisible partout :
 
 - afficher clairement qu'un test vient d'un cluster dans Optimizer ;
-- generer un draft Factory depuis le test cluster ;
-- exploiter les mots-cles du cluster pour proposer 2-3 variantes de contenu.
+- afficher un badge cluster dans les drafts Factory ;
+- filtrer ou prioriser les tests cluster dans la file Optimizer.

@@ -142,6 +142,17 @@ export interface ProductionPackContent {
   visualPrompt: string;
   description: string;
   cta: string;
+  cluster?: {
+    title: string;
+    keywords: string[];
+    variants: Array<{
+      keyword: string;
+      title: string;
+      hook: string;
+      angle: string;
+    }>;
+    sourceExperimentId: string | null;
+  };
   factory?: {
     selectedTitle: string;
     selectedHook: string;

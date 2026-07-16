@@ -122,6 +122,9 @@ Le format suit les principes de [Keep a Changelog](https://keepachangelog.com/fr
 - action `create-cluster-experiment` dans l’Edge Function et bouton `Créer test
   cluster` pour transformer une niche consolidée en test d’exécution avec plan
   H24/H48/H72.
+- Factory connectée aux tests cluster : les packs production portent un champ
+  `cluster`, affichent 2-3 variantes par mot-clé et injectent ces variantes dans
+  les titres, hooks, checklist, montage et prompt voix.
 
 ### Décidé
 

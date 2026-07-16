@@ -1756,10 +1756,49 @@ h3 {
 .production-concept,
 .production-hooks,
 .production-script,
-.production-assets {
+.production-assets,
+.production-cluster {
   border: 1px solid #253142;
   border-radius: 14px;
   background: #101722;
+}
+
+.production-cluster {
+  grid-column: 1 / -1;
+}
+
+.production-cluster ol {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 0;
+  list-style: none;
+}
+
+.production-cluster li {
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid #253142;
+  border-radius: 10px;
+  background: #0b1018;
+}
+
+.production-cluster b,
+.production-cluster em,
+.production-cluster small {
+  display: block;
+  color: #c8d3df;
+  font-style: normal;
+  line-height: 1.4;
+}
+
+.production-cluster b {
+  color: #edf3fb;
+}
+
+.production-cluster em {
+  color: #9aa7b6;
 }
 
 .production-pack span {
@@ -2336,6 +2375,7 @@ h3 {
   .opportunity-layout,
   .execution-plan,
   .production-pack,
+  .production-cluster ol,
   .brief-grid,
   .analyst-evidence__grid,
   .competitor-row,

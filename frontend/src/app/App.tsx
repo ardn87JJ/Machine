@@ -2123,9 +2123,11 @@ function buildProductionPack(
       : activeExperiment
         ? "draft test"
         : "draft préparatoire";
+  const enrichPack = (pack: ProductionPackContent): ProductionPackContent =>
+    enrichProductionPackWithCluster(pack, opportunity, activeExperiment);
 
   if (isMusic) {
-    return {
+    return enrichPack({
       status,
       concept: `Chaîne musicale IA faceless autour de ${keyword}, avec identité visuelle stable et boucle Shorts.`,
       hooks: [
@@ -2143,11 +2145,11 @@ function buildProductionPack(
       visualPrompt: `Vertical 9:16, music visualizer, ${keyword}, cinematic neon lighting, coherent faceless AI music brand, clean readable title space.`,
       description: `Musique IA test sur ${keyword}. Si le hook tient, décliner en série de 7 morceaux courts.`,
       cta: "Sauvegarde si tu veux la version longue.",
-    };
+    });
   }
 
   if (isStory) {
-    return {
+    return enrichPack({
       status,
       concept: `Short faceless narratif sur ${keyword}, construit pour tension immédiate et payoff rapide.`,
       hooks: [
@@ -2165,11 +2167,11 @@ function buildProductionPack(
       visualPrompt: `Vertical 9:16, faceless story scene, ${keyword}, expressive cinematic stills, strong contrast, readable captions, suspense mood.`,
       description: `Test faceless stories sur ${keyword}. Objectif: valider hook, tension et commentaires.`,
       cta: "Commente la suite que tu veux voir.",
-    };
+    });
   }
 
   if (isDrama) {
-    return {
+    return enrichPack({
       status,
       concept: `Mini-drama IA vertical sur ${keyword}, avec conflit social fort et cliffhanger rapide.`,
       hooks: [
@@ -2187,10 +2189,10 @@ function buildProductionPack(
       visualPrompt: `Vertical 9:16, AI mini drama, ${keyword}, luxury office or dramatic street scene, emotional close-up, cinematic lighting, subtitle-safe composition.`,
       description: `Épisode test mini-drama IA sur ${keyword}. Mesurer rétention, replay et demandes d’épisode 2.`,
       cta: "Épisode 2 si tu veux la revanche.",
-    };
+    });
   }
 
-  return {
+  return enrichPack({
     status,
     concept: `Format court automatisable sur ${keyword}, optimisé pour apprendre vite avec un test à faible coût.`,
     hooks: [
@@ -2208,7 +2210,68 @@ function buildProductionPack(
     visualPrompt: `Vertical 9:16, ${keyword}, clean faceless content, high contrast, readable captions, modern social video style.`,
     description: `Test rapide sur ${keyword}. Objectif: valider intérêt, commentaires et potentiel de déclinaison.`,
     cta: "Dis si je dois tester une variante.",
+  });
+}
+
+function enrichProductionPackWithCluster(
+  pack: ProductionPackContent,
+  opportunity: OpportunityRecord | undefined,
+  activeExperiment: ExecutionExperimentSummary | undefined,
+): ProductionPackContent {
+  if (!activeExperiment || !isClusterExperiment(activeExperiment)) {
+    return pack;
+  }
+
+  const clusterTitle = activeExperiment.keyword || opportunity?.keyword || pack.title;
+  const keywords = extractClusterKeywords(activeExperiment, opportunity);
+  const variants = keywords.slice(0, 3).map((keyword, index) => ({
+    keyword,
+    title: `${clusterTitle}: variante ${index + 1} sur ${keyword}`,
+    hook: `J'ai testé ${keyword} pour voir si ${clusterTitle} mérite d'être attaquée.`,
+    angle:
+      index === 0
+        ? `Copier le meilleur benchmark de ${keyword} avec une exécution plus claire.`
+        : index === 1
+          ? `Attaquer le concurrent faible repéré sur ${keyword} avec un hook plus rapide.`
+          : `Tester un format adjacent sur ${keyword} pour mesurer le potentiel de série.`,
+  }));
+
+  return {
+    ...pack,
+    status: `${pack.status} cluster`,
+    concept: `${pack.concept} Pack cluster: tester ${keywords.slice(0, 3).join(" / ")} comme variantes coordonnées.`,
+    hooks: Array.from(new Set([
+      ...variants.map((variant) => variant.hook),
+      ...pack.hooks,
+    ])).slice(0, 6),
+    title: `${clusterTitle}: test cluster`,
+    description: `${pack.description} Variante cluster construite depuis ${keywords.join(", ")}.`,
+    cluster: {
+      title: clusterTitle,
+      keywords,
+      variants,
+      sourceExperimentId: activeExperiment.id,
+    },
   };
+}
+
+function isClusterExperiment(experiment: ExecutionExperimentSummary) {
+  return experiment.title.includes("opportunité consolidée") ||
+    experiment.next_action.toLowerCase().startsWith("tester la niche");
+}
+
+function extractClusterKeywords(
+  experiment: ExecutionExperimentSummary,
+  opportunity: OpportunityRecord | undefined,
+) {
+  const match = experiment.next_action.match(/ avec (.+?)\. Démarrer par:/);
+  const extracted = match?.[1]
+    ?.split("/")
+    .map((item) => item.trim())
+    .filter(Boolean) ?? [];
+  const fallback = [opportunity?.keyword, experiment.keyword].filter((item): item is string => Boolean(item));
+
+  return Array.from(new Set([...extracted, ...fallback])).slice(0, 5);
 }
 
 function ProducerConsole({
@@ -2289,6 +2352,21 @@ function ProducerConsole({
             <strong>{pack.cta}</strong>
           </div>
         </article>
+        {pack.cluster ? (
+          <article className="production-cluster">
+            <span>Variantes cluster</span>
+            <strong>{pack.cluster.title}</strong>
+            <ol>
+              {pack.cluster.variants.map((variant) => (
+                <li key={variant.keyword}>
+                  <b>{variant.keyword}</b>
+                  <small>{variant.hook}</small>
+                  <em>{variant.angle}</em>
+                </li>
+              ))}
+            </ol>
+          </article>
+        ) : null}
       </div>
     </section>
   );
@@ -2352,21 +2430,32 @@ function buildFactoryVariants(draft: ProductionDraftSummary) {
   const keyword = draft.keyword;
   const baseTitle = draft.title;
   const firstHook = draft.content.hooks[0] ?? `J'ai teste ${keyword} pour voir si la niche tient.`;
+  const clusterTitles = draft.content.cluster?.variants.map((variant) => variant.title) ?? [];
+  const clusterHooks = draft.content.cluster?.variants.map((variant) => variant.hook) ?? [];
+  const clusterChecklist = draft.content.cluster
+    ? [
+        `Produire au moins 2 variantes cluster: ${draft.content.cluster.keywords.slice(0, 3).join(" / ")}.`,
+        "Comparer chaque variante avec le benchmark ou concurrent faible associé.",
+      ]
+    : [];
 
   return {
     titles: Array.from(new Set([
       baseTitle,
+      ...clusterTitles,
       `${keyword}: le test qui decide si on attaque`,
       `J'ai analyse ${keyword}: opportunite ou piege ?`,
       `${keyword}: 45 secondes pour valider la niche`,
     ])),
     hooks: Array.from(new Set([
       firstHook,
+      ...clusterHooks,
       `La plupart des createurs ratent ${keyword} pour une raison simple.`,
       `Si ce signal tient, ${keyword} devient une niche a tester maintenant.`,
       `J'ai trouve le point faible des contenus ${keyword}.`,
     ])),
     checklist: [
+      ...clusterChecklist,
       "Choisir 1 hook principal et 1 hook de secours.",
       "Monter en vertical 9:16 avec sous-titres lisibles.",
       "Afficher une preuve marche avant 12 secondes.",
@@ -2377,22 +2466,31 @@ function buildFactoryVariants(draft: ProductionDraftSummary) {
 }
 
 function buildMontagePlan(draft: ProductionDraftSummary, selectedTitle: string, selectedHook: string) {
+  const clusterProof = draft.content.cluster
+    ? `Scene 2: preuve cluster sur ${draft.content.cluster.keywords.slice(0, 3).join(" / ")}, montrer les variantes avant 12 secondes.`
+    : `Scene 2: preuve marche sur ${draft.keyword}, montrer le signal avant 12 secondes.`;
+
   return [
     `Scene 1: texte plein ecran "${selectedHook}" avec cut rapide et sous-titre lisible.`,
-    `Scene 2: preuve marche sur ${draft.keyword}, montrer le signal avant 12 secondes.`,
+    clusterProof,
     `Scene 3: derouler ${selectedTitle} en 2 points, rythme 3 a 5 secondes par plan.`,
     `Scene 4: finir sur ${draft.content.cta} avec ecran simple et promesse de suite.`,
   ];
 }
 
 function buildVoicePrompt(draft: ProductionDraftSummary, selectedHook: string) {
+  const clusterInstruction = draft.content.cluster
+    ? `Mentionner que le test compare ${draft.content.cluster.keywords.slice(0, 3).join(", ")}.`
+    : "";
+
   return [
     `Voix off verticale 30-45 secondes sur ${draft.keyword}.`,
     `Ton: direct, curieux, oriente opportunite business.`,
     `Ouverture exacte: ${selectedHook}`,
+    clusterInstruction,
     "Rythme rapide, phrases courtes, aucune introduction generique.",
     `Conclusion: ${draft.content.cta}`,
-  ].join(" ");
+  ].filter(Boolean).join(" ");
 }
 
 function buildAssetQueue(
@@ -4351,7 +4449,7 @@ export function App() {
       return createEdgeProductionDraft({
         opportunity_scan_id: selectedOpportunity.scanId,
         experiment_id: activeExperiment?.id ?? null,
-        keyword: selectedOpportunity.keyword,
+        keyword: pack.cluster?.title ?? selectedOpportunity.keyword,
         title: pack.title,
         status: activeExperiment?.outcome === "PASSED" ? "READY" : "DRAFT",
         content: pack,
