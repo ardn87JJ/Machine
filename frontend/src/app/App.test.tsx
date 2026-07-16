@@ -996,6 +996,7 @@ describe("App", () => {
     expect(screen.getByRole("heading", { name: "Niches consolidées" })).toBeInTheDocument();
     expect(screen.getByText("Chaînes musicales IA")).toBeInTheDocument();
     expect(screen.getByText(/Regroupe les mots-clés proches/)).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Créer test cluster" }).length).toBeGreaterThan(0);
     expect(screen.getByText("Décision ATTAQUER · score 91/100")).toBeInTheDocument();
     expect(screen.getByText("BENCHMARK")).toBeInTheDocument();
     expect(screen.getByText("Benchmark utile: moyenne 210 278 vues sur 1 video.")).toBeInTheDocument();

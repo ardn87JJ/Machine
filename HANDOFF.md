@@ -101,19 +101,22 @@ scorables, tests actionnables, drafts de production et apprentissages.
 - lire l'Analyste multi-scans : l'espace Decision affiche des niches consolidees
   qui regroupent les mots-cles proches, agregent scores/concurrents et ouvrent la
   meilleure fiche representant le cluster.
+- creer un test depuis une niche consolidee via `create-cluster-experiment`, avec
+  keyword/titre/action/critere au niveau cluster et checklist H24/H48/H72 generee
+  par `upsertExecutionPlan`.
 
 ## Tranche en cours
-
-Consolider l'Analyste multi-scans :
-
-- regrouper les resultats de plusieurs mots-cles proches en une niche unique ;
-- detecter les clusters avec concurrents faibles recurrents ;
-- produire une fiche opportunite consolidée au lieu d'une fiche par scan brut.
-
-## Prochaine etape apres cette tranche
 
 Transformer les niches consolidees en execution :
 
 - creer un test directement depuis une niche consolidée ;
 - generer un plan d'attaque au niveau cluster, pas seulement au niveau scan ;
 - relier ce plan cluster a Factory pour produire une premiere variante.
+
+## Prochaine etape apres cette tranche
+
+Relier les tests cluster a Factory :
+
+- afficher clairement qu'un test vient d'un cluster dans Optimizer ;
+- generer un draft Factory depuis le test cluster ;
+- exploiter les mots-cles du cluster pour proposer 2-3 variantes de contenu.

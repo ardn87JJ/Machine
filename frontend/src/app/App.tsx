@@ -2,6 +2,7 @@ import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/rea
 import { type FormEvent, useEffect, useState } from "react";
 import {
   createScan,
+  createEdgeClusterExperiment,
   createEdgeExperiment,
   createEdgeProductionDraft,
   listEdgeLlmStatus,
@@ -1197,6 +1198,25 @@ function buildClusterNextMove(decisionLabel: DecisionLabel, opportunity: Opportu
   return "Conserver dans le ledger, ne pas consommer de production maintenant.";
 }
 
+function buildClusterExperimentPayload(cluster: NicheCluster) {
+  const topKeywords = cluster.keywords.slice(0, 3).join(" / ");
+
+  return {
+    scan_id: cluster.bestOpportunity.scanId,
+    keyword: cluster.title,
+    title: `${cluster.title} · opportunité consolidée`,
+    decision_label: cluster.decisionLabel,
+    priority_score: cluster.priorityScore,
+    next_action:
+      `Tester la niche ${cluster.title} avec ${topKeywords}. ` +
+      `Démarrer par: ${cluster.bestOpportunity.executionPlan.first_test}`,
+    success_criteria:
+      `Valider la niche consolidée si un angle dépasse le benchmark du cluster en 72h ` +
+      `ou révèle une cible faible exploitable. Score cluster ${cluster.priorityScore}/100.`,
+    evidence_video_ids: cluster.bestOpportunity.videos.slice(0, 5).map((video) => video.video_id),
+  };
+}
+
 function average(values: number[]) {
   if (values.length === 0) {
     return 0;
@@ -1390,9 +1410,13 @@ function OpportunityLedger({
 
 function NicheClusterPanel({
   opportunities,
+  isCreatingClusterExperiment,
+  onCreateClusterExperiment,
   onSelectOpportunity,
 }: {
   opportunities: OpportunityRecord[];
+  isCreatingClusterExperiment: boolean;
+  onCreateClusterExperiment: (cluster: NicheCluster) => void;
   onSelectOpportunity: (id: string) => void;
 }) {
   const clusters = buildNicheClusters(opportunities);
@@ -1462,6 +1486,13 @@ function NicheClusterPanel({
                 <small>{cluster.recurringWeakCompetitors.join(" · ") || "aucune cible faible récurrente"}</small>
               </div>
               <em>{cluster.nextMove}</em>
+              <button
+                disabled={isCreatingClusterExperiment}
+                onClick={() => onCreateClusterExperiment(cluster)}
+                type="button"
+              >
+                {isCreatingClusterExperiment ? "Création..." : "Créer test cluster"}
+              </button>
             </article>
           ))}
         </div>
@@ -4266,6 +4297,17 @@ export function App() {
     },
   });
 
+  const createClusterExperimentMutation = useMutation({
+    mutationFn: (cluster: NicheCluster) => createEdgeClusterExperiment(buildClusterExperimentPayload(cluster)),
+    onSuccess: async (response) => {
+      await queryClient.invalidateQueries({ queryKey: ["edge-experiments"] });
+      await queryClient.invalidateQueries({ queryKey: ["edge-decision-events"] });
+      await queryClient.invalidateQueries({ queryKey: ["edge-execution-plans"] });
+      setSelectedOpportunityId(response.experiment.opportunity_scan_id);
+      setWorkspaceView("optimizer");
+    },
+  });
+
   const updateExperimentMutation = useMutation({
     mutationFn: (payload: {
       experiment: ExecutionExperimentSummary;
@@ -4654,6 +4696,8 @@ export function App() {
             selectedOpportunityId={selectedOpportunity?.scanId ?? null}
           />
           <NicheClusterPanel
+            isCreatingClusterExperiment={createClusterExperimentMutation.isPending}
+            onCreateClusterExperiment={(cluster) => createClusterExperimentMutation.mutate(cluster)}
             onSelectOpportunity={setSelectedOpportunityId}
             opportunities={opportunityRecords}
           />

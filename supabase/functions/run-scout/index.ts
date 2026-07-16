@@ -295,6 +295,11 @@ Deno.serve(async (request) => {
       return json(await createExecutionExperiment(body));
     }
 
+    if (body.action === "create-cluster-experiment") {
+      assertConfigured();
+      return json(await createClusterExecutionExperiment(body));
+    }
+
     if (body.action === "update-experiment") {
       assertConfigured();
       return json(await updateExecutionExperiment(body));
@@ -1702,6 +1707,85 @@ async function createExecutionExperiment(body: JsonRecord) {
       previousOutcome: null,
       nextOutcome: rows[0].outcome,
       note: "Test cree depuis une opportunite Scout.",
+    });
+  }
+
+  return { experiment: rows[0] };
+}
+
+async function createClusterExecutionExperiment(body: JsonRecord) {
+  const scanId = String(body.scan_id ?? "");
+  const decisionLabel = String(body.decision_label ?? "TESTER") as ExecutionExperimentSummary["decision_label"];
+  const priorityScore = clampScore(Number(body.priority_score ?? 0));
+  const title = String(body.title ?? "").trim().slice(0, 240);
+  const keyword = String(body.keyword ?? "").trim().slice(0, 160);
+  const nextAction = String(body.next_action ?? "").trim().slice(0, 500);
+  const successCriteria = String(body.success_criteria ?? "").trim().slice(0, 500);
+  const evidenceVideoIds = Array.isArray(body.evidence_video_ids)
+    ? body.evidence_video_ids.map((item) => String(item)).filter(Boolean).slice(0, 10)
+    : [];
+  const allowedDecisionLabels = new Set(["ATTAQUER", "TESTER", "VEILLE"]);
+
+  if (!scanId) {
+    throw new Error("scan_id est requis pour creer un test cluster.");
+  }
+
+  if (!allowedDecisionLabels.has(decisionLabel)) {
+    throw new Error("decision_label invalide pour le test cluster.");
+  }
+
+  const opportunities = await supabaseFetch<OpportunitySummary[]>(
+    `/rest/v1/opportunities?select=id,scan_id,keyword,title,execution_plan,evidence_video_ids&scan_id=eq.${scanId}&limit=1`,
+  );
+  const opportunity = opportunities[0];
+
+  if (!opportunity) {
+    throw new Error("Opportunite representative introuvable pour ce cluster.");
+  }
+
+  const clusterKeyword = keyword || opportunity.keyword;
+  const clusterTitle = title || opportunity.title;
+  const clusterNextAction = nextAction || opportunity.execution_plan.first_test;
+  const clusterSuccessCriteria = successCriteria || opportunity.execution_plan.criteria_go;
+  const clusterEvidenceVideoIds = evidenceVideoIds.length > 0 ? evidenceVideoIds : opportunity.evidence_video_ids;
+
+  const rows = await supabaseFetch<ExecutionExperimentSummary[]>(
+    "/rest/v1/execution_experiments?on_conflict=opportunity_scan_id",
+    {
+      method: "POST",
+      headers: { Prefer: "return=representation,resolution=merge-duplicates" },
+      body: JSON.stringify({
+        opportunity_scan_id: opportunity.scan_id,
+        keyword: clusterKeyword,
+        title: clusterTitle,
+        decision_label: decisionLabel,
+        priority_score: priorityScore,
+        status: "READY",
+        outcome: "UNKNOWN",
+        next_action: clusterNextAction,
+        success_criteria: clusterSuccessCriteria,
+        result_note: "",
+        evidence_video_ids: clusterEvidenceVideoIds,
+        updated_at: new Date().toISOString(),
+      }),
+    },
+  );
+
+  if (rows[0]) {
+    await upsertExecutionPlan(rows[0]).catch((error) => {
+      if (!isMissingTable(error)) {
+        throw error;
+      }
+    });
+
+    await insertDecisionEvent({
+      experiment: rows[0],
+      eventType: "CREATED",
+      previousStatus: null,
+      nextStatus: rows[0].status,
+      previousOutcome: null,
+      nextOutcome: rows[0].outcome,
+      note: "Test cree depuis une niche consolidee Analyste.",
     });
   }
 

@@ -119,6 +119,9 @@ Le format suit les principes de [Keep a Changelog](https://keepachangelog.com/fr
 - Analyste multi-scans : panneau `Niches consolidées` qui regroupe les mots-clés
   proches, agrège les scores business, concurrents faibles et benchmarks, puis
   propose une action sur la meilleure fiche représentative.
+- action `create-cluster-experiment` dans l’Edge Function et bouton `Créer test
+  cluster` pour transformer une niche consolidée en test d’exécution avec plan
+  H24/H48/H72.
 
 ### Décidé
 

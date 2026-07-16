@@ -588,6 +588,44 @@ export async function createEdgeExperiment(payload: {
   return response.json() as Promise<CreateEdgeExperimentResponse>;
 }
 
+export async function createEdgeClusterExperiment(payload: {
+  scan_id: string;
+  keyword: string;
+  title: string;
+  decision_label: "ATTAQUER" | "TESTER" | "VEILLE";
+  priority_score: number;
+  next_action: string;
+  success_criteria: string;
+  evidence_video_ids: string[];
+}) {
+  const response = await fetch(SCOUT_FUNCTION_URL, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      action: "create-cluster-experiment",
+      ...payload,
+    }),
+  });
+
+  if (!response.ok) {
+    let message = `La fonction Scout a repondu avec le statut ${response.status}.`;
+
+    try {
+      const errorPayload = (await response.json()) as { message?: string };
+      message = errorPayload.message || message;
+    } catch {
+      // Keep the status-based message when the Edge Function does not return JSON.
+    }
+
+    throw new Error(message);
+  }
+
+  return response.json() as Promise<CreateEdgeExperimentResponse>;
+}
+
 export async function updateEdgeExperiment(payload: {
   experiment_id: string;
   status: ExecutionExperimentSummary["status"];
