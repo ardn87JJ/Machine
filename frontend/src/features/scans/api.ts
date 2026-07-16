@@ -152,6 +152,11 @@ export interface ProductionPackContent {
       angle: string;
     }>;
     sourceExperimentId: string | null;
+    followup?: {
+      mode: "variant" | "pivot";
+      label: string;
+      sourceExperimentId: string | null;
+    };
   };
   factory?: {
     selectedTitle: string;

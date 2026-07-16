@@ -29,7 +29,7 @@ scorables, tests actionnables, drafts de production et apprentissages.
 
 - Depot Git : `ardn87JJ/Machine`
 - Branche : `main`
-- Dernier commit stable au depart de cette tranche : `f1fad73 Add cluster learning loop`
+- Dernier commit stable au depart de cette tranche : `47c22a4 Add cluster followup actions`
 - App publique : `https://ardn87jj.github.io/Machine/`
 - Supabase project ref : `uscmdnzbwvsjrocemset`
 - Edge Function active : `run-scout`
@@ -117,16 +117,12 @@ scorables, tests actionnables, drafts de production et apprentissages.
 - agir depuis la boucle cluster : `CONTINUER` cree un test de variante proche,
   `MESURER`/`PIVOTER` creent un test pivot d'angle, et un test cluster actif peut
   etre mis en pause avec une note de depriorisation dans l'historique decisionnel.
+- exploiter les follow-ups cluster dans Factory : les tests `variante proche` et
+  `pivot angle` sont reconnus comme cluster, affichent un badge dedie dans le Pack
+  Producteur et l'atelier Factory, et adaptent titres, hooks, checklist, montage,
+  prompt voix et export Markdown au mode de follow-up.
 
 ## Tranche en cours
-
-Brancher l'action suivante depuis la boucle cluster vers l'execution :
-
-- depuis `CONTINUER`, creer une variante proche du test gagnant ;
-- depuis `PIVOTER`, proposer un nouveau hook/angle sans recreer un scan ;
-- depuis `ABANDONNER`, masquer ou deprioriser la niche dans la file active.
-
-## Prochaine etape apres cette tranche
 
 Rendre les follow-ups cluster directement exploitables par Factory :
 
@@ -135,3 +131,11 @@ Rendre les follow-ups cluster directement exploitables par Factory :
 - injecter le mode follow-up dans les titres, hooks et checklist Factory ;
 - faire apparaitre les tests follow-up dans Optimizer comme une sous-famille de
   leur cluster source.
+
+## Prochaine etape apres cette tranche
+
+Rendre la sous-famille follow-up lisible dans Optimizer :
+
+- grouper les tests `variante proche` et `pivot angle` sous leur cluster source ;
+- afficher combien de follow-ups viennent d'un cluster et lesquels ont reussi ;
+- distinguer les tests initiaux cluster des tests de follow-up dans le backlog.

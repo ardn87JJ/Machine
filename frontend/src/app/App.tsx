@@ -2259,40 +2259,93 @@ function enrichProductionPackWithCluster(
 
   const clusterTitle = activeExperiment.keyword || opportunity?.keyword || pack.title;
   const keywords = extractClusterKeywords(activeExperiment, opportunity);
+  const followup = getClusterFollowup(activeExperiment);
   const variants = keywords.slice(0, 3).map((keyword, index) => ({
     keyword,
-    title: `${clusterTitle}: variante ${index + 1} sur ${keyword}`,
-    hook: `J'ai testé ${keyword} pour voir si ${clusterTitle} mérite d'être attaquée.`,
+    title: followup?.mode === "pivot"
+      ? `${clusterTitle}: pivot ${index + 1} sur ${keyword}`
+      : followup?.mode === "variant"
+        ? `${clusterTitle}: variante proche ${index + 1} sur ${keyword}`
+        : `${clusterTitle}: variante ${index + 1} sur ${keyword}`,
+    hook: followup?.mode === "pivot"
+      ? `J'ai changé l'angle sur ${keyword} pour voir si ${clusterTitle} peut repartir.`
+      : followup?.mode === "variant"
+        ? `J'ai repris le meilleur signal ${keyword} pour tester une variante plus directe.`
+        : `J'ai testé ${keyword} pour voir si ${clusterTitle} mérite d'être attaquée.`,
     angle:
-      index === 0
+      followup?.mode === "pivot"
+        ? index === 0
+          ? `Changer le hook principal de ${keyword} avec une promesse plus tranchée.`
+          : index === 1
+            ? `Changer le format de preuve sur ${keyword} sans relancer un scan.`
+            : `Tester une audience adjacente sur ${keyword} pour sauver le signal.`
+        : followup?.mode === "variant"
+          ? index === 0
+            ? `Doubler le meilleur hook de ${keyword} avec exécution plus rapide.`
+            : index === 1
+              ? `Produire une variante proche de ${keyword} avec preuve marché plus visible.`
+              : `Tester une déclinaison courte de ${keyword} avant volume.`
+          : index === 0
         ? `Copier le meilleur benchmark de ${keyword} avec une exécution plus claire.`
         : index === 1
           ? `Attaquer le concurrent faible repéré sur ${keyword} avec un hook plus rapide.`
           : `Tester un format adjacent sur ${keyword} pour mesurer le potentiel de série.`,
   }));
+  const followupLabel = followup ? ` Follow-up ${followup.label}:` : " Pack cluster:";
 
   return {
     ...pack,
-    status: `${pack.status} cluster`,
-    concept: `${pack.concept} Pack cluster: tester ${keywords.slice(0, 3).join(" / ")} comme variantes coordonnées.`,
+    status: `${pack.status} cluster${followup ? ` ${followup.label}` : ""}`,
+    concept: `${pack.concept}${followupLabel} tester ${keywords.slice(0, 3).join(" / ")} comme variantes coordonnées.`,
     hooks: Array.from(new Set([
       ...variants.map((variant) => variant.hook),
       ...pack.hooks,
     ])).slice(0, 6),
-    title: `${clusterTitle}: test cluster`,
-    description: `${pack.description} Variante cluster construite depuis ${keywords.join(", ")}.`,
+    title: followup?.mode === "pivot"
+      ? `${clusterTitle}: pivot cluster`
+      : followup?.mode === "variant"
+        ? `${clusterTitle}: variante proche cluster`
+        : `${clusterTitle}: test cluster`,
+    description: `${pack.description} ${followup ? `Follow-up ${followup.label}` : "Variante cluster"} construit depuis ${keywords.join(", ")}.`,
     cluster: {
       title: clusterTitle,
       keywords,
       variants,
       sourceExperimentId: activeExperiment.id,
+      followup: followup
+        ? {
+            ...followup,
+            sourceExperimentId: activeExperiment.id,
+          }
+        : undefined,
     },
   };
 }
 
 function isClusterExperiment(experiment: ExecutionExperimentSummary) {
-  return experiment.title.includes("opportunité consolidée") ||
-    experiment.next_action.toLowerCase().startsWith("tester la niche");
+  const title = experiment.title.toLowerCase();
+  const nextAction = experiment.next_action.toLowerCase();
+
+  return title.includes("opportunité consolidée") ||
+    title.includes("variante proche") ||
+    title.includes("pivot angle") ||
+    nextAction.startsWith("tester la niche") ||
+    nextAction.startsWith("continuer la niche") ||
+    nextAction.startsWith("pivoter la niche");
+}
+
+function getClusterFollowup(experiment: ExecutionExperimentSummary) {
+  const haystack = `${experiment.title} ${experiment.next_action}`.toLowerCase();
+
+  if (haystack.includes("variante proche") || haystack.startsWith("continuer la niche")) {
+    return { mode: "variant" as const, label: "variante proche" };
+  }
+
+  if (haystack.includes("pivot angle") || haystack.startsWith("pivoter la niche")) {
+    return { mode: "pivot" as const, label: "pivot angle" };
+  }
+
+  return null;
 }
 
 function normalizeClusterLearningKey(value: string) {
@@ -2541,8 +2594,9 @@ function ProducerConsole({
         </article>
         {pack.cluster ? (
           <article className="production-cluster">
-            <span>Variantes cluster</span>
+            <span>{pack.cluster.followup ? `Follow-up ${pack.cluster.followup.label}` : "Variantes cluster"}</span>
             <strong>{pack.cluster.title}</strong>
+            {pack.cluster.followup ? <p>{pack.cluster.followup.mode === "pivot" ? "Test pivot: changer angle, hook ou promesse sans relancer un scan." : "Variante proche: reprendre le meilleur signal et tester une exécution plus directe."}</p> : null}
             <ol>
               {pack.cluster.variants.map((variant) => (
                 <li key={variant.keyword}>
@@ -2617,6 +2671,7 @@ function buildFactoryVariants(draft: ProductionDraftSummary) {
   const keyword = draft.keyword;
   const baseTitle = draft.title;
   const firstHook = draft.content.hooks[0] ?? `J'ai teste ${keyword} pour voir si la niche tient.`;
+  const followup = draft.content.cluster?.followup;
   const clusterTitles = draft.content.cluster?.variants.map((variant) => variant.title) ?? [];
   const clusterHooks = draft.content.cluster?.variants.map((variant) => variant.hook) ?? [];
   const clusterChecklist = draft.content.cluster
@@ -2625,10 +2680,44 @@ function buildFactoryVariants(draft: ProductionDraftSummary) {
         "Comparer chaque variante avec le benchmark ou concurrent faible associé.",
       ]
     : [];
+  const followupTitles = followup
+    ? followup.mode === "variant"
+      ? [
+          `${keyword}: variante proche du signal gagnant`,
+          `${keyword}: même promesse, hook plus direct`,
+        ]
+      : [
+          `${keyword}: pivot angle pour sauver la niche`,
+          `${keyword}: nouveau hook, même marché`,
+        ]
+    : [];
+  const followupHooks = followup
+    ? followup.mode === "variant"
+      ? [
+          `Le premier test sur ${keyword} a donné un signal, voici la variante plus agressive.`,
+          `J'ai gardé ce qui marche sur ${keyword} et retiré tout le reste.`,
+        ]
+      : [
+          `Le premier angle ${keyword} n'était pas assez clair, donc je pivote.`,
+          `Même niche, promesse différente: est-ce que ${keyword} repart ?`,
+        ]
+    : [];
+  const followupChecklist = followup
+    ? followup.mode === "variant"
+      ? [
+          "Reprendre le meilleur signal du test précédent sans changer la promesse centrale.",
+          "Changer seulement hook, rythme ou preuve pour isoler l'impact.",
+        ]
+      : [
+          "Changer clairement l'angle éditorial avant publication.",
+          "Noter ce qui est conservé du test précédent et ce qui pivote.",
+        ]
+    : [];
 
   return {
     titles: Array.from(new Set([
       baseTitle,
+      ...followupTitles,
       ...clusterTitles,
       `${keyword}: le test qui decide si on attaque`,
       `J'ai analyse ${keyword}: opportunite ou piege ?`,
@@ -2636,12 +2725,14 @@ function buildFactoryVariants(draft: ProductionDraftSummary) {
     ])),
     hooks: Array.from(new Set([
       firstHook,
+      ...followupHooks,
       ...clusterHooks,
       `La plupart des createurs ratent ${keyword} pour une raison simple.`,
       `Si ce signal tient, ${keyword} devient une niche a tester maintenant.`,
       `J'ai trouve le point faible des contenus ${keyword}.`,
     ])),
     checklist: [
+      ...followupChecklist,
       ...clusterChecklist,
       "Choisir 1 hook principal et 1 hook de secours.",
       "Monter en vertical 9:16 avec sous-titres lisibles.",
@@ -2653,8 +2744,13 @@ function buildFactoryVariants(draft: ProductionDraftSummary) {
 }
 
 function buildMontagePlan(draft: ProductionDraftSummary, selectedTitle: string, selectedHook: string) {
+  const followup = draft.content.cluster?.followup;
   const clusterProof = draft.content.cluster
-    ? `Scene 2: preuve cluster sur ${draft.content.cluster.keywords.slice(0, 3).join(" / ")}, montrer les variantes avant 12 secondes.`
+    ? followup?.mode === "pivot"
+      ? `Scene 2: pivot cluster sur ${draft.content.cluster.keywords.slice(0, 3).join(" / ")}, montrer l'ancien angle puis le nouvel angle avant 12 secondes.`
+      : followup?.mode === "variant"
+        ? `Scene 2: variante proche sur ${draft.content.cluster.keywords.slice(0, 3).join(" / ")}, montrer ce qui est conservé du signal gagnant.`
+        : `Scene 2: preuve cluster sur ${draft.content.cluster.keywords.slice(0, 3).join(" / ")}, montrer les variantes avant 12 secondes.`
     : `Scene 2: preuve marche sur ${draft.keyword}, montrer le signal avant 12 secondes.`;
 
   return [
@@ -2666,8 +2762,13 @@ function buildMontagePlan(draft: ProductionDraftSummary, selectedTitle: string, 
 }
 
 function buildVoicePrompt(draft: ProductionDraftSummary, selectedHook: string) {
+  const followup = draft.content.cluster?.followup;
   const clusterInstruction = draft.content.cluster
-    ? `Mentionner que le test compare ${draft.content.cluster.keywords.slice(0, 3).join(", ")}.`
+    ? followup?.mode === "pivot"
+      ? `Dire clairement que ce test pivote l'angle sur ${draft.content.cluster.keywords.slice(0, 3).join(", ")}.`
+      : followup?.mode === "variant"
+        ? `Dire clairement que ce test est une variante proche du meilleur signal sur ${draft.content.cluster.keywords.slice(0, 3).join(", ")}.`
+        : `Mentionner que le test compare ${draft.content.cluster.keywords.slice(0, 3).join(", ")}.`
     : "";
 
   return [
@@ -2688,9 +2789,14 @@ function buildAssetQueue(
 ) {
   const montagePlan = buildMontagePlan(draft, selectedTitle, selectedHook);
   const voicePrompt = buildVoicePrompt(draft, selectedHook);
+  const followup = draft.content.cluster?.followup;
   const screenTexts = [
     selectedHook,
-    `Preuve marche: ${draft.keyword}`,
+    followup?.mode === "pivot"
+      ? `Pivot angle: ${draft.keyword}`
+      : followup?.mode === "variant"
+        ? `Variante proche: ${draft.keyword}`
+        : `Preuve marche: ${draft.keyword}`,
     selectedTitle,
     draft.content.cta,
   ];
@@ -2764,6 +2870,7 @@ function formatAssetMarkdown(draft: ProductionDraftSummary, asset: ProductionAss
 
 function formatFactoryMarkdown(draft: ProductionDraftSummary, content: ProductionPackContent) {
   const factory = content.factory;
+  const followup = content.cluster?.followup;
   const assets = factory?.assets ?? buildAssetQueue(
     draft,
     factory?.selectedTitle ?? content.title,
@@ -2775,6 +2882,7 @@ function formatFactoryMarkdown(draft: ProductionDraftSummary, content: Productio
     "",
     `Niche: ${draft.keyword}`,
     `Statut draft: ${draft.status}`,
+    followup ? `Follow-up: ${followup.label}` : "",
     "",
     "## Concept",
     content.concept,
@@ -2912,7 +3020,7 @@ function ProductionDraftsPanel({
             <p>{draft.content.concept}</p>
             {cluster ? (
               <p className="draft-cluster-source">
-                Cluster {cluster.title} · {cluster.keywords.slice(0, 3).join(" / ")} · {cluster.variants.length} variantes
+                Cluster {cluster.title} · {cluster.followup ? `${cluster.followup.label} · ` : ""}{cluster.keywords.slice(0, 3).join(" / ")} · {cluster.variants.length} variantes
               </p>
             ) : null}
             {experiment ? (
@@ -3297,12 +3405,18 @@ function ContentFactoryWorkbench({
       {draft.content.cluster ? (
         <div className="factory-cluster-source">
           <div>
-            <span>Source cluster</span>
+            <span>{draft.content.cluster.followup ? "Source follow-up" : "Source cluster"}</span>
             <strong>{draft.content.cluster.title}</strong>
             <small>{draft.content.cluster.keywords.join(" / ")}</small>
           </div>
-          <span className="origin-badge origin-badge--cluster">CLUSTER</span>
-          <small>{draft.content.cluster.variants.length} variantes coordonnées dans titres, hooks et assets.</small>
+          <span className="origin-badge origin-badge--cluster">
+            {draft.content.cluster.followup?.label ?? "CLUSTER"}
+          </span>
+          <small>
+            {draft.content.cluster.followup
+              ? `${draft.content.cluster.followup.mode === "pivot" ? "Pivot d'angle" : "Variante proche"} injecté dans titres, hooks, checklist et assets.`
+              : `${draft.content.cluster.variants.length} variantes coordonnées dans titres, hooks et assets.`}
+          </small>
         </div>
       ) : null}
 

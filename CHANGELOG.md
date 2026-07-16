@@ -136,6 +136,9 @@ Le format suit les principes de [Keep a Changelog](https://keepachangelog.com/fr
   `variante proche` pour continuer, création d’un test `pivot angle` pour
   pivoter ou mesurer, et mise en pause d’un test cluster actif pour déprioriser
   une niche.
+- Factory enrichie pour les follow-ups cluster : reconnaissance des tests
+  `variante proche` / `pivot angle`, badge dédié dans Producteur/Factory,
+  titres, hooks, checklist, montage, voix et export Markdown adaptés au mode.
 
 ### Décidé
 
